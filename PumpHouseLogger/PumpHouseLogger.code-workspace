@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "ESP8266-WiFi",
+			"path": "ESP8266-WiFi"
+		},
+		{
+			"name": "UNO-MCU",
+			"path": "UNO-MCU"
+		}
+	],
+	"settings": {}
+}
