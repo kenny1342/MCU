@@ -12,5 +12,14 @@
 			"path": "UNO-MCU"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"terminal.integrated.env.linux": {
+			"PATH": "/home/kenny/.platformio/penv/bin:/home/kenny/.platformio/penv:/home/kenny/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/kenny/JRE/bin",
+			"PLATFORMIO_CALLER": "vscode"
+		},
+		"files.associations": {
+			"functional": "cpp",
+			"random": "cpp"
+		}
+	}
 }
