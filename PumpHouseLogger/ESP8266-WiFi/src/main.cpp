@@ -7,21 +7,18 @@
  * Kenny Dec 19, 2020
  */
 #include <ESP8266WiFi.h>
-#include <main.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
+#include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
-const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpHouseLogger (MCU ESP8266) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpHouseLogger (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 
-const int sw_rst = PIN_SW_RST;
-const int led_1 = PIN_LED_1;
-
-int app_button1 = 0;
+int blynk_button_V2 = 0;
 
 const char auth[] = BLYNK_TOKEN;
 char json_output[200];
@@ -42,16 +39,16 @@ BLYNK_CONNECTED() {
 
 // When App button is pushed - switch the state
 BLYNK_WRITE(V2) {
-  app_button1 = param.asInt();
-  digitalWrite(led_1, app_button1);
+  blynk_button_V2 = param.asInt();
+  digitalWrite(PIN_LED_1, blynk_button_V2);
 }
 
 ESP8266WebServer server(80);
 
 void setup(void) {
-  pinMode(led_1, OUTPUT);
-  digitalWrite(led_1, 0);
-  pinMode(sw_rst, INPUT); // reset button
+  pinMode(PIN_LED_1, OUTPUT);
+  digitalWrite(PIN_LED_1, 0);
+  pinMode(PIN_SW_RST, INPUT); // reset button
 
   Serial.begin(115200);
 
@@ -72,10 +69,10 @@ void setup(void) {
   wifiManager.setBreakAfterConfig(true);
 
   //reset settings if button pressed
-  if(digitalRead(sw_rst) == LOW) {
+  if(digitalRead(PIN_SW_RST) == LOW) {
     Serial.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
     delay(5000);
-    if(digitalRead(sw_rst) == LOW) {
+    if(digitalRead(PIN_SW_RST) == LOW) {
       Serial.println(F("reset button still pressed, all settings reset to default!"));
       delay(1000);
       wifiManager.resetSettings();
@@ -156,6 +153,7 @@ void ReconnectWiFi() {
     while (WiFi.status() != WL_CONNECTED) {  
         delay(500);  
         Serial.print(".");
+        digitalWrite(PIN_LED_1, !digitalRead(PIN_LED_1));
     }  
     Serial.println("Connected!");
 } 
@@ -186,49 +184,6 @@ int readline(int readch, char *buffer, int len) {
     return 0;
 }
 
-void handleRoot() {
-  digitalWrite(led_1, 1);
-
-  String message = "<html><head></head><body>\n";
-  message += "<h1>PumpHouseLogger</h1><br />";
-  message += "Using LM335 on ADC0<br /><br />\n";
-  message += "Temperature: <b>";
-  message += celsius;
-  message += " &deg;C</b><br />\n";
-  message += "Pressure: <b>";
-  message += pressure_bar;
-  message += " Bar</b><br /><br />\n";
-  message += "Output as JSON: <a href='/json'>/json</a><br />\n";
-  message += "Reset WiFi settings: (will reboot as AP)<a href='/reset'>/reset</a><br />\n";
-  message += "Uptime (secs): ";
-  message += millis()/1000;
-  message += "<br /><hr />Made by Ken-Roger Andersen, Dec 2020";
-  server.send(200, "text/html", message);
-  digitalWrite(led_1, 0);
-}
-
-void handleJSON() {
-  digitalWrite(led_1, 1);
-  server.send(200, "application/json", json_output);
-  digitalWrite(led_1, 0);
-}
-
-void handleNotFound() {
-  digitalWrite(led_1, 1);
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
-  digitalWrite(led_1, 0);
-}
 
 void loop(void) {
   unsigned long currentMillis = millis();
@@ -251,7 +206,7 @@ void loop(void) {
   }
 
   if (currentMillis - previousMillis_200 >= 200L) { // update Blynk every 200ms
-    Blynk.virtualWrite(V2, digitalRead(led_1));
+    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
     previousMillis_200 = currentMillis;
   }
 
@@ -267,7 +222,7 @@ void loop(void) {
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
   if (readline(Serial.read(), data_string, 200) > 0) {
-
+    digitalWrite(PIN_LED_1, 1);
     const char* json_input = data_string;  
     // Deserialize the JSON document (zero-copy method)
     DeserializationError error = deserializeJson(data_json, json_input);
@@ -284,12 +239,11 @@ void loop(void) {
       dtostrf(data_json["temp_c"][0].as<float>(), 3, 1, celsius);
       dtostrf(data_json["pressure_bar"][0].as<float>(), 3, 1, pressure_bar);
     }
-
-
-
+    
+    // Push new values to Blynk server
     Blynk.virtualWrite(V0, pressure_bar);
     Blynk.virtualWrite(V1, celsius);
-    
+    digitalWrite(PIN_LED_1, 0);
   }
 
 }
