@@ -17,7 +17,7 @@ const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 SoftwareSerial Serial_esp8266(2, 3); // RX, TX
 static sensors_type SENSORS ;
-const int interval = 500;   // interval at which to send data (millisecs)
+const int interval = 800;   // interval at which to send data (millisecs)
 String dataString = "no data";
 StaticJsonDocument<200> doc;
  
@@ -99,9 +99,10 @@ void loop() // run over and over
       delay(1);
     }
     SENSORS.adc_temp_1 /= ADC_SAMPLE_COUNT;
-    // Read analog voltage and convert it to Kelvin (0.488 = 500/1024) and subtract Kelvin zer (273.15)
-    tmp = ((SENSORS.adc_temp_1 * 0.488) * 10L)  - 273.15;
+    // Read analog voltage and convert it to Kelvin (0.489 = 500/1023) and subtract Kelvin zer (273.15)
+    tmp = ((SENSORS.adc_temp_1 * 0.489) * 10L)  - 273.15;
 
+    Serial.println(SENSORS.adc_temp_1);
     data = doc.createNestedArray("temp_c");
 
     if(tmp < 10000) { // make sure we don't exceed 4 chars (1 decimals), else we corrupt SRAM and everything crashes
