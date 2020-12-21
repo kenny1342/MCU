@@ -21,10 +21,19 @@ Data is gathered by ATmega using ADC0/1, then encoded as JSON and sent to ESP (b
 When ESP recieves a complete, parsable JSON string, it makes the complete JSON available via HTTP (URL /json) and a simple summary page. It also pushes the values to Blynk server.\
 Token used by Blynk login must be defined in main.h (as generated in the app).
 
+## Firmware
+Written in C++ using Arduino Core SDK, AVRDude compiler (ATmega), ESP build tools
+
+
+## Tools
+
+* Visual Code
+** PlatformIO extension
+
 
 ## Configuration
 
-I use WiFi Manager library for easy WiFi configuration on the ESP. (https://github.com/tzapu/WiFiManager)\
+I use WiFi Manager library for easy WiFi configuration on the ESP (https://github.com/tzapu/WiFiManager).\
 Reset of WiFi settings: press the button on the board while connecting power, hold for 5+ secs and release.\
 The board will now become an AP with SSID "KRATECH-AP". Connect to it, open 192.168.1.4 in the browser and configure WiFi settings.
 
@@ -32,6 +41,7 @@ Link to board: https://robotdyn.com/uno-wifi-r3-atmega328p-esp8266-32mb-flash-us
 
 ## Future plans
 - [ ] Control the water pump
+- [ ] Upgrade to use a single ESP32 MCU (replace both)
 - [ ] Change interconnection from serial to I2C or SPI
 
 
