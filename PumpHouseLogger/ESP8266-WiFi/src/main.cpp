@@ -15,6 +15,9 @@
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
 
+// store long global string in flash (put the pointers to PROGMEM)
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpHouseLogger (MCU ESP8266) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+
 const int sw_rst = PIN_SW_RST;
 const int led_1 = PIN_LED_1;
 
@@ -29,6 +32,7 @@ char pressure_bar[4];
 StaticJsonDocument<200> data_json;
 uint32_t previousMillis = 0; 
 uint32_t previousMillis_200 = 0; 
+uint16_t reconnects_wifi = 0;
 
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
@@ -40,7 +44,6 @@ BLYNK_CONNECTED() {
 BLYNK_WRITE(V2) {
   app_button1 = param.asInt();
   digitalWrite(led_1, app_button1);
-  //digitalWrite(led_1, !digitalRead(led_1));
 }
 
 ESP8266WebServer server(80);
@@ -53,7 +56,9 @@ void setup(void) {
   Serial.begin(115200);
 
   Serial.println("");
-  Serial.println(F("PumpHouseLogger v1.0, Kenny 2020"));
+  Serial.println("initializing...");
+  Serial.println(FPSTR(FIRMWARE_VERSION_LONG));
+  Serial.println("Made by Ken-Roger Andersen, 2020");
   Serial.println("");
   Serial.println(F("To reset, press button for 5+ secs while powering on"));
   Serial.println("");
@@ -81,7 +86,6 @@ void setup(void) {
     
   }
   
-
   Serial.print("SSID: ");
   Serial.println(WiFi.SSID());
   Serial.print("PW:");
@@ -89,7 +93,6 @@ void setup(void) {
 
   //fetches ssid and pass from eeprom and tries to connect
   //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP" with password "password"
   //and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect("KRATECH-AP", "password")) {
     Serial.println(F("failed to connect, we should reset as see if it connects"));
@@ -127,7 +130,6 @@ void setup(void) {
   Serial.println("HTTP server started");
 }
 
-
 void ConnectBlynk() {
   Serial.print(F("Connecting to Blynk servers (timeout 10 sec), token="));
   Serial.println(auth);
@@ -144,7 +146,24 @@ void ConnectBlynk() {
 
 }
 
+void ReconnectWiFi() {  
 
+    reconnects_wifi++;
+    Serial.print("Reconnecting to ");
+    Serial.print(WiFi.SSID());
+    WiFi.mode(WIFI_STA);  
+    WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());  
+    while (WiFi.status() != WL_CONNECTED) {  
+        delay(500);  
+        Serial.print(".");
+    }  
+    Serial.println("Connected!");
+} 
+
+/**
+ * Read chars from Serial until newline and put string in buffer
+ * 
+ */
 int readline(int readch, char *buffer, int len) {
     static int pos = 0;
     int rpos;
@@ -184,22 +203,6 @@ void handleRoot() {
   message += "Uptime (secs): ";
   message += millis()/1000;
   message += "<br /><hr />Made by Ken-Roger Andersen, Dec 2020";
-/*
-message += "<br />data_string: ";
-message += data_string;
-message += "<br />json_output: ";
-message += json_output;
-
-message += "<br />d: ";
-const char *d1 = json_output;
-message += d1;
-
-message += "<br />d2: ";
-const char *d2 = data_string;
-message += d2;
-message += "<br />String(json_output): ";
-message += String(json_output);
-*/
   server.send(200, "text/html", message);
   digitalWrite(led_1, 0);
 }
@@ -228,11 +231,24 @@ void handleNotFound() {
 }
 
 void loop(void) {
+  unsigned long currentMillis = millis();
+  int wifitries = 0;
 
   server.handleClient();
   MDNS.update();
   Blynk.run();
-  unsigned long currentMillis = millis();
+
+  while ((WiFi.status() != WL_CONNECTED))
+  {
+      ReconnectWiFi();
+      wifitries++;
+      delay(1000);
+
+      if (wifitries == 5)
+      {
+          return;
+      }
+  }
 
   if (currentMillis - previousMillis_200 >= 200L) { // update Blynk every 200ms
     Blynk.virtualWrite(V2, digitalRead(led_1));

@@ -11,7 +11,7 @@
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 
-// put the pointers to PROGMEM
+// store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "PumpHouseLogger (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
@@ -32,7 +32,8 @@ void setup()
 
   Serial.println("initializing...");
   Serial.println( (__FlashStringHelper*)pgm_read_word(FIRMWARE_VERSION_LONG + 0)) ;
-
+  Serial.println("Made by Ken-Roger Andersen, 2020");
+  Serial.println("");
   // set the data rate for the SoftwareSerial port
   Serial_esp8266.begin(115200);
   Serial_esp8266.println("uno initializing...");
