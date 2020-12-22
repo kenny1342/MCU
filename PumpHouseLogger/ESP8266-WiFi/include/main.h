@@ -3,7 +3,7 @@
 #define __MAIN_H
 
 #define FIRMWARE_VERSION    "0.10"
-#define BLYNK_TOKEN         "YvC4EfhIoGyWjgxEumhj-txdtwooSyg4"  // Auth Token from project in the Blynk App
+// #define BLYNK_TOKEN         "YvC4EfhIoGyWjgxEumhj-txdtwooSyg4"  // Auth Token from project in the Blynk App
 #define PIN_SW_RST          13
 #define PIN_LED_1           14
 
