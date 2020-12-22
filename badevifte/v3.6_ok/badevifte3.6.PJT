@@ -1,0 +1,36 @@
+[PROJECT]
+Target=badevifte3.6.HEX
+Development_Mode=2
+Processor=0x876F
+ToolSuite=CCS
+Processor_Text=PIC16F876
+
+[Directories]
+Include=
+Library=
+LinkerScript=
+
+[Target Data]
+FileList=\\192.168.30.13\storage\Elektronikk\PIC\badevifte\badevifte3.6.c
+BuildTool=C-COMPILER
+OptionString=+FM
+AdditionalOptionString=
+BuildRequired=1
+
+[badevifte3.6.c]
+Type=4
+Path=
+FileList=
+BuildTool=
+OptionString=
+AdditionalOptionString=
+
+[mru-list]
+1=B1TM0J~6.C
+
+[Windows]
+0=0000 B1TM0J~6.C 0 0 796 451 3 0
+
+[Units]
+Count=1
+1=badevifte3.6.c (main)

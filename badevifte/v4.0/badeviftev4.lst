@@ -1,0 +1,5049 @@
+CCS PCM C Compiler, Version 4.013, 28193               20-nov-07 22:39
+
+               Filename: \\192.168.30.13\storage\Elektronikk\PIC\badevifte\badeviftev4.lst
+
+               ROM used: 4789 words (58%)
+                         Largest free fragment is 2048
+               RAM used: 35 (10%) at main() level
+                         119 (32%) worst case
+               Stack:    7 worst case (5 in main + 2 for interrupts)
+
+*
+0000:  MOVLW  08
+0001:  MOVWF  0A
+0002:  GOTO   6C9
+0003:  NOP
+0004:  MOVWF  7F
+0005:  SWAPF  03,W
+0006:  CLRF   03
+0007:  MOVWF  21
+0008:  MOVF   0A,W
+0009:  MOVWF  20
+000A:  CLRF   0A
+000B:  MOVF   04,W
+000C:  MOVWF  22
+000D:  MOVF   77,W
+000E:  MOVWF  23
+000F:  MOVF   78,W
+0010:  MOVWF  24
+0011:  MOVF   79,W
+0012:  MOVWF  25
+0013:  MOVF   7A,W
+0014:  MOVWF  26
+0015:  MOVF   7B,W
+0016:  MOVWF  27
+0017:  BCF    03.7
+0018:  BCF    03.5
+0019:  BTFSS  0B.5
+001A:  GOTO   01D
+001B:  BTFSC  0B.2
+001C:  GOTO   030
+001D:  MOVF   22,W
+001E:  MOVWF  04
+001F:  MOVF   23,W
+0020:  MOVWF  77
+0021:  MOVF   24,W
+0022:  MOVWF  78
+0023:  MOVF   25,W
+0024:  MOVWF  79
+0025:  MOVF   26,W
+0026:  MOVWF  7A
+0027:  MOVF   27,W
+0028:  MOVWF  7B
+0029:  MOVF   20,W
+002A:  MOVWF  0A
+002B:  SWAPF  21,W
+002C:  MOVWF  03
+002D:  SWAPF  7F,F
+002E:  SWAPF  7F,W
+002F:  RETFIE
+0030:  BCF    0A.3
+0031:  BCF    0A.4
+0032:  GOTO   19F
+.................... /** 
+.................... Datastyring for baderomsvifte, basert på relativ luftfuktighet (HIH3610 sensor) og temperatur (NTC sensor). 
+....................  
+.................... Ken-Roger Andersen Oktober 2007 <ken.roger@gmail.com> 
+....................  
+.................... v3.14: Flyttet NTC og LCD funksjoner til egne include filer 
+.................... v3.13: Bug i interrupt timing, kjørte kode hvert halve sekund istedet for hele sekund...  (endret count fra 31 til 61) 
+.................... v3.12: Div bugfix. Fjernet igjen blink av ON i display når fan ON 
+.................... v3.11: Endret modus "show settings" til modus DELAYED RUN. Lagt inn "show settings" hvis knapp trykt inn ca 2 sek istedet. 
+.................... v3.10: Div bugfix av 3.9 features... 
+.................... v3.9: La inn blink av ON i display når fan ON, div bugfix 
+.................... v3.8: Justert NTC_RN fra 1000 til 932 (viste ca 2 grader for mye). 
+.................... v3.7: Lagt til jumper RH grense default eller høy (default + 10%) 
+.................... v3.6: Cleanup i source koden 
+.................... v3.5: Funksjon for reboot når knappen holdes inne > 3,9 sekunder 
+.................... v2.3: Lagt inn ny B verdi for NTC. Flytting handling av knappen til "slipp opp" istedet for trykk. 
+.................... v2.2: Lagt inn temperatur sensor (NTC 1k@25°C) + menyvalget for visning av settings 
+.................... v1.5: Fjernet OK knappen for valg av modus. Modus velges kun med 1 knapp, den øker sekvensielt for hvert trykk til denne modusen. 
+.................... v1.0: Proof of concept, bygging og feilsøking av hardware 
+....................  
+.................... Datasheets: 
+.................... hih3610.pdf 
+.................... PIC16F87X.pdf 
+.................... HD44780.pdf 
+.................... */ 
+....................  
+.................... #include <16F876.H> 
+.................... //////// Standard Header file for the PIC16F876 device //////////////// 
+.................... #device PIC16F876 
+.................... #list 
+....................  
+....................  
+.................... #device ADC=10 
+....................  
+.................... #include <kenny.h>	// Defines used in all my projects 
+.................... #case 
+....................  
+.................... #ifndef TRUE 
+.................... #define TRUE 1 
+.................... #endif 
+....................  
+.................... #ifndef FALSE 
+.................... #define FALSE 0 
+.................... #endif 
+....................  
+.................... #ifndef YES 
+.................... #define YES 1 
+.................... #endif 
+....................  
+.................... #ifndef NO 
+.................... #define NO 0 
+.................... #endif 
+....................  
+.................... #ifndef HIGH 
+.................... #define HIGH 1 
+.................... #endif 
+....................  
+.................... #ifndef LOW 
+.................... #define LOW 0 
+.................... #endif 
+....................  
+.................... #ifndef ON 
+.................... #define ON 1 
+.................... #endif 
+....................  
+.................... #ifndef OFF 
+.................... #define OFF 0 
+.................... #endif 
+....................  
+.................... #ifndef UP 
+.................... #define UP 1 
+.................... #endif 
+....................  
+.................... #ifndef DOWN 
+.................... #define DOWN 0 
+.................... #endif 
+....................  
+.................... #ifndef UCHAR 
+.................... #define UCHAR char 
+.................... #endif 
+....................  
+.................... #ifndef UINT 
+.................... #define UINT long 
+.................... #endif 
+....................  
+.................... #ifndef BIT 
+.................... #define BIT short 
+.................... #endif 
+....................  
+.................... #ifndef SCHAR 
+.................... #define SCHAR signed int 
+.................... #endif 
+....................  
+.................... #ifndef SINT 
+.................... #define SINT signed long 
+.................... #endif 
+....................  
+.................... #ifndef FLOAT 
+.................... #define FLOAT float 
+.................... #endif 
+....................  
+.................... #include <math.h>	// C math operations (NTC routines uses §log 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... ////        (C) Copyright 1996,2003 Custom Computer Services            //// 
+.................... //// This source code may only be used by licensed users of the CCS C   //// 
+.................... //// compiler.  This source code may only be distributed to other       //// 
+.................... //// licensed users of the CCS C compiler.  No other use, reproduction  //// 
+.................... //// or distribution is permitted without written permission.           //// 
+.................... //// Derivative programs created using this software in object code     //// 
+.................... //// form are not restricted in any way.                                //// 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... ////                                                                    //// 
+.................... //// History:                                                           //// 
+.................... ////  * 9/20/2001 :  Improvments are made to sin/cos code.              //// 
+.................... ////                 The code now is small, much faster,                //// 
+.................... ////                 and more accurate.                                 //// 
+.................... ////                                                                    //// 
+.................... //////////////////////////////////////////////////////////////////////////// 
+....................  
+.................... #ifndef MATH_H 
+.................... #define MATH_H 
+....................  
+.................... #ifdef PI 
+.................... #undef  PI 
+.................... #endif 
+.................... #define PI     3.141592654 
+....................  
+....................  
+.................... #define SQRT2  1.41421356 
+....................  
+.................... //float const ps[4] = {5.9304945, 21.125224, 8.9403076, 0.29730279}; 
+.................... //float const qs[4] = {1.0000000, 15.035723, 17.764134, 2.4934718}; 
+....................  
+.................... ///////////////////////////// Round Functions ////////////////////////////// 
+....................  
+.................... float CEIL_FLOOR(float x, int n) 
+.................... { 
+....................    float y, res; 
+....................    long l; 
+....................    int1 s; 
+....................  
+....................    s = 0; 
+....................    y = x; 
+....................  
+....................    if (x < 0) 
+....................    { 
+....................       s = 1; 
+....................       y = -y; 
+....................    } 
+....................  
+....................    if (y <= 32768.0) 
+....................   res = (float)(long)y; 
+....................  
+....................  else if (y < 10000000.0) 
+....................    { 
+....................   l = (long)(y/32768.0); 
+....................       y = 32768.0*(y/32768.0 - (float)l); 
+....................   res = 32768.0*(float)l; 
+....................   res += (float)(long)y; 
+....................  } 
+....................  
+....................  else 
+....................   res = y; 
+....................  
+....................  y = y - (float)(long)y; 
+....................  
+....................  if (s) 
+....................   res = -res; 
+....................  
+....................  if (y != 0) 
+....................  { 
+....................   if (s == 1 && n == 0) 
+....................    res -= 1.0; 
+....................  
+....................   if (s == 0 && n == 1) 
+....................    res += 1.0; 
+....................  } 
+....................  if (x == 0) 
+....................     res = 0; 
+....................  
+....................  return (res); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float floor(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : rounds down the number x. 
+.................... // Date : N/A 
+.................... // 
+.................... float floor(float x) 
+.................... { 
+....................    return CEIL_FLOOR(x, 0); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float ceil(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : rounds up the number x. 
+.................... // Date : N/A 
+.................... // 
+.................... float ceil(float x) 
+.................... { 
+....................    return CEIL_FLOOR(x, 1); 
+.................... } 
+....................  
+....................  //////////////////////////////////////////////////////////////////////////// 
+.................... //	float fabs(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : Computes the absolute value of floating point number x 
+.................... // Returns : returns the absolute value of x 
+.................... // Date : N/A 
+.................... // 
+.................... #define fabs abs 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float fmod(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : Computes the floating point remainder of x/y 
+.................... // Returns : returns the value of x= i*y, for some integer i such that, if y 
+.................... // is non zero, the result has the same isgn of x na dmagnitude less than the 
+.................... // magnitude of y. If y is zero then a domain error occurs. 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float fmod(float x,float y) 
+.................... { 
+....................    float i; 
+....................    if (y!=0.0) 
+....................    { 
+....................       i=(x/y < 0.0)? ceil(x/y): floor(x/y); 
+....................       return(x-(i*y)); 
+....................    } 
+....................    else 
+....................    { 
+....................    #ifdef _ERRNO 
+....................    { 
+....................       errno=EDOM; 
+....................    } 
+....................    #endif 
+....................    } 
+.................... } 
+....................  
+.................... //////////////////// Exponential and logarithmic functions //////////////////// 
+....................  
+.................... #define LN2 0.6931471806 
+....................  
+.................... float const pe[6] = {0.000207455774, 0.00127100575, 0.00965065093, 
+....................                      0.0554965651,  0.240227138,  0.693147172}; 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float exp(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the value (e^x) 
+.................... // Date : N/A 
+.................... // 
+.................... float exp(float x) 
+.................... { 
+....................    float y, res, r; 
+....................    signed int n; 
+....................    int1 s; 
+....................    #ifdef _ERRNO 
+....................    if(x > 88.722838) 
+....................    { 
+....................       errno=ERANGE; 
+....................       return(0); 
+....................    } 
+....................    #endif 
+....................    n = (signed long)(x/LN2); 
+....................    s = 0; 
+....................    y = x; 
+....................  
+....................    if (x < 0) 
+....................    { 
+....................       s = 1; 
+....................       n = -n; 
+....................       y = -y; 
+....................    } 
+....................  
+....................    res = 0.0; 
+....................    *(&res) = n + 0x7F; 
+....................  
+....................    y = y/LN2 - (float)n; 
+....................  
+....................    r = pe[0]*y + pe[1]; 
+....................    r = r*y + pe[2]; 
+....................    r = r*y + pe[3]; 
+....................    r = r*y + pe[4]; 
+....................    r = r*y + pe[5]; 
+....................  
+....................    res = res*(1.0 + y*r); 
+....................  
+....................    if (s) 
+....................       res = 1.0/res; 
+....................    return(res); 
+.................... } 
+....................  
+.................... /************************************************************/ 
+....................  
+.................... float const pl[4] = {0.45145214, -9.0558803, 26.940971, -19.860189}; 
+.................... float const ql[4] = {1.0000000,  -8.1354259, 16.780517, -9.9300943}; 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float log(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the the natural log of x 
+.................... // Date : N/A 
+.................... // 
+.................... float log(float x) 
+.................... { 
+....................    float y, res, r, y2; 
+....................    signed n; 
+....................    #ifdef _ERRNO 
+....................    if(x <0) 
+....................    { 
+....................       errno=EDOM; 
+....................    } 
+....................    if(x ==0) 
+....................    { 
+....................       errno=ERANGE; 
+....................       return(0); 
+....................    } 
+....................    #endif 
+....................    y = x; 
+*
+09E5:  MOVF   65,W
+09E6:  MOVWF  69
+09E7:  MOVF   64,W
+09E8:  MOVWF  68
+09E9:  MOVF   63,W
+09EA:  MOVWF  67
+09EB:  MOVF   62,W
+09EC:  MOVWF  66
+....................  
+....................    if (y != 1.0) 
+09ED:  MOVF   69,W
+09EE:  BSF    03.5
+09EF:  MOVWF  23
+09F0:  BCF    03.5
+09F1:  MOVF   68,W
+09F2:  BSF    03.5
+09F3:  MOVWF  22
+09F4:  BCF    03.5
+09F5:  MOVF   67,W
+09F6:  BSF    03.5
+09F7:  MOVWF  21
+09F8:  BCF    03.5
+09F9:  MOVF   66,W
+09FA:  BSF    03.5
+09FB:  MOVWF  20
+09FC:  CLRF   27
+09FD:  CLRF   26
+09FE:  CLRF   25
+09FF:  MOVLW  7F
+0A00:  MOVWF  24
+0A01:  BCF    0A.3
+0A02:  BCF    03.5
+0A03:  CALL   6A8
+0A04:  BSF    0A.3
+0A05:  BTFSC  03.2
+0A06:  GOTO   4C0
+....................    { 
+....................       *(&y) = 0x7E; 
+0A07:  CLRF   7A
+0A08:  MOVLW  66
+0A09:  MOVWF  04
+0A0A:  BCF    03.7
+0A0B:  BTFSC  7A.0
+0A0C:  BSF    03.7
+0A0D:  MOVLW  7E
+0A0E:  MOVWF  00
+....................  
+....................       y = (y - 1.0)/(y + 1.0); 
+0A0F:  BSF    03.1
+0A10:  MOVF   69,W
+0A11:  BSF    03.5
+0A12:  MOVWF  27
+0A13:  BCF    03.5
+0A14:  MOVF   68,W
+0A15:  BSF    03.5
+0A16:  MOVWF  26
+0A17:  BCF    03.5
+0A18:  MOVF   67,W
+0A19:  BSF    03.5
+0A1A:  MOVWF  25
+0A1B:  BCF    03.5
+0A1C:  MOVF   66,W
+0A1D:  BSF    03.5
+0A1E:  MOVWF  24
+0A1F:  CLRF   2B
+0A20:  CLRF   2A
+0A21:  CLRF   29
+0A22:  MOVLW  7F
+0A23:  MOVWF  28
+0A24:  BCF    0A.3
+0A25:  BCF    03.5
+0A26:  CALL   484
+0A27:  BSF    0A.3
+0A28:  MOVF   77,W
+0A29:  BSF    03.5
+0A2A:  MOVWF  20
+0A2B:  MOVF   78,W
+0A2C:  MOVWF  21
+0A2D:  MOVF   79,W
+0A2E:  MOVWF  22
+0A2F:  MOVF   7A,W
+0A30:  MOVWF  23
+0A31:  BCF    03.1
+0A32:  BCF    03.5
+0A33:  MOVF   69,W
+0A34:  BSF    03.5
+0A35:  MOVWF  27
+0A36:  BCF    03.5
+0A37:  MOVF   68,W
+0A38:  BSF    03.5
+0A39:  MOVWF  26
+0A3A:  BCF    03.5
+0A3B:  MOVF   67,W
+0A3C:  BSF    03.5
+0A3D:  MOVWF  25
+0A3E:  BCF    03.5
+0A3F:  MOVF   66,W
+0A40:  BSF    03.5
+0A41:  MOVWF  24
+0A42:  CLRF   2B
+0A43:  CLRF   2A
+0A44:  CLRF   29
+0A45:  MOVLW  7F
+0A46:  MOVWF  28
+0A47:  BCF    0A.3
+0A48:  BCF    03.5
+0A49:  CALL   484
+0A4A:  BSF    0A.3
+0A4B:  BSF    03.5
+0A4C:  MOVF   23,W
+0A4D:  MOVWF  27
+0A4E:  MOVF   22,W
+0A4F:  MOVWF  26
+0A50:  MOVF   21,W
+0A51:  MOVWF  25
+0A52:  MOVF   20,W
+0A53:  MOVWF  24
+0A54:  MOVF   7A,W
+0A55:  MOVWF  2B
+0A56:  MOVF   79,W
+0A57:  MOVWF  2A
+0A58:  MOVF   78,W
+0A59:  MOVWF  29
+0A5A:  MOVF   77,W
+0A5B:  MOVWF  28
+0A5C:  BCF    0A.3
+0A5D:  BCF    03.5
+0A5E:  CALL   341
+0A5F:  BSF    0A.3
+0A60:  MOVF   7A,W
+0A61:  MOVWF  69
+0A62:  MOVF   79,W
+0A63:  MOVWF  68
+0A64:  MOVF   78,W
+0A65:  MOVWF  67
+0A66:  MOVF   77,W
+0A67:  MOVWF  66
+....................  
+....................       y2=y*y; 
+0A68:  MOVF   69,W
+0A69:  BSF    03.5
+0A6A:  MOVWF  23
+0A6B:  BCF    03.5
+0A6C:  MOVF   68,W
+0A6D:  BSF    03.5
+0A6E:  MOVWF  22
+0A6F:  BCF    03.5
+0A70:  MOVF   67,W
+0A71:  BSF    03.5
+0A72:  MOVWF  21
+0A73:  BCF    03.5
+0A74:  MOVF   66,W
+0A75:  BSF    03.5
+0A76:  MOVWF  20
+0A77:  BCF    03.5
+0A78:  MOVF   69,W
+0A79:  BSF    03.5
+0A7A:  MOVWF  27
+0A7B:  BCF    03.5
+0A7C:  MOVF   68,W
+0A7D:  BSF    03.5
+0A7E:  MOVWF  26
+0A7F:  BCF    03.5
+0A80:  MOVF   67,W
+0A81:  BSF    03.5
+0A82:  MOVWF  25
+0A83:  BCF    03.5
+0A84:  MOVF   66,W
+0A85:  BSF    03.5
+0A86:  MOVWF  24
+0A87:  BCF    0A.3
+0A88:  BCF    03.5
+0A89:  CALL   40D
+0A8A:  BSF    0A.3
+0A8B:  MOVF   7A,W
+0A8C:  MOVWF  75
+0A8D:  MOVF   79,W
+0A8E:  MOVWF  74
+0A8F:  MOVF   78,W
+0A90:  MOVWF  73
+0A91:  MOVF   77,W
+0A92:  MOVWF  72
+....................  
+....................       res = pl[0]*y2 + pl[1]; 
+0A93:  MOVLW  BC
+0A94:  BSF    03.5
+0A95:  MOVWF  23
+0A96:  MOVLW  24
+0A97:  MOVWF  22
+0A98:  MOVLW  67
+0A99:  MOVWF  21
+0A9A:  MOVLW  7D
+0A9B:  MOVWF  20
+0A9C:  MOVF   75,W
+0A9D:  MOVWF  27
+0A9E:  MOVF   74,W
+0A9F:  MOVWF  26
+0AA0:  MOVF   73,W
+0AA1:  MOVWF  25
+0AA2:  MOVF   72,W
+0AA3:  MOVWF  24
+0AA4:  BCF    0A.3
+0AA5:  BCF    03.5
+0AA6:  CALL   40D
+0AA7:  BSF    0A.3
+0AA8:  MOVF   77,W
+0AA9:  BSF    03.5
+0AAA:  MOVWF  20
+0AAB:  MOVF   78,W
+0AAC:  MOVWF  21
+0AAD:  MOVF   79,W
+0AAE:  MOVWF  22
+0AAF:  MOVF   7A,W
+0AB0:  MOVWF  23
+0AB1:  BCF    03.1
+0AB2:  MOVF   23,W
+0AB3:  MOVWF  27
+0AB4:  MOVF   22,W
+0AB5:  MOVWF  26
+0AB6:  MOVF   21,W
+0AB7:  MOVWF  25
+0AB8:  MOVF   20,W
+0AB9:  MOVWF  24
+0ABA:  MOVLW  E3
+0ABB:  MOVWF  2B
+0ABC:  MOVLW  E4
+0ABD:  MOVWF  2A
+0ABE:  MOVLW  90
+0ABF:  MOVWF  29
+0AC0:  MOVLW  82
+0AC1:  MOVWF  28
+0AC2:  BCF    0A.3
+0AC3:  BCF    03.5
+0AC4:  CALL   484
+0AC5:  BSF    0A.3
+0AC6:  MOVF   7A,W
+0AC7:  MOVWF  6D
+0AC8:  MOVF   79,W
+0AC9:  MOVWF  6C
+0ACA:  MOVF   78,W
+0ACB:  MOVWF  6B
+0ACC:  MOVF   77,W
+0ACD:  MOVWF  6A
+....................       res = res*y2 + pl[2]; 
+0ACE:  MOVF   6D,W
+0ACF:  BSF    03.5
+0AD0:  MOVWF  23
+0AD1:  BCF    03.5
+0AD2:  MOVF   6C,W
+0AD3:  BSF    03.5
+0AD4:  MOVWF  22
+0AD5:  BCF    03.5
+0AD6:  MOVF   6B,W
+0AD7:  BSF    03.5
+0AD8:  MOVWF  21
+0AD9:  BCF    03.5
+0ADA:  MOVF   6A,W
+0ADB:  BSF    03.5
+0ADC:  MOVWF  20
+0ADD:  MOVF   75,W
+0ADE:  MOVWF  27
+0ADF:  MOVF   74,W
+0AE0:  MOVWF  26
+0AE1:  MOVF   73,W
+0AE2:  MOVWF  25
+0AE3:  MOVF   72,W
+0AE4:  MOVWF  24
+0AE5:  BCF    0A.3
+0AE6:  BCF    03.5
+0AE7:  CALL   40D
+0AE8:  BSF    0A.3
+0AE9:  MOVF   77,W
+0AEA:  BSF    03.5
+0AEB:  MOVWF  20
+0AEC:  MOVF   78,W
+0AED:  MOVWF  21
+0AEE:  MOVF   79,W
+0AEF:  MOVWF  22
+0AF0:  MOVF   7A,W
+0AF1:  MOVWF  23
+0AF2:  BCF    03.1
+0AF3:  MOVF   23,W
+0AF4:  MOVWF  27
+0AF5:  MOVF   22,W
+0AF6:  MOVWF  26
+0AF7:  MOVF   21,W
+0AF8:  MOVWF  25
+0AF9:  MOVF   20,W
+0AFA:  MOVWF  24
+0AFB:  MOVLW  1C
+0AFC:  MOVWF  2B
+0AFD:  MOVLW  87
+0AFE:  MOVWF  2A
+0AFF:  MOVLW  57
+0B00:  MOVWF  29
+0B01:  MOVLW  83
+0B02:  MOVWF  28
+0B03:  BCF    0A.3
+0B04:  BCF    03.5
+0B05:  CALL   484
+0B06:  BSF    0A.3
+0B07:  MOVF   7A,W
+0B08:  MOVWF  6D
+0B09:  MOVF   79,W
+0B0A:  MOVWF  6C
+0B0B:  MOVF   78,W
+0B0C:  MOVWF  6B
+0B0D:  MOVF   77,W
+0B0E:  MOVWF  6A
+....................       res = res*y2 + pl[3]; 
+0B0F:  MOVF   6D,W
+0B10:  BSF    03.5
+0B11:  MOVWF  23
+0B12:  BCF    03.5
+0B13:  MOVF   6C,W
+0B14:  BSF    03.5
+0B15:  MOVWF  22
+0B16:  BCF    03.5
+0B17:  MOVF   6B,W
+0B18:  BSF    03.5
+0B19:  MOVWF  21
+0B1A:  BCF    03.5
+0B1B:  MOVF   6A,W
+0B1C:  BSF    03.5
+0B1D:  MOVWF  20
+0B1E:  MOVF   75,W
+0B1F:  MOVWF  27
+0B20:  MOVF   74,W
+0B21:  MOVWF  26
+0B22:  MOVF   73,W
+0B23:  MOVWF  25
+0B24:  MOVF   72,W
+0B25:  MOVWF  24
+0B26:  BCF    0A.3
+0B27:  BCF    03.5
+0B28:  CALL   40D
+0B29:  BSF    0A.3
+0B2A:  MOVF   77,W
+0B2B:  BSF    03.5
+0B2C:  MOVWF  20
+0B2D:  MOVF   78,W
+0B2E:  MOVWF  21
+0B2F:  MOVF   79,W
+0B30:  MOVWF  22
+0B31:  MOVF   7A,W
+0B32:  MOVWF  23
+0B33:  BCF    03.1
+0B34:  MOVF   23,W
+0B35:  MOVWF  27
+0B36:  MOVF   22,W
+0B37:  MOVWF  26
+0B38:  MOVF   21,W
+0B39:  MOVWF  25
+0B3A:  MOVF   20,W
+0B3B:  MOVWF  24
+0B3C:  MOVLW  AB
+0B3D:  MOVWF  2B
+0B3E:  MOVLW  E1
+0B3F:  MOVWF  2A
+0B40:  MOVLW  9E
+0B41:  MOVWF  29
+0B42:  MOVLW  83
+0B43:  MOVWF  28
+0B44:  BCF    0A.3
+0B45:  BCF    03.5
+0B46:  CALL   484
+0B47:  BSF    0A.3
+0B48:  MOVF   7A,W
+0B49:  MOVWF  6D
+0B4A:  MOVF   79,W
+0B4B:  MOVWF  6C
+0B4C:  MOVF   78,W
+0B4D:  MOVWF  6B
+0B4E:  MOVF   77,W
+0B4F:  MOVWF  6A
+....................  
+....................       r = ql[0]*y2 + ql[1]; 
+0B50:  BSF    03.5
+0B51:  CLRF   23
+0B52:  CLRF   22
+0B53:  CLRF   21
+0B54:  MOVLW  7F
+0B55:  MOVWF  20
+0B56:  MOVF   75,W
+0B57:  MOVWF  27
+0B58:  MOVF   74,W
+0B59:  MOVWF  26
+0B5A:  MOVF   73,W
+0B5B:  MOVWF  25
+0B5C:  MOVF   72,W
+0B5D:  MOVWF  24
+0B5E:  BCF    0A.3
+0B5F:  BCF    03.5
+0B60:  CALL   40D
+0B61:  BSF    0A.3
+0B62:  MOVF   77,W
+0B63:  BSF    03.5
+0B64:  MOVWF  20
+0B65:  MOVF   78,W
+0B66:  MOVWF  21
+0B67:  MOVF   79,W
+0B68:  MOVWF  22
+0B69:  MOVF   7A,W
+0B6A:  MOVWF  23
+0B6B:  BCF    03.1
+0B6C:  MOVF   23,W
+0B6D:  MOVWF  27
+0B6E:  MOVF   22,W
+0B6F:  MOVWF  26
+0B70:  MOVF   21,W
+0B71:  MOVWF  25
+0B72:  MOVF   20,W
+0B73:  MOVWF  24
+0B74:  MOVLW  B4
+0B75:  MOVWF  2B
+0B76:  MOVLW  2A
+0B77:  MOVWF  2A
+0B78:  MOVLW  82
+0B79:  MOVWF  29
+0B7A:  MOVWF  28
+0B7B:  BCF    0A.3
+0B7C:  BCF    03.5
+0B7D:  CALL   484
+0B7E:  BSF    0A.3
+0B7F:  MOVF   7A,W
+0B80:  MOVWF  71
+0B81:  MOVF   79,W
+0B82:  MOVWF  70
+0B83:  MOVF   78,W
+0B84:  MOVWF  6F
+0B85:  MOVF   77,W
+0B86:  MOVWF  6E
+....................       r = r*y2 + ql[2]; 
+0B87:  MOVF   71,W
+0B88:  BSF    03.5
+0B89:  MOVWF  23
+0B8A:  MOVF   70,W
+0B8B:  MOVWF  22
+0B8C:  BCF    03.5
+0B8D:  MOVF   6F,W
+0B8E:  BSF    03.5
+0B8F:  MOVWF  21
+0B90:  BCF    03.5
+0B91:  MOVF   6E,W
+0B92:  BSF    03.5
+0B93:  MOVWF  20
+0B94:  MOVF   75,W
+0B95:  MOVWF  27
+0B96:  MOVF   74,W
+0B97:  MOVWF  26
+0B98:  MOVF   73,W
+0B99:  MOVWF  25
+0B9A:  MOVF   72,W
+0B9B:  MOVWF  24
+0B9C:  BCF    0A.3
+0B9D:  BCF    03.5
+0B9E:  CALL   40D
+0B9F:  BSF    0A.3
+0BA0:  MOVF   77,W
+0BA1:  BSF    03.5
+0BA2:  MOVWF  20
+0BA3:  MOVF   78,W
+0BA4:  MOVWF  21
+0BA5:  MOVF   79,W
+0BA6:  MOVWF  22
+0BA7:  MOVF   7A,W
+0BA8:  MOVWF  23
+0BA9:  BCF    03.1
+0BAA:  MOVF   23,W
+0BAB:  MOVWF  27
+0BAC:  MOVF   22,W
+0BAD:  MOVWF  26
+0BAE:  MOVF   21,W
+0BAF:  MOVWF  25
+0BB0:  MOVF   20,W
+0BB1:  MOVWF  24
+0BB2:  MOVLW  80
+0BB3:  MOVWF  2B
+0BB4:  MOVLW  3E
+0BB5:  MOVWF  2A
+0BB6:  MOVLW  06
+0BB7:  MOVWF  29
+0BB8:  MOVLW  83
+0BB9:  MOVWF  28
+0BBA:  BCF    0A.3
+0BBB:  BCF    03.5
+0BBC:  CALL   484
+0BBD:  BSF    0A.3
+0BBE:  MOVF   7A,W
+0BBF:  MOVWF  71
+0BC0:  MOVF   79,W
+0BC1:  MOVWF  70
+0BC2:  MOVF   78,W
+0BC3:  MOVWF  6F
+0BC4:  MOVF   77,W
+0BC5:  MOVWF  6E
+....................       r = r*y2 + ql[3]; 
+0BC6:  MOVF   71,W
+0BC7:  BSF    03.5
+0BC8:  MOVWF  23
+0BC9:  MOVF   70,W
+0BCA:  MOVWF  22
+0BCB:  BCF    03.5
+0BCC:  MOVF   6F,W
+0BCD:  BSF    03.5
+0BCE:  MOVWF  21
+0BCF:  BCF    03.5
+0BD0:  MOVF   6E,W
+0BD1:  BSF    03.5
+0BD2:  MOVWF  20
+0BD3:  MOVF   75,W
+0BD4:  MOVWF  27
+0BD5:  MOVF   74,W
+0BD6:  MOVWF  26
+0BD7:  MOVF   73,W
+0BD8:  MOVWF  25
+0BD9:  MOVF   72,W
+0BDA:  MOVWF  24
+0BDB:  BCF    0A.3
+0BDC:  BCF    03.5
+0BDD:  CALL   40D
+0BDE:  BSF    0A.3
+0BDF:  MOVF   77,W
+0BE0:  BSF    03.5
+0BE1:  MOVWF  20
+0BE2:  MOVF   78,W
+0BE3:  MOVWF  21
+0BE4:  MOVF   79,W
+0BE5:  MOVWF  22
+0BE6:  MOVF   7A,W
+0BE7:  MOVWF  23
+0BE8:  BCF    03.1
+0BE9:  MOVF   23,W
+0BEA:  MOVWF  27
+0BEB:  MOVF   22,W
+0BEC:  MOVWF  26
+0BED:  MOVF   21,W
+0BEE:  MOVWF  25
+0BEF:  MOVF   20,W
+0BF0:  MOVWF  24
+0BF1:  MOVLW  AB
+0BF2:  MOVWF  2B
+0BF3:  MOVLW  E1
+0BF4:  MOVWF  2A
+0BF5:  MOVLW  9E
+0BF6:  MOVWF  29
+0BF7:  MOVLW  82
+0BF8:  MOVWF  28
+0BF9:  BCF    0A.3
+0BFA:  BCF    03.5
+0BFB:  CALL   484
+0BFC:  BSF    0A.3
+0BFD:  MOVF   7A,W
+0BFE:  MOVWF  71
+0BFF:  MOVF   79,W
+0C00:  MOVWF  70
+0C01:  MOVF   78,W
+0C02:  MOVWF  6F
+0C03:  MOVF   77,W
+0C04:  MOVWF  6E
+....................  
+....................       res = y*res/r; 
+0C05:  MOVF   69,W
+0C06:  BSF    03.5
+0C07:  MOVWF  23
+0C08:  BCF    03.5
+0C09:  MOVF   68,W
+0C0A:  BSF    03.5
+0C0B:  MOVWF  22
+0C0C:  BCF    03.5
+0C0D:  MOVF   67,W
+0C0E:  BSF    03.5
+0C0F:  MOVWF  21
+0C10:  BCF    03.5
+0C11:  MOVF   66,W
+0C12:  BSF    03.5
+0C13:  MOVWF  20
+0C14:  BCF    03.5
+0C15:  MOVF   6D,W
+0C16:  BSF    03.5
+0C17:  MOVWF  27
+0C18:  BCF    03.5
+0C19:  MOVF   6C,W
+0C1A:  BSF    03.5
+0C1B:  MOVWF  26
+0C1C:  BCF    03.5
+0C1D:  MOVF   6B,W
+0C1E:  BSF    03.5
+0C1F:  MOVWF  25
+0C20:  BCF    03.5
+0C21:  MOVF   6A,W
+0C22:  BSF    03.5
+0C23:  MOVWF  24
+0C24:  BCF    0A.3
+0C25:  BCF    03.5
+0C26:  CALL   40D
+0C27:  BSF    0A.3
+0C28:  MOVF   77,W
+0C29:  BSF    03.5
+0C2A:  MOVWF  20
+0C2B:  MOVF   78,W
+0C2C:  MOVWF  21
+0C2D:  MOVF   79,W
+0C2E:  MOVWF  22
+0C2F:  MOVF   7A,W
+0C30:  MOVWF  23
+0C31:  MOVWF  27
+0C32:  MOVF   22,W
+0C33:  MOVWF  26
+0C34:  MOVF   21,W
+0C35:  MOVWF  25
+0C36:  MOVF   20,W
+0C37:  MOVWF  24
+0C38:  MOVF   71,W
+0C39:  MOVWF  2B
+0C3A:  MOVF   70,W
+0C3B:  MOVWF  2A
+0C3C:  BCF    03.5
+0C3D:  MOVF   6F,W
+0C3E:  BSF    03.5
+0C3F:  MOVWF  29
+0C40:  BCF    03.5
+0C41:  MOVF   6E,W
+0C42:  BSF    03.5
+0C43:  MOVWF  28
+0C44:  BCF    0A.3
+0C45:  BCF    03.5
+0C46:  CALL   341
+0C47:  BSF    0A.3
+0C48:  MOVF   7A,W
+0C49:  MOVWF  6D
+0C4A:  MOVF   79,W
+0C4B:  MOVWF  6C
+0C4C:  MOVF   78,W
+0C4D:  MOVWF  6B
+0C4E:  MOVF   77,W
+0C4F:  MOVWF  6A
+....................  
+....................       n = *(&x) - 0x7E; 
+0C50:  CLRF   7A
+0C51:  MOVLW  62
+0C52:  MOVWF  04
+0C53:  BCF    03.7
+0C54:  BTFSC  7A.0
+0C55:  BSF    03.7
+0C56:  MOVLW  7E
+0C57:  SUBWF  00,W
+0C58:  MOVWF  76
+....................  
+....................       if (n<0) 
+0C59:  BTFSS  76.7
+0C5A:  GOTO   470
+....................          r = -(float)-n; 
+0C5B:  MOVF   76,W
+0C5C:  SUBLW  00
+0C5D:  BSF    03.5
+0C5E:  CLRF   21
+0C5F:  MOVWF  20
+0C60:  BTFSC  20.7
+0C61:  DECF   21,F
+0C62:  BCF    0A.3
+0C63:  BCF    03.5
+0C64:  CALL   74C
+0C65:  BSF    0A.3
+0C66:  MOVF   77,W
+0C67:  MOVWF  6E
+0C68:  MOVF   78,W
+0C69:  XORLW  80
+0C6A:  MOVWF  6F
+0C6B:  MOVF   79,W
+0C6C:  MOVWF  70
+0C6D:  MOVF   7A,W
+0C6E:  MOVWF  71
+....................       else 
+0C6F:  GOTO   482
+....................          r = (float)n; 
+0C70:  BSF    03.5
+0C71:  CLRF   21
+0C72:  MOVF   76,W
+0C73:  MOVWF  20
+0C74:  BTFSC  20.7
+0C75:  DECF   21,F
+0C76:  BCF    0A.3
+0C77:  BCF    03.5
+0C78:  CALL   74C
+0C79:  BSF    0A.3
+0C7A:  MOVF   7A,W
+0C7B:  MOVWF  71
+0C7C:  MOVF   79,W
+0C7D:  MOVWF  70
+0C7E:  MOVF   78,W
+0C7F:  MOVWF  6F
+0C80:  MOVF   77,W
+0C81:  MOVWF  6E
+....................  
+....................       res += r*LN2; 
+0C82:  MOVF   71,W
+0C83:  BSF    03.5
+0C84:  MOVWF  23
+0C85:  MOVF   70,W
+0C86:  MOVWF  22
+0C87:  BCF    03.5
+0C88:  MOVF   6F,W
+0C89:  BSF    03.5
+0C8A:  MOVWF  21
+0C8B:  BCF    03.5
+0C8C:  MOVF   6E,W
+0C8D:  BSF    03.5
+0C8E:  MOVWF  20
+0C8F:  MOVLW  18
+0C90:  MOVWF  27
+0C91:  MOVLW  72
+0C92:  MOVWF  26
+0C93:  MOVLW  31
+0C94:  MOVWF  25
+0C95:  MOVLW  7E
+0C96:  MOVWF  24
+0C97:  BCF    0A.3
+0C98:  BCF    03.5
+0C99:  CALL   40D
+0C9A:  BSF    0A.3
+0C9B:  BCF    03.1
+0C9C:  MOVF   6D,W
+0C9D:  BSF    03.5
+0C9E:  MOVWF  27
+0C9F:  BCF    03.5
+0CA0:  MOVF   6C,W
+0CA1:  BSF    03.5
+0CA2:  MOVWF  26
+0CA3:  BCF    03.5
+0CA4:  MOVF   6B,W
+0CA5:  BSF    03.5
+0CA6:  MOVWF  25
+0CA7:  BCF    03.5
+0CA8:  MOVF   6A,W
+0CA9:  BSF    03.5
+0CAA:  MOVWF  24
+0CAB:  MOVF   7A,W
+0CAC:  MOVWF  2B
+0CAD:  MOVF   79,W
+0CAE:  MOVWF  2A
+0CAF:  MOVF   78,W
+0CB0:  MOVWF  29
+0CB1:  MOVF   77,W
+0CB2:  MOVWF  28
+0CB3:  BCF    0A.3
+0CB4:  BCF    03.5
+0CB5:  CALL   484
+0CB6:  BSF    0A.3
+0CB7:  MOVF   7A,W
+0CB8:  MOVWF  6D
+0CB9:  MOVF   79,W
+0CBA:  MOVWF  6C
+0CBB:  MOVF   78,W
+0CBC:  MOVWF  6B
+0CBD:  MOVF   77,W
+0CBE:  MOVWF  6A
+....................    } 
+....................  
+....................    else 
+0CBF:  GOTO   4C4
+....................       res = 0.0; 
+0CC0:  CLRF   6D
+0CC1:  CLRF   6C
+0CC2:  CLRF   6B
+0CC3:  CLRF   6A
+....................  
+....................    return(res); 
+0CC4:  MOVF   6A,W
+0CC5:  MOVWF  77
+0CC6:  MOVF   6B,W
+0CC7:  MOVWF  78
+0CC8:  MOVF   6C,W
+0CC9:  MOVWF  79
+0CCA:  MOVF   6D,W
+0CCB:  MOVWF  7A
+.................... } 
+....................  
+.................... #define LN10 2.30258509 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float log10(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the the log base 10 of x 
+.................... // Date : N/A 
+.................... // 
+.................... float log10(float x) 
+.................... { 
+....................    float r; 
+....................  
+....................    r = log(x); 
+....................    r = r/LN10; 
+....................    return(r); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float modf(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description :breaks the argument value int integral and fractional parts, 
+.................... // ach of which have the same sign as the argument.  It stores the integral part 
+.................... // as a float in the object pointed to by the iptr 
+.................... // Returns : returns the signed fractional part of value. 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float modf(float value,float *iptr) 
+.................... { 
+....................    *iptr=(value < 0.0)? ceil(value): floor(value); 
+....................    return(value - *iptr); 
+.................... } 
+....................  
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float pwr(float x,float y) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the value (x^y) 
+.................... // Date : N/A 
+.................... // 
+.................... float pwr(float x,float y) 
+.................... { 
+....................    if(x>=0) 
+....................      return(  exp(y*log(x)) ); 
+....................    else 
+....................      return(  -exp(y*log(-x)) ); 
+.................... } 
+....................  
+....................  
+.................... //////////////////// Power functions //////////////////// 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float pow(float x,float y) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the value (x^y) 
+.................... // Date : N/A 
+.................... // 
+.................... float pow(float x,float y) 
+.................... { 
+....................    if(x>=0) 
+....................      return(  exp(y*log(x)) ); 
+....................    else 
+....................      return(  -exp(y*log(-x)) ); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float sqrt(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the square root of x 
+.................... // Date : N/A 
+.................... // 
+.................... float sqrt(float x) 
+.................... { 
+....................    float y, res; 
+....................    BYTE *p; 
+....................  
+....................    #ifdef _ERRNO 
+....................    if(x < 0) 
+....................    { 
+....................       errno=EDOM; 
+....................    } 
+....................    #endif 
+....................  
+....................    if( x<=0.0) 
+....................       return(0.0); 
+....................  
+....................    y=x; 
+....................    p=&y; 
+....................    (*p)=(BYTE)((((int16)(*p)) + 127) >> 1); 
+....................  
+....................    do { 
+....................       res=y; 
+....................       y+=(x/y); 
+....................       (*p)--; 
+....................    } while(res != y); 
+....................  
+....................    return(res); 
+.................... } 
+....................  
+....................  
+....................  
+.................... ////////////////////////////// Trig Functions ////////////////////////////// 
+.................... #ifdef PI_DIV_BY_TWO 
+.................... #undef PI_DIV_BY_TWO 
+.................... #endif 
+.................... #define PI_DIV_BY_TWO	1.570796326794896 
+.................... #ifdef TWOBYPI 
+.................... #undef TWOBYPI 
+.................... #define TWOBYPI 			0.6366197724 
+.................... #endif 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float cos(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the cosine value of the angle x, which is in radian 
+.................... // Date : 9/20/2001 
+.................... // 
+.................... float cos(float x) 
+.................... { 
+.................... 	float y, t, t2 = 1.0; 
+.................... 	int quad, i; 
+.................... 	float frac; 
+.................... 	float p[4] = { 
+.................... 		-0.499999993585, 
+.................... 		 0.041666636258, 
+.................... 		-0.0013888361399, 
+.................... 		 0.00002476016134 
+.................... 	}; 
+....................  
+.................... 	if (x < 0) x = -x;                  // absolute value of input 
+....................  
+.................... 	quad = (int)(x / PI_DIV_BY_TWO);    // quadrant 
+.................... 	frac = (x / PI_DIV_BY_TWO) - quad;  // fractional part of input 
+.................... 	quad = quad % 4;                    // quadrant (0 to 3) 
+....................  
+.................... 	if (quad == 0 || quad == 2) 
+.................... 		t = frac * PI_DIV_BY_TWO; 
+.................... 	else if (quad == 1) 
+.................... 		t = (1-frac) * PI_DIV_BY_TWO; 
+.................... 	else // should be 3 
+.................... 		t = (frac-1) * PI_DIV_BY_TWO; 
+....................  
+.................... 	y = 0.999999999781; 
+.................... 	t = t * t; 
+.................... 	for (i = 0; i <= 3; i++) 
+.................... 	{ 
+.................... 		t2 = t2 * t; 
+.................... 		y = y + p[i] * t2; 
+.................... 	} 
+....................  
+.................... 	if (quad == 2 || quad == 1) 
+.................... 		y = -y;  // correct sign 
+....................  
+.................... 	return (y); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float sin(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the sine value of the angle x, which is in radian 
+.................... // Date : 9/20/2001 
+.................... // 
+.................... float sin(float x) 
+.................... { 
+.................... 	return cos(x - PI_DIV_BY_TWO); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float tan(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the tangent value of the angle x, which is in radian 
+.................... // Date : 9/20/2001 
+.................... // 
+.................... float tan(float x) 
+.................... { 
+....................    float c, s; 
+....................  
+....................    c = cos(x); 
+.................... 	if (c == 0.0) 
+.................... 	   return (1.0e+36); 
+....................  
+....................    s = sin(x); 
+....................    return(s/c); 
+.................... } 
+....................  
+....................  
+....................  
+.................... float const pas[3] = {0.49559947, -4.6145309, 5.6036290}; 
+.................... float const qas[3] = {1.0000000,  -5.5484666, 5.6036290}; 
+....................  
+.................... float ASIN_COS(float x, int n) 
+.................... { 
+....................    float y, res, r, y2; 
+....................    int1 s; 
+....................    #ifdef _ERRNO 
+....................    if(x <-1 || x > 1) 
+....................    { 
+....................       errno=EDOM; 
+....................    } 
+....................    #endif 
+....................    s = 0; 
+....................    y = x; 
+....................  
+....................    if (x < 0) 
+....................    { 
+....................       s = 1; 
+....................       y = -y; 
+....................    } 
+....................  
+....................    if (y > 0.5) 
+....................    { 
+....................       y = sqrt((1.0 - y)/2.0); 
+....................       n += 2; 
+....................    } 
+....................  
+....................    y2=y*y; 
+....................  
+....................    res = pas[0]*y2 + pas[1]; 
+....................    res = res*y2 + pas[2]; 
+....................  
+....................    r = qas[0]*y2 + qas[1]; 
+....................    r = r*y2 + qas[2]; 
+....................  
+....................    res = y*res/r; 
+....................  
+....................    if (n & 2)     // |x| > 0.5 
+....................       res = PI_DIV_BY_TWO - 2.0*res; 
+....................    if (s) 
+....................       res = -res; 
+....................    if (n & 1)           // take arccos 
+....................       res = PI_DIV_BY_TWO - res; 
+....................  
+....................    return(res); 
+.................... } 
+....................  
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float asin(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the arcsine value of the value x. 
+.................... // Date : N/A 
+.................... // 
+.................... float asin(float x) 
+.................... { 
+....................    float r; 
+....................  
+....................    r = ASIN_COS(x, 0); 
+....................    return(r); 
+.................... } 
+....................  
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float acos(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the arccosine value of the value x. 
+.................... // Date : N/A 
+.................... // 
+.................... float acos(float x) 
+.................... { 
+....................    float r; 
+....................  
+....................    r = ASIN_COS(x, 1); 
+....................    return(r); 
+.................... } 
+....................  
+.................... float const pat[4] = {0.17630401, 5.6710795, 22.376096, 19.818457}; 
+.................... float const qat[4] = {1.0000000,  11.368190, 28.982246, 19.818457}; 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float atan(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : returns the arctangent value of the value x. 
+.................... // Date : N/A 
+.................... // 
+.................... float atan(float x) 
+.................... { 
+....................    float y, res, r; 
+....................    int1 s, flag; 
+....................  
+....................    s = 0; 
+....................    flag = 0; 
+....................    y = x; 
+....................  
+....................    if (x < 0) 
+....................    { 
+....................       s = 1; 
+....................       y = -y; 
+....................    } 
+....................  
+....................    if (y > 1.0) 
+....................    { 
+....................       y = 1.0/y; 
+....................       flag = 1; 
+....................    } 
+....................  
+....................    res = pat[0]*y*y + pat[1]; 
+....................    res = res*y*y + pat[2]; 
+....................    res = res*y*y + pat[3]; 
+....................  
+....................    r = qat[0]*y*y + qat[1]; 
+....................    r = r*y*y + qat[2]; 
+....................    r = r*y*y + qat[3]; 
+....................  
+....................    res = y*res/r; 
+....................  
+....................  
+....................    if (flag)                              // for |x| > 1 
+....................       res = PI_DIV_BY_TWO - res; 
+....................    if (s) 
+....................       res = -res; 
+....................  
+....................    return(res); 
+.................... } 
+....................  
+.................... ///////////////////////////////////////////////////////////////////////////// 
+.................... //	float atan2(float y, float x) 
+.................... ///////////////////////////////////////////////////////////////////////////// 
+.................... // Description :computes the principal value of arc tangent of y/x, using the 
+.................... // signs of both the arguments to determine the quadrant of the return value 
+.................... // Returns : returns the arc tangent of y/x. 
+.................... // Date : N/A 
+.................... // 
+....................  
+....................  
+.................... float atan2(float y,float x) 
+.................... { 
+....................    float z; 
+....................    int1 sign; 
+....................    int quad; 
+....................    sign=0; 
+....................    quad=0; //quadrant 
+....................    quad=((y<=0.0)?((x<=0.0)?3:4):((x<0.0)?2:1)); 
+....................    if(y<0.0) 
+....................    { 
+....................       sign=1; 
+....................       y=-y; 
+....................    } 
+....................    if(x<0.0) 
+....................    { 
+....................       x=-x; 
+....................    } 
+....................    if (x==0.0) 
+....................    { 
+....................       if(y==0.0) 
+....................       { 
+....................       #ifdef _ERRNO 
+....................       { 
+....................          errno=EDOM; 
+....................       } 
+....................       #endif 
+....................       } 
+....................       else 
+....................       { 
+....................          if(sign) 
+....................          { 
+....................          return (-(PI_DIV_BY_TWO)); 
+....................          } 
+....................          else 
+....................          { 
+....................          return (PI_DIV_BY_TWO); 
+....................          } 
+....................       } 
+....................    } 
+....................    else 
+....................    { 
+....................       z=y/x; 
+....................       switch(quad) 
+....................       { 
+....................          case 1: 
+....................          { 
+....................             return atan(z); 
+....................             break; 
+....................          } 
+....................          case 2: 
+....................          { 
+.................... //            return (atan(z)+PI_DIV_BY_TWO);  //2L3122 
+....................             return (PI-atan(z)); 
+....................             break; 
+....................          } 
+....................          case 3: 
+....................          { 
+....................             return (atan(z)-PI); 
+....................             break; 
+....................          } 
+....................          case 4: 
+....................          { 
+....................             return (-atan(z)); 
+....................             break; 
+....................          } 
+....................       } 
+....................    } 
+.................... } 
+....................  
+.................... //////////////////// Hyperbolic functions //////////////////// 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float cosh(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : Computes the hyperbolic cosine value of x 
+.................... // Returns : returns the hyperbolic cosine value of x 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float cosh(float x) 
+.................... { 
+....................    return ((exp(x)+exp(-x))/2); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float sinh(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : Computes the hyperbolic sine value of x 
+.................... // Returns : returns the hyperbolic sine value of x 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float sinh(float x) 
+.................... { 
+....................  
+....................    return ((exp(x) - exp(-x))/2); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float tanh(float x) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : Computes the hyperbolic tangent value of x 
+.................... // Returns : returns the hyperbolic tangent value of x 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float tanh(float x) 
+.................... { 
+....................    return(sinh(x)/cosh(x)); 
+.................... } 
+....................  
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... //	float frexp(float x, signed int *exp) 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... // Description : breaks a floating point number into a normalized fraction and an integral 
+.................... // power of 2. It stores the integer in the signed int object pointed to by exp. 
+.................... // Returns : returns the value x, such that x is a double with magnitude in the interval 
+.................... // [1/2,1) or zero, and value equals x times 2 raised to the power *exp.If value is zero, 
+.................... // both parts of the result are zero. 
+.................... // Date : N/A 
+.................... // 
+....................  
+....................  
+....................  
+.................... #define LOG2 .30102999566398119521 
+.................... float frexp(float x, signed int *exp) 
+.................... { 
+....................    float res; 
+....................    int1 sign = 0; 
+....................    if(x == 0.0) 
+....................    { 
+....................       *exp=0; 
+....................       return (0.0); 
+....................    } 
+....................    if(x < 0.0) 
+....................    { 
+....................      x=-x; 
+....................      sign=1; 
+....................    } 
+....................    if (x > 1.0) 
+....................    { 
+....................       *exp=(ceil(log10(x)/LOG2)); 
+....................       res=x/(pow(2, *exp)); 
+....................       if (res == 1) 
+....................       { 
+....................          *exp=*exp+1; 
+....................           res=.5; 
+....................       } 
+....................    } 
+....................    else 
+....................    { 
+....................       if(x < 0.5) 
+....................       { 
+....................          *exp=-1; 
+....................          res=x*2; 
+....................       } 
+....................       else 
+....................       { 
+....................          *exp=0; 
+....................           res=x; 
+....................       } 
+....................    } 
+....................    if(sign) 
+....................    { 
+....................       res=-res; 
+....................    } 
+....................    return res; 
+.................... } 
+....................  
+.................... ////////////////////////////////////////////////////////////////////////////// 
+.................... //	float ldexp(float x, signed int *exp) 
+.................... ////////////////////////////////////////////////////////////////////////////// 
+.................... // Description : multiplies a floating point number by an integral power of 2. 
+.................... // Returns : returns the value of x times 2 raised to the power exp. 
+.................... // Date : N/A 
+.................... // 
+....................  
+.................... float ldexp(float value, signed int exp) 
+.................... { 
+....................    return (value * pow(2,exp)); 
+.................... } 
+.................... #endif 
+....................  
+.................... #include <ntc.h>	// NTC defines 
+.................... /* 
+....................  * Written by Kenny 
+....................  * 
+....................  */ 
+.................... float r2temperature(float ohm); 
+.................... float adc_2_ohm(int adc_value); 
+....................  
+.................... // +5V 
+.................... // ---+ 
+.................... //    # 
+.................... //    # 10k constant resistor 
+.................... //    |---------> Uadc 
+.................... //    # 
+.................... //    # ntc 1k 
+.................... // ---+ 
+.................... // 
+....................  
+.................... /* All calibrations should be done here if needed. Normally you will 
+.................... * only compensate the variance in the value of the 10k resistor and 
+.................... * the 1k NTC. The 78L05 has also influence. This all can be adjusted 
+.................... * changing NTC_RN a bit. 
+.................... */ 
+....................  
+....................  
+.................... /* Constant pullup resistor value */ 
+.................... #define NTC_PULLUP_R 9850.0	//calibrated 10k 
+....................  
+.................... /* 
+.................... NTC temperature constant "B"-value: 3977K +/- 1% 
+.................... usually between 2000k - 5000k, I don't know the type i'm using, trial and error... 
+.................... - see PHP test script in comments under 
+.................... */ 
+.................... #define NTC_B 3177 
+.................... /* NTC datasheet is 1 kOhm at 25 degree celsius */ 
+.................... #define NTC_TN 25 
+.................... /* 1 kOhm +/- 10%, change for calibration: */ 
+.................... #define NTC_RN 950 
+....................  
+....................  
+.................... /* 
+.................... PHP script for B value trial and error on a linux box 
+....................  
+.................... <? 
+....................  
+.................... $NTC_B=3177; 
+.................... $NTC_RN=1000; 
+.................... $NTC_TN=25; 
+.................... $ohm = $argv[1]; //1000ohm @25, 653ohm @~37.5 (under my arm....) 
+....................  
+.................... $tmp = ( ( 1/$NTC_B ) * log( ($ohm/$NTC_RN) ) ) + ( 1 / ($NTC_TN+273) ); 
+....................  
+.................... $c = (1 / $tmp) - 273; 
+.................... print "\n$c C\n"; 
+.................... ?> 
+....................  
+.................... */ 
+....................  
+.................... #include <lcd.h>	// LCD 
+.................... // LCD STUFF 
+.................... #define LCD_D0  PIN_C3 
+.................... #define LCD_D1  PIN_C4 
+.................... #define LCD_D2  PIN_C5 
+.................... #define LCD_D3  PIN_C6 
+.................... #define LCD_EN  PIN_B5 
+.................... #define LCD_RS  PIN_B6 
+.................... #define LINE_1  0x00 
+.................... #define LINE_2  0x40 
+.................... #define CLEAR_DISP  0x01 
+....................  
+....................  
+.................... void LCD_Init ( void ); 
+.................... void LCD_SetPosition ( unsigned int cX ); 
+.................... void LCD_PutChar ( unsigned int cX ); 
+.................... void LCD_PutCmd ( unsigned int cX ); 
+.................... void LCD_PulseEnable ( void ); 
+.................... void LCD_SetData ( unsigned int cX ); 
+.................... void PrintMenu ( void ); 
+....................  
+....................  
+....................  
+.................... #fuses XT, NOPROTECT, NOPUT, NOWDT, NOBROWNOUT, NOLVP, NOCPD, NOWRT 
+....................  
+.................... // ADC 
+.................... #define VDD                 5.00 
+....................  
+....................  
+.................... // Enviroment configurations, adjusted after final installation in bathroom, programmed over ICSP 
+.................... #define MINIMUM_INTERVAL		3  // minimum minutes to run when auto started (prevent hysteresis) 
+.................... #define MAXIMUM_RH_1			47 // rh % level 1 when fan should start (set with jumpers) 
+.................... #define MAXIMUM_RH_2			MAXIMUM_RH_1+10 // rh % level 2 when fan should start (set with jumpers) 
+.................... #define MINIMUM_TEMP			22 // °C, never auto run if under this 
+.................... #define DELAYED_INTERVAL		3  // minutes to run from delayed mode started 
+....................  
+.................... // Hardware configurations 
+.................... #define MENU_SWITCH				PIN_C1 
+.................... #define INCLUDE_TEMP_JUMPER		PIN_C2 
+.................... #define LED_1					PIN_B3 // pinne 24 
+.................... #define LED_2					PIN_B4 // pinne 25 
+.................... #define FAN_1					PIN_C0 
+.................... #define RH_LIMIT_2_JUMPER		PIN_A4 // pinne 6 
+....................  
+.................... // Menu configurations 
+.................... #define STATE_AUTO				0 
+.................... #define STATE_START				1 
+.................... #define STATE_STOP				2 
+.................... #define STATE_DELAYED			3 
+.................... #define MAX_MENU_STATE			3 
+....................  
+.................... // symbols from LCD char map used for Hitachi 44780 chipsets, see LCD_Char_Map.gif for binary map 
+.................... #define C_PERCENT				0x25 // % = 00100101 = 25 = 0x25 
+.................... #define C_DEGREES				0xDF // ° = 11011111 = DF = 0xDF 
+....................  
+....................  
+.................... #define hi(x)  (*(&x+1)) 
+....................  
+.................... #use delay ( clock=8000000 ) 
+*
+0223:  MOVLW  52
+0224:  MOVWF  04
+0225:  BCF    03.7
+0226:  MOVF   00,W
+0227:  BTFSC  03.2
+0228:  GOTO   236
+0229:  MOVLW  02
+022A:  MOVWF  78
+022B:  CLRF   77
+022C:  DECFSZ 77,F
+022D:  GOTO   22C
+022E:  DECFSZ 78,F
+022F:  GOTO   22B
+0230:  MOVLW  97
+0231:  MOVWF  77
+0232:  DECFSZ 77,F
+0233:  GOTO   232
+0234:  DECFSZ 00,F
+0235:  GOTO   229
+0236:  RETLW  00
+.................... #use standard_io ( A ) 
+.................... #use standard_io ( B ) 
+.................... #use standard_io ( C ) 
+*
+0ED2:  MOVLW  FF
+0ED3:  BCF    03.5
+0ED4:  MOVWF  28
+....................  
+....................  
+.................... // protos 
+.................... void SetTime ( void ); 
+.................... void CheckSwitches ( void ); 
+.................... void printVersionInfo ( void ); 
+.................... void DisplaySettings ( void ); 
+.................... void DisplayData ( void ); 
+.................... void DelayedFan( void ); 
+.................... void StartFan ( void ); 
+.................... void StopFan ( void ); 
+.................... void AutoFan ( void ); 
+.................... float getRH ( void ); 
+.................... float getTemp ( void ); 
+.................... float getInterval ( void ); 
+....................  
+.................... static char cDisplayDataFlag, cFan1Flag; 
+0ED5:  CLRF   29
+0ED6:  CLRF   2A
+.................... static char cInterruptCount; 
+0ED7:  CLRF   2B
+.................... static char cMenuState, cSelectFlag; 
+0ED8:  CLRF   2C
+0ED9:  CLRF   2D
+.................... static char cMenuSwitchOn, cMenuSwitchCount; 
+0EDA:  CLRF   2E
+0EDB:  CLRF   2F
+.................... static char cSelectSwitchOn, cSelectSwitchCount; 
+0EDC:  CLRF   30
+0EDD:  CLRF   31
+.................... static char cDisplayUpdate, cToggleFlag, cToggleFlagLCD, cDisplaySettingsFlag; 
+0EDE:  CLRF   32
+0EDF:  CLRF   33
+0EE0:  CLRF   34
+0EE1:  CLRF   35
+.................... static char cFan1RunTime, cFan1DelayedRunTime, cFan1AutoState, cFan1DelayedState, cFan1CanStop, IntervalMinutes; 
+0EE2:  CLRF   36
+0EE3:  CLRF   37
+0EE4:  CLRF   38
+0EE5:  CLRF   39
+0EE6:  CLRF   3A
+0EE7:  CLRF   3B
+....................  
+.................... #include "ntc.c"	// NTC calculations 
+....................  
+....................  
+.................... /* this function converts the ADC value into an Ohm value of the NTC 
+....................  * here AVcc=5V is used as reference voltage 
+....................  */ 
+.................... float adc_2_ohm(int adc_value) 
+.................... { 
+.................... 	float ohm; 
+....................  
+.................... 	// 10bit adc=0..1023 over a voltage range from 0-5V 
+.................... 	// Uref=5V = VDD 
+.................... 	// 10000 / ( 1024/adc_value  - 1) -> ohm 
+.................... 	// 
+....................  
+.................... 	// ADCval= Uadc * (1024/Uref) 
+.................... 	// Rntc= 10K * ( 1 / ((5V/Uadc) -1) ) 
+.................... 	if (adc_value < 1){ 
+*
+08F7:  MOVF   52,F
+08F8:  BTFSS  03.2
+08F9:  GOTO   0FC
+.................... 		// never divide by zero: 
+.................... 		adc_value=1; 
+08FA:  MOVLW  01
+08FB:  MOVWF  52
+.................... 	} 
+.................... 	ohm=NTC_PULLUP_R / (( 1024.0 / adc_value ) - 1 ); 
+08FC:  CLRF   58
+08FD:  MOVF   52,W
+08FE:  MOVWF  57
+08FF:  BCF    0A.3
+0900:  CALL   324
+0901:  BSF    0A.3
+0902:  BSF    03.5
+0903:  CLRF   27
+0904:  CLRF   26
+0905:  CLRF   25
+0906:  MOVLW  89
+0907:  MOVWF  24
+0908:  MOVF   7A,W
+0909:  MOVWF  2B
+090A:  MOVF   79,W
+090B:  MOVWF  2A
+090C:  MOVF   78,W
+090D:  MOVWF  29
+090E:  MOVF   77,W
+090F:  MOVWF  28
+0910:  BCF    0A.3
+0911:  BCF    03.5
+0912:  CALL   341
+0913:  BSF    0A.3
+0914:  MOVF   77,W
+0915:  MOVWF  57
+0916:  MOVF   78,W
+0917:  MOVWF  58
+0918:  MOVF   79,W
+0919:  MOVWF  59
+091A:  MOVF   7A,W
+091B:  MOVWF  5A
+091C:  BSF    03.1
+091D:  MOVF   7A,W
+091E:  BSF    03.5
+091F:  MOVWF  27
+0920:  BCF    03.5
+0921:  MOVF   79,W
+0922:  BSF    03.5
+0923:  MOVWF  26
+0924:  BCF    03.5
+0925:  MOVF   78,W
+0926:  BSF    03.5
+0927:  MOVWF  25
+0928:  BCF    03.5
+0929:  MOVF   77,W
+092A:  BSF    03.5
+092B:  MOVWF  24
+092C:  CLRF   2B
+092D:  CLRF   2A
+092E:  CLRF   29
+092F:  MOVLW  7F
+0930:  MOVWF  28
+0931:  BCF    0A.3
+0932:  BCF    03.5
+0933:  CALL   484
+0934:  BSF    0A.3
+0935:  BSF    03.5
+0936:  CLRF   27
+0937:  MOVLW  E8
+0938:  MOVWF  26
+0939:  MOVLW  19
+093A:  MOVWF  25
+093B:  MOVLW  8C
+093C:  MOVWF  24
+093D:  MOVF   7A,W
+093E:  MOVWF  2B
+093F:  MOVF   79,W
+0940:  MOVWF  2A
+0941:  MOVF   78,W
+0942:  MOVWF  29
+0943:  MOVF   77,W
+0944:  MOVWF  28
+0945:  BCF    0A.3
+0946:  BCF    03.5
+0947:  CALL   341
+0948:  BSF    0A.3
+0949:  MOVF   7A,W
+094A:  MOVWF  56
+094B:  MOVF   79,W
+094C:  MOVWF  55
+094D:  MOVF   78,W
+094E:  MOVWF  54
+094F:  MOVF   77,W
+0950:  MOVWF  53
+.................... 	return(ohm); 
+0951:  MOVF   53,W
+0952:  MOVWF  77
+0953:  MOVF   54,W
+0954:  MOVWF  78
+0955:  MOVF   55,W
+0956:  MOVWF  79
+0957:  MOVF   56,W
+0958:  MOVWF  7A
+.................... } 
+....................  
+....................  
+.................... /* convert a ntc resistance value given in kohm to 
+....................  * temperature in celsius. The NTC follows a exponential 
+....................  * characteristic. */ 
+.................... float r2temperature(float ohm) 
+.................... { 
+.................... 	float tcelsius; 
+.................... 	float tmp; 
+....................  
+....................  
+.................... 	tcelsius = 100; 
+*
+0969:  CLRF   59
+096A:  CLRF   58
+096B:  MOVLW  48
+096C:  MOVWF  57
+096D:  MOVLW  85
+096E:  MOVWF  56
+.................... 	tmp=1; 
+096F:  CLRF   5D
+0970:  CLRF   5C
+0971:  CLRF   5B
+0972:  MOVLW  7F
+0973:  MOVWF  5A
+....................  
+.................... 	if ((ohm/NTC_RN) < 0.1){ 
+0974:  MOVF   55,W
+0975:  BSF    03.5
+0976:  MOVWF  27
+0977:  BCF    03.5
+0978:  MOVF   54,W
+0979:  BSF    03.5
+097A:  MOVWF  26
+097B:  BCF    03.5
+097C:  MOVF   53,W
+097D:  BSF    03.5
+097E:  MOVWF  25
+097F:  BCF    03.5
+0980:  MOVF   52,W
+0981:  BSF    03.5
+0982:  MOVWF  24
+0983:  CLRF   2B
+0984:  MOVLW  80
+0985:  MOVWF  2A
+0986:  MOVLW  6D
+0987:  MOVWF  29
+0988:  MOVLW  88
+0989:  MOVWF  28
+098A:  BCF    0A.3
+098B:  BCF    03.5
+098C:  CALL   341
+098D:  BSF    0A.3
+098E:  MOVF   77,W
+098F:  MOVWF  5E
+0990:  MOVF   78,W
+0991:  MOVWF  5F
+0992:  MOVF   79,W
+0993:  MOVWF  60
+0994:  MOVF   7A,W
+0995:  MOVWF  61
+0996:  BSF    03.5
+0997:  MOVWF  23
+0998:  BCF    03.5
+0999:  MOVF   60,W
+099A:  BSF    03.5
+099B:  MOVWF  22
+099C:  BCF    03.5
+099D:  MOVF   5F,W
+099E:  BSF    03.5
+099F:  MOVWF  21
+09A0:  BCF    03.5
+09A1:  MOVF   5E,W
+09A2:  BSF    03.5
+09A3:  MOVWF  20
+09A4:  MOVLW  CD
+09A5:  MOVWF  27
+09A6:  MOVLW  CC
+09A7:  MOVWF  26
+09A8:  MOVLW  4C
+09A9:  MOVWF  25
+09AA:  MOVLW  7B
+09AB:  MOVWF  24
+09AC:  BCF    0A.3
+09AD:  BCF    03.5
+09AE:  CALL   6A8
+09AF:  BSF    0A.3
+09B0:  BTFSS  03.0
+09B1:  GOTO   1BB
+.................... 		//ERROR: resistance value of NTC is too small (too hot here ;-) 
+.................... 		return(tcelsius); 
+09B2:  MOVF   56,W
+09B3:  MOVWF  77
+09B4:  MOVF   57,W
+09B5:  MOVWF  78
+09B6:  MOVF   58,W
+09B7:  MOVWF  79
+09B8:  MOVF   59,W
+09B9:  MOVWF  7A
+09BA:  GOTO   565
+.................... 	} 
+.................... 	tmp = ( (1.0/NTC_B) * log( (ohm/NTC_RN) ) ) + ( 1 / (NTC_TN+273.0) ); 
+09BB:  MOVF   55,W
+09BC:  BSF    03.5
+09BD:  MOVWF  27
+09BE:  BCF    03.5
+09BF:  MOVF   54,W
+09C0:  BSF    03.5
+09C1:  MOVWF  26
+09C2:  BCF    03.5
+09C3:  MOVF   53,W
+09C4:  BSF    03.5
+09C5:  MOVWF  25
+09C6:  BCF    03.5
+09C7:  MOVF   52,W
+09C8:  BSF    03.5
+09C9:  MOVWF  24
+09CA:  CLRF   2B
+09CB:  MOVLW  80
+09CC:  MOVWF  2A
+09CD:  MOVLW  6D
+09CE:  MOVWF  29
+09CF:  MOVLW  88
+09D0:  MOVWF  28
+09D1:  BCF    0A.3
+09D2:  BCF    03.5
+09D3:  CALL   341
+09D4:  BSF    0A.3
+09D5:  MOVF   77,W
+09D6:  MOVWF  5E
+09D7:  MOVF   78,W
+09D8:  MOVWF  5F
+09D9:  MOVF   79,W
+09DA:  MOVWF  60
+09DB:  MOVF   7A,W
+09DC:  MOVWF  61
+09DD:  MOVF   61,W
+09DE:  MOVWF  65
+09DF:  MOVF   60,W
+09E0:  MOVWF  64
+09E1:  MOVF   5F,W
+09E2:  MOVWF  63
+09E3:  MOVF   5E,W
+09E4:  MOVWF  62
+*
+0CCC:  MOVLW  B0
+0CCD:  BSF    03.5
+0CCE:  MOVWF  23
+0CCF:  MOVLW  06
+0CD0:  MOVWF  22
+0CD1:  MOVLW  25
+0CD2:  MOVWF  21
+0CD3:  MOVLW  73
+0CD4:  MOVWF  20
+0CD5:  MOVF   7A,W
+0CD6:  MOVWF  27
+0CD7:  MOVF   79,W
+0CD8:  MOVWF  26
+0CD9:  MOVF   78,W
+0CDA:  MOVWF  25
+0CDB:  MOVF   77,W
+0CDC:  MOVWF  24
+0CDD:  BCF    0A.3
+0CDE:  BCF    03.5
+0CDF:  CALL   40D
+0CE0:  BSF    0A.3
+0CE1:  MOVF   77,W
+0CE2:  MOVWF  5F
+0CE3:  MOVF   78,W
+0CE4:  MOVWF  60
+0CE5:  MOVF   79,W
+0CE6:  MOVWF  61
+0CE7:  MOVF   7A,W
+0CE8:  MOVWF  62
+0CE9:  CLRF   64
+0CEA:  MOVF   04,W
+0CEB:  MOVWF  63
+0CEC:  BCF    64.0
+0CED:  BTFSC  03.7
+0CEE:  BSF    64.0
+0CEF:  BCF    03.1
+0CF0:  MOVF   7A,W
+0CF1:  BSF    03.5
+0CF2:  MOVWF  27
+0CF3:  BCF    03.5
+0CF4:  MOVF   79,W
+0CF5:  BSF    03.5
+0CF6:  MOVWF  26
+0CF7:  BCF    03.5
+0CF8:  MOVF   78,W
+0CF9:  BSF    03.5
+0CFA:  MOVWF  25
+0CFB:  BCF    03.5
+0CFC:  MOVF   77,W
+0CFD:  BSF    03.5
+0CFE:  MOVWF  24
+0CFF:  MOVLW  62
+0D00:  MOVWF  2B
+0D01:  MOVLW  EB
+0D02:  MOVWF  2A
+0D03:  MOVLW  5B
+0D04:  MOVWF  29
+0D05:  MOVLW  76
+0D06:  MOVWF  28
+0D07:  BCF    0A.3
+0D08:  BCF    03.5
+0D09:  CALL   484
+0D0A:  BSF    0A.3
+0D0B:  MOVF   63,W
+0D0C:  MOVWF  04
+0D0D:  BCF    03.7
+0D0E:  BTFSC  64.0
+0D0F:  BSF    03.7
+0D10:  MOVF   7A,W
+0D11:  MOVWF  5D
+0D12:  MOVF   79,W
+0D13:  MOVWF  5C
+0D14:  MOVF   78,W
+0D15:  MOVWF  5B
+0D16:  MOVF   77,W
+0D17:  MOVWF  5A
+....................  
+.................... 	tcelsius = (float) (1.0/tmp) -273; 
+0D18:  BSF    03.5
+0D19:  CLRF   27
+0D1A:  CLRF   26
+0D1B:  CLRF   25
+0D1C:  MOVLW  7F
+0D1D:  MOVWF  24
+0D1E:  BCF    03.5
+0D1F:  MOVF   5D,W
+0D20:  BSF    03.5
+0D21:  MOVWF  2B
+0D22:  BCF    03.5
+0D23:  MOVF   5C,W
+0D24:  BSF    03.5
+0D25:  MOVWF  2A
+0D26:  BCF    03.5
+0D27:  MOVF   5B,W
+0D28:  BSF    03.5
+0D29:  MOVWF  29
+0D2A:  BCF    03.5
+0D2B:  MOVF   5A,W
+0D2C:  BSF    03.5
+0D2D:  MOVWF  28
+0D2E:  BCF    0A.3
+0D2F:  BCF    03.5
+0D30:  CALL   341
+0D31:  BSF    0A.3
+0D32:  MOVF   77,W
+0D33:  MOVWF  5E
+0D34:  MOVF   78,W
+0D35:  MOVWF  5F
+0D36:  MOVF   79,W
+0D37:  MOVWF  60
+0D38:  MOVF   7A,W
+0D39:  MOVWF  61
+0D3A:  BSF    03.1
+0D3B:  MOVF   7A,W
+0D3C:  BSF    03.5
+0D3D:  MOVWF  27
+0D3E:  BCF    03.5
+0D3F:  MOVF   79,W
+0D40:  BSF    03.5
+0D41:  MOVWF  26
+0D42:  BCF    03.5
+0D43:  MOVF   78,W
+0D44:  BSF    03.5
+0D45:  MOVWF  25
+0D46:  BCF    03.5
+0D47:  MOVF   77,W
+0D48:  BSF    03.5
+0D49:  MOVWF  24
+0D4A:  CLRF   2B
+0D4B:  MOVLW  80
+0D4C:  MOVWF  2A
+0D4D:  MOVLW  08
+0D4E:  MOVWF  29
+0D4F:  MOVLW  87
+0D50:  MOVWF  28
+0D51:  BCF    0A.3
+0D52:  BCF    03.5
+0D53:  CALL   484
+0D54:  BSF    0A.3
+0D55:  MOVF   7A,W
+0D56:  MOVWF  59
+0D57:  MOVF   79,W
+0D58:  MOVWF  58
+0D59:  MOVF   78,W
+0D5A:  MOVWF  57
+0D5B:  MOVF   77,W
+0D5C:  MOVWF  56
+.................... 	return(tcelsius); 
+0D5D:  MOVF   56,W
+0D5E:  MOVWF  77
+0D5F:  MOVF   57,W
+0D60:  MOVWF  78
+0D61:  MOVF   58,W
+0D62:  MOVWF  79
+0D63:  MOVF   59,W
+0D64:  MOVWF  7A
+.................... } 
+....................  
+....................  
+.................... #include "lcd.c"	// LCD interfacing 
+....................  
+....................  
+.................... // LCD FUNCTIONS ================================= 
+....................  
+.................... void LCD_Init ( void ) 
+.................... { 
+.................... 	LCD_SetData ( 0x00 ); 
+*
+027C:  CLRF   52
+027D:  CALL   237
+.................... 	delay_ms ( 200 );       // wait enough time after Vdd rise 
+027E:  MOVLW  C8
+027F:  MOVWF  52
+0280:  CALL   223
+.................... 	output_low ( LCD_RS ); 
+0281:  BSF    03.5
+0282:  BCF    06.6
+0283:  BCF    03.5
+0284:  BCF    06.6
+.................... 	LCD_SetData ( 0x03 );   // init with specific nibbles to start 4-bit mode 
+0285:  MOVLW  03
+0286:  MOVWF  52
+0287:  CALL   237
+.................... 	LCD_PulseEnable(); 
+0288:  CALL   260
+.................... 	LCD_PulseEnable(); 
+0289:  CALL   260
+.................... 	LCD_PulseEnable(); 
+028A:  CALL   260
+.................... 	LCD_SetData ( 0x02 );   // set 4-bit interface 
+028B:  MOVLW  02
+028C:  MOVWF  52
+028D:  CALL   237
+.................... 	LCD_PulseEnable();      // send dual nibbles hereafter, MSN first 
+028E:  CALL   260
+.................... 	LCD_PutCmd ( 0x2C );    // function set (all lines, 5x7 characters) 
+028F:  MOVLW  2C
+0290:  MOVWF  3C
+0291:  CALL   271
+.................... 	LCD_PutCmd ( 0x0C );    // display ON, cursor off, no blink 
+0292:  MOVLW  0C
+0293:  MOVWF  3C
+0294:  CALL   271
+.................... 	LCD_PutCmd ( 0x01 );    // clear display 
+0295:  MOVLW  01
+0296:  MOVWF  3C
+0297:  CALL   271
+.................... 	LCD_PutCmd ( 0x06 );    // entry mode set, increment 
+0298:  MOVLW  06
+0299:  MOVWF  3C
+029A:  CALL   271
+.................... } 
+029B:  RETLW  00
+....................  
+.................... void LCD_SetPosition ( unsigned int cX ) 
+.................... { 
+.................... 	// this subroutine works specifically for 4-bit Port A 
+.................... 	LCD_SetData ( swap ( cX ) | 0x08 ); 
+029C:  SWAPF  44,F
+029D:  MOVF   44,W
+029E:  IORLW  08
+029F:  MOVWF  45
+02A0:  MOVWF  52
+02A1:  CALL   237
+.................... 	LCD_PulseEnable(); 
+02A2:  CALL   260
+.................... 	LCD_SetData ( swap ( cX ) ); 
+02A3:  SWAPF  44,F
+02A4:  MOVF   44,W
+02A5:  MOVWF  52
+02A6:  CALL   237
+.................... 	LCD_PulseEnable(); 
+02A7:  CALL   260
+.................... } 
+02A8:  RETLW  00
+....................  
+.................... void LCD_PutChar ( unsigned int cX ) 
+.................... { 
+.................... 	// this subroutine works specifically for 4-bit Port A 
+.................... 	output_high ( LCD_RS ); 
+02A9:  BSF    03.5
+02AA:  BCF    06.6
+02AB:  BCF    03.5
+02AC:  BSF    06.6
+.................... 	LCD_SetData ( swap ( cX ) );     // send high nibble 
+02AD:  SWAPF  51,F
+02AE:  MOVF   51,W
+02AF:  MOVWF  52
+02B0:  CALL   237
+.................... 	LCD_PulseEnable(); 
+02B1:  CALL   260
+.................... 	LCD_SetData ( swap ( cX ) );     // send low nibble 
+02B2:  SWAPF  51,F
+02B3:  MOVF   51,W
+02B4:  MOVWF  52
+02B5:  CALL   237
+.................... 	LCD_PulseEnable(); 
+02B6:  CALL   260
+.................... 	output_low ( LCD_RS ); 
+02B7:  BSF    03.5
+02B8:  BCF    06.6
+02B9:  BCF    03.5
+02BA:  BCF    06.6
+.................... } 
+02BB:  RETLW  00
+....................  
+.................... void LCD_PutCmd ( unsigned int cX ) 
+.................... { 
+.................... 	// this subroutine works specifically for 4-bit Port A 
+.................... 	LCD_SetData ( swap ( cX ) );     // send high nibble 
+*
+0271:  SWAPF  3C,F
+0272:  MOVF   3C,W
+0273:  MOVWF  52
+0274:  CALL   237
+.................... 	LCD_PulseEnable(); 
+0275:  CALL   260
+.................... 	LCD_SetData ( swap ( cX ) );     // send low nibble 
+0276:  SWAPF  3C,F
+0277:  MOVF   3C,W
+0278:  MOVWF  52
+0279:  CALL   237
+.................... 	LCD_PulseEnable(); 
+027A:  CALL   260
+.................... } 
+027B:  RETLW  00
+....................  
+.................... void LCD_PulseEnable ( void ) 
+.................... { 
+.................... 	output_high ( LCD_EN ); 
+*
+0260:  BSF    03.5
+0261:  BCF    06.5
+0262:  BCF    03.5
+0263:  BSF    06.5
+.................... 	delay_us ( 10 ); 
+0264:  MOVLW  06
+0265:  MOVWF  77
+0266:  DECFSZ 77,F
+0267:  GOTO   266
+0268:  NOP
+.................... 	output_low ( LCD_EN ); 
+0269:  BSF    03.5
+026A:  BCF    06.5
+026B:  BCF    03.5
+026C:  BCF    06.5
+.................... 	delay_ms ( 5 ); 
+026D:  MOVLW  05
+026E:  MOVWF  52
+026F:  CALL   223
+.................... } 
+0270:  RETLW  00
+....................  
+.................... void LCD_SetData ( unsigned int cX ) 
+.................... { 
+.................... 	output_bit ( LCD_D0, cX & 0x01 ); 
+*
+0237:  BTFSC  52.0
+0238:  GOTO   23B
+0239:  BCF    07.3
+023A:  GOTO   23C
+023B:  BSF    07.3
+023C:  BCF    28.3
+023D:  MOVF   28,W
+023E:  BSF    03.5
+023F:  MOVWF  07
+.................... 	output_bit ( LCD_D1, cX & 0x02 ); 
+0240:  BCF    03.5
+0241:  BTFSC  52.1
+0242:  GOTO   245
+0243:  BCF    07.4
+0244:  GOTO   246
+0245:  BSF    07.4
+0246:  BCF    28.4
+0247:  MOVF   28,W
+0248:  BSF    03.5
+0249:  MOVWF  07
+.................... 	output_bit ( LCD_D2, cX & 0x04 ); 
+024A:  BCF    03.5
+024B:  BTFSC  52.2
+024C:  GOTO   24F
+024D:  BCF    07.5
+024E:  GOTO   250
+024F:  BSF    07.5
+0250:  BCF    28.5
+0251:  MOVF   28,W
+0252:  BSF    03.5
+0253:  MOVWF  07
+.................... 	output_bit ( LCD_D3, cX & 0x08 ); 
+0254:  BCF    03.5
+0255:  BTFSC  52.3
+0256:  GOTO   259
+0257:  BCF    07.6
+0258:  GOTO   25A
+0259:  BSF    07.6
+025A:  BCF    28.6
+025B:  MOVF   28,W
+025C:  BSF    03.5
+025D:  MOVWF  07
+.................... } 
+025E:  BCF    03.5
+025F:  RETLW  00
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... /******************************************************************* 
+....................  
+.................... ----------------------------------------------------------------------------------------- 
+.................... Finne Interrupt rate (antall pr sekund): 
+.................... ----------------------------------------------------------------------------------------- 
+.................... F: Oscillator frekvens i Hz (8MHz = 8000000) 
+.................... P: Prescaler 8-bit verdi (defineres i koden, f.eks: setup_counters ( RTCC_INTERNAL, RTCC_DIV_128 ) ) 
+.................... PRT: Preset Timer0 før hopper ut av interrupt (0-255) 
+.................... I: Interrupt rate (antall pr sekund) 
+....................  
+.................... I = F / 4 / P / (256-PRT) 
+....................  
+.................... Med 8MHz oscillator, prescale bit 128 og PRT 0: 
+.................... I = 8000000 / 4 / 128 / (256-0) 
+.................... I = 61,03 
+.................... 	===== 
+....................  
+.................... Med 8MHz oscillator, prescale bit 128 og PRT 4: 
+.................... I = 8000000 / 4 / 128 / (256-4) 
+.................... I = 62,00 
+.................... 	===== 
+....................  
+....................  
+.................... ----------------------------------------------------------------------------------------- 
+.................... Velge loop teller verdi i interrupt: 
+.................... ----------------------------------------------------------------------------------------- 
+.................... N: Sekund interval (ms) du ønsker tick 
+.................... I: Interrupt rate (antall pr sekund) 
+.................... C: loop teller i Interrupt 
+....................  
+.................... C = I * 1000 / N 
+....................  
+.................... Med 2 sekunds tick og interrupt rate 61,03: 
+.................... C = 61,03 * 1000 / 2000 
+.................... C = 30,515 
+.................... 	======= 
+....................  
+....................  
+....................  
+.................... ***********************************************************************/ 
+....................  
+.................... #int_rtcc 
+.................... void TimerInterrupt ( void ) // Gets here every 16.4mS at 8MHz, 8.2mS at 16MHz 
+.................... { 
+.................... 	if ( cInterruptCount++ >= 61 )      // if one second yet 
+*
+019F:  MOVF   2B,W
+01A0:  INCF   2B,F
+01A1:  SUBLW  3C
+01A2:  BTFSC  03.0
+01A3:  GOTO   1F7
+.................... 	{ 
+....................  
+.................... 		cInterruptCount = 0; 
+01A4:  CLRF   2B
+....................  
+.................... 		if(cDisplayUpdate ++ == 3) // update disp every 5 sec 
+01A5:  MOVF   32,W
+01A6:  INCF   32,F
+01A7:  SUBLW  03
+01A8:  BTFSS  03.2
+01A9:  GOTO   1AD
+.................... 		{ 
+.................... 			cDisplayUpdate = 0; 
+01AA:  CLRF   32
+.................... 			cDisplayDataFlag = ON; // signal time to update temp/humidity 
+01AB:  MOVLW  01
+01AC:  MOVWF  29
+.................... 		} 
+....................  
+....................  
+.................... 		/************ AUTO MODE ******************/ 
+.................... 		// Fan must run N minutes after auto mode is stopped, to avoid hysteresis 
+.................... 		if ( cMenuState == STATE_AUTO && cFan1Flag == ON && cFan1CanStop == NO ) 
+01AD:  MOVF   2C,F
+01AE:  BTFSS  03.2
+01AF:  GOTO   1C0
+01B0:  DECFSZ 2A,W
+01B1:  GOTO   1C0
+01B2:  MOVF   3A,F
+01B3:  BTFSS  03.2
+01B4:  GOTO   1C0
+.................... 		{ 
+.................... 			if( cFan1RunTime ++ == ( MINIMUM_INTERVAL * 60 ) ) // (MINIMUM_INTERVAL*60) 
+01B5:  MOVF   36,W
+01B6:  INCF   36,F
+01B7:  SUBLW  B4
+01B8:  BTFSS  03.2
+01B9:  GOTO   1BE
+.................... 			{ 
+.................... 				cFan1CanStop = YES; // signal ok to turn off fan if rh is under limits 
+01BA:  MOVLW  01
+01BB:  MOVWF  3A
+.................... 				cDisplayDataFlag = ON; // signal time to update temp/humidity 
+01BC:  MOVWF  29
+.................... 			} 
+.................... 			else 
+01BD:  GOTO   1BF
+.................... 			{ 
+.................... 				cFan1CanStop = NO; // keep on running 
+01BE:  CLRF   3A
+.................... 			} 
+.................... 		} 
+.................... 		else 
+01BF:  GOTO   1C1
+.................... 		{ 
+.................... 			cFan1RunTime = 0; 
+01C0:  CLRF   36
+.................... 		} 
+....................  
+....................  
+.................... 		/************ DELAYED MODE ******************/ 
+.................... 		if ( cMenuState == STATE_DELAYED && cFan1Flag == ON && cFan1CanStop == NO ) 
+01C1:  MOVF   2C,W
+01C2:  SUBLW  03
+01C3:  BTFSS  03.2
+01C4:  GOTO   1E4
+01C5:  DECFSZ 2A,W
+01C6:  GOTO   1E4
+01C7:  MOVF   3A,F
+01C8:  BTFSS  03.2
+01C9:  GOTO   1E4
+.................... 		{ 
+.................... 			//if( cFan1DelayedRunTime ++ == ( DELAYED_INTERVAL * 60 ) ) 
+.................... 			if( cFan1DelayedRunTime ++ == ( IntervalMinutes * 60 ) ) 
+01CA:  MOVF   37,W
+01CB:  INCF   37,F
+01CC:  BSF    03.5
+01CD:  MOVWF  34
+01CE:  BCF    03.5
+01CF:  MOVF   3B,W
+01D0:  BSF    03.5
+01D1:  MOVWF  35
+01D2:  MOVLW  3C
+01D3:  MOVWF  36
+01D4:  BCF    03.5
+01D5:  GOTO   176
+01D6:  MOVF   78,W
+01D7:  BSF    03.5
+01D8:  SUBWF  34,W
+01D9:  BTFSS  03.2
+01DA:  GOTO   1E1
+.................... 			{ 
+.................... 				cFan1CanStop = YES; // signal ok to turn off fan, delayed period finished 
+01DB:  MOVLW  01
+01DC:  BCF    03.5
+01DD:  MOVWF  3A
+.................... 				cDisplayDataFlag = ON; // signal time to update temp/humidity 
+01DE:  MOVWF  29
+.................... 			} 
+.................... 			else 
+01DF:  GOTO   1E3
+01E0:  BSF    03.5
+.................... 			{ 
+.................... 				cFan1CanStop = NO; // keep on running 
+01E1:  BCF    03.5
+01E2:  CLRF   3A
+.................... 			} 
+.................... 		} 
+.................... 		else 
+01E3:  GOTO   1E5
+.................... 		{ 
+.................... 			cFan1DelayedRunTime = 0; 
+01E4:  CLRF   37
+.................... 		} 
+....................  
+....................  
+....................  
+.................... 		if ( cFan1Flag == ON ) //v1.6 
+01E5:  DECFSZ 2A,W
+01E6:  GOTO   1F4
+.................... 		{ 
+.................... 			cToggleFlag ^= 1;              // toggle (blink) LED while fan is running 
+01E7:  MOVLW  01
+01E8:  XORWF  33,F
+.................... 			if ( cToggleFlag == 1) 
+01E9:  DECFSZ 33,W
+01EA:  GOTO   1F0
+.................... 			{ 
+.................... 				output_low ( LED_2 ); 
+01EB:  BSF    03.5
+01EC:  BCF    06.4
+01ED:  BCF    03.5
+01EE:  BCF    06.4
+.................... 			} 
+.................... 			else 
+01EF:  GOTO   1F3
+.................... 			{ 
+.................... 				output_float ( LED_2 ); 
+01F0:  BSF    03.5
+01F1:  BSF    06.4
+01F2:  BCF    03.5
+.................... 			} 
+.................... 		} 
+.................... 		else 
+01F3:  GOTO   1F7
+.................... 		{ 
+.................... 			output_float ( LED_2 ); // turn off LED if fan not running 
+01F4:  BSF    03.5
+01F5:  BSF    06.4
+01F6:  BCF    03.5
+.................... 		} 
+....................  
+.................... 	} 
+....................  
+.................... 	if ( input ( MENU_SWITCH ) == LOW )	// if button still pressed 
+01F7:  BSF    28.1
+01F8:  MOVF   28,W
+01F9:  BSF    03.5
+01FA:  MOVWF  07
+01FB:  BCF    03.5
+01FC:  BTFSC  07.1
+01FD:  GOTO   204
+.................... 	{ 
+.................... 		if ( cMenuSwitchCount < 128 )	// hold at 128 
+01FE:  MOVF   2F,W
+01FF:  SUBLW  7F
+0200:  BTFSS  03.0
+0201:  GOTO   203
+.................... 		{ 
+.................... 			cMenuSwitchCount++;			// otherwise increment 
+0202:  INCF   2F,F
+.................... 		} 
+....................  
+.................... 	} 
+.................... 	else								// if button is unpressed 
+0203:  GOTO   21D
+.................... 	{ 
+.................... 		if ( cMenuSwitchCount > 2 )			// filter out glitches 
+0204:  MOVF   2F,W
+0205:  SUBLW  02
+0206:  BTFSC  03.0
+0207:  GOTO   21C
+.................... 		{ 
+.................... 			// If button press is greater than 3.9 seconds (31msec * 128 / 1000), cold reset 
+.................... 			if ( cMenuSwitchCount == 128 ) 
+0208:  MOVF   2F,W
+0209:  SUBLW  80
+020A:  BTFSS  03.2
+020B:  GOTO   20F
+.................... 			{ 
+.................... 				reset_cpu(); 
+020C:  CLRF   0A
+020D:  GOTO   000
+.................... 			} 
+.................... 			else if ( cMenuSwitchCount >= 64 && cMenuSwitchCount < 128 ) // ~2 to 3.8 secs, display settings 
+020E:  GOTO   21C
+020F:  MOVF   2F,W
+0210:  SUBLW  3F
+0211:  BTFSC  03.0
+0212:  GOTO   21A
+0213:  MOVF   2F,W
+0214:  SUBLW  7F
+0215:  BTFSS  03.0
+0216:  GOTO   21A
+.................... 			{ 
+.................... 				cDisplaySettingsFlag = 1; 
+0217:  MOVLW  01
+0218:  MOVWF  35
+.................... 			} 
+.................... 			else 
+0219:  GOTO   21C
+.................... 			{ 
+.................... 				cMenuSwitchOn = YES;        	// signal that switch was pressed 
+021A:  MOVLW  01
+021B:  MOVWF  2E
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		cMenuSwitchCount = 0;             // switch up, restart 
+021C:  CLRF   2F
+.................... 	} 
+....................  
+.................... 	set_rtcc ( 4 );     // Prescaler value, restart at adjusted value for 1-second accuracy 
+021D:  MOVLW  04
+021E:  MOVWF  01
+.................... } 
+....................  
+.................... //***************************************************************************** 
+....................  
+021F:  BCF    0B.2
+0220:  BCF    0A.3
+0221:  BCF    0A.4
+0222:  GOTO   01D
+.................... void printVersionInfo ( void ) 
+.................... { 
+.................... 	LCD_SetPosition ( LINE_1 + 0 ); 
+*
+02BC:  CLRF   44
+02BD:  CALL   29C
+.................... 	printf ( LCD_PutChar, " BADEVIFTE v4.0" ); 
+02BE:  CLRF   3C
+02BF:  MOVF   3C,W
+02C0:  CALL   033
+02C1:  INCF   3C,F
+02C2:  MOVWF  77
+02C3:  MOVWF  51
+02C4:  CALL   2A9
+02C5:  MOVLW  0F
+02C6:  SUBWF  3C,W
+02C7:  BTFSS  03.2
+02C8:  GOTO   2BF
+.................... 	LCD_SetPosition ( LINE_2+ 0 ); 
+02C9:  MOVLW  40
+02CA:  MOVWF  44
+02CB:  CALL   29C
+.................... 	printf ( LCD_PutChar, "Kenny 20.11.2007" ); 
+02CC:  CLRF   3C
+02CD:  MOVF   3C,W
+02CE:  CALL   047
+02CF:  INCF   3C,F
+02D0:  MOVWF  77
+02D1:  MOVWF  51
+02D2:  CALL   2A9
+02D3:  MOVLW  10
+02D4:  SUBWF  3C,W
+02D5:  BTFSS  03.2
+02D6:  GOTO   2CD
+.................... } 
+02D7:  BSF    0A.3
+02D8:  BCF    0A.4
+02D9:  GOTO   719 (RETURN)
+....................  
+.................... void main ( void ) 
+.................... { 
+*
+0EC9:  CLRF   04
+0ECA:  BCF    03.7
+0ECB:  MOVLW  1F
+0ECC:  ANDWF  03,F
+0ECD:  BSF    03.5
+0ECE:  BSF    1F.0
+0ECF:  BSF    1F.1
+0ED0:  BSF    1F.2
+0ED1:  BCF    1F.3
+....................  
+.................... 	delay_ms ( 200 );           // wait enough time after VDD rise 
+*
+0EE8:  MOVLW  C8
+0EE9:  MOVWF  52
+0EEA:  BCF    0A.3
+0EEB:  CALL   223
+0EEC:  BSF    0A.3
+.................... 	setup_counters ( RTCC_INTERNAL, RTCC_DIV_128 );       // 31mS roll @8MHz 
+0EED:  MOVLW  06
+0EEE:  MOVWF  77
+0EEF:  BTFSS  77.3
+0EF0:  GOTO   6FA
+0EF1:  MOVLW  07
+0EF2:  CLRF   01
+0EF3:  MOVLW  81
+0EF4:  MOVWF  04
+0EF5:  BCF    03.7
+0EF6:  MOVF   00,W
+0EF7:  ANDLW  C0
+0EF8:  IORLW  0F
+0EF9:  MOVWF  00
+0EFA:  CLRWDT
+0EFB:  MOVLW  81
+0EFC:  MOVWF  04
+0EFD:  MOVF   00,W
+0EFE:  ANDLW  C0
+0EFF:  IORWF  77,W
+0F00:  MOVWF  00
+....................  
+.................... 	output_low ( FAN_1 ); 
+0F01:  BCF    28.0
+0F02:  MOVF   28,W
+0F03:  BSF    03.5
+0F04:  MOVWF  07
+0F05:  BCF    03.5
+0F06:  BCF    07.0
+.................... 	output_low ( LED_1 ); 
+0F07:  BSF    03.5
+0F08:  BCF    06.3
+0F09:  BCF    03.5
+0F0A:  BCF    06.3
+.................... 	output_low ( LED_2 ); 
+0F0B:  BSF    03.5
+0F0C:  BCF    06.4
+0F0D:  BCF    03.5
+0F0E:  BCF    06.4
+....................  
+....................  
+.................... 	LCD_Init(); 
+0F0F:  BCF    0A.3
+0F10:  CALL   27C
+0F11:  BSF    0A.3
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+0F12:  MOVLW  01
+0F13:  MOVWF  3C
+0F14:  BCF    0A.3
+0F15:  CALL   271
+0F16:  BSF    0A.3
+....................  
+.................... 	printVersionInfo(); 
+0F17:  BCF    0A.3
+0F18:  GOTO   2BC
+0F19:  BSF    0A.3
+.................... 	delay_ms ( 5000 ); 
+0F1A:  MOVLW  14
+0F1B:  MOVWF  3C
+0F1C:  MOVLW  FA
+0F1D:  MOVWF  52
+0F1E:  BCF    0A.3
+0F1F:  CALL   223
+0F20:  BSF    0A.3
+0F21:  DECFSZ 3C,F
+0F22:  GOTO   71C
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+0F23:  MOVLW  01
+0F24:  MOVWF  3C
+0F25:  BCF    0A.3
+0F26:  CALL   271
+0F27:  BSF    0A.3
+.................... 	LCD_Init(); 
+0F28:  BCF    0A.3
+0F29:  CALL   27C
+0F2A:  BSF    0A.3
+....................  
+.................... 	// SETUP 
+.................... 	setup_ccp1 ( CCP_OFF ); 
+0F2B:  BSF    28.2
+0F2C:  MOVF   28,W
+0F2D:  BSF    03.5
+0F2E:  MOVWF  07
+0F2F:  BCF    03.5
+0F30:  CLRF   17
+.................... 	setup_ccp2 ( CCP_OFF ); 
+0F31:  BSF    28.1
+0F32:  MOVF   28,W
+0F33:  BSF    03.5
+0F34:  MOVWF  07
+0F35:  BCF    03.5
+0F36:  CLRF   1D
+....................  
+.................... 	setup_adc_ports ( AN0_AN1_AN3 );	// set up the ADC on analog inputs AN0, AN1 and AN3 
+0F37:  BSF    03.5
+0F38:  BCF    1F.0
+0F39:  BCF    1F.1
+0F3A:  BSF    1F.2
+0F3B:  BCF    1F.3
+.................... 	setup_adc ( ADC_CLOCK_INTERNAL );   // clock source 
+0F3C:  BCF    03.5
+0F3D:  BSF    1F.6
+0F3E:  BSF    1F.7
+0F3F:  BSF    03.5
+0F40:  BSF    1F.7
+0F41:  BCF    03.5
+0F42:  BSF    1F.0
+....................  
+.................... 	enable_interrupts ( INT_RTCC );     // turn on timer interrupt 
+0F43:  BSF    0B.5
+.................... 	enable_interrupts ( GLOBAL );       // enable interrupts 
+0F44:  MOVLW  C0
+0F45:  IORWF  0B,F
+....................  
+.................... 	// INITIALIZE VARIABLES 
+.................... 	cFan1Flag = OFF; 
+0F46:  CLRF   2A
+.................... 	cSelectFlag = OFF; 
+0F47:  CLRF   2D
+.................... 	cToggleFlag = 0; 
+0F48:  CLRF   33
+.................... 	cToggleFlagLCD = 0; 
+0F49:  CLRF   34
+.................... 	cDisplaySettingsFlag = OFF; 
+0F4A:  CLRF   35
+.................... 	cMenuSwitchOn = OFF; 
+0F4B:  CLRF   2E
+.................... 	cSelectSwitchOn = OFF; 
+0F4C:  CLRF   30
+.................... 	cMenuSwitchCount = 0; 
+0F4D:  CLRF   2F
+.................... 	cSelectSwitchCount = 0; 
+0F4E:  CLRF   31
+....................  
+.................... 	// bootup diagnose view 
+.................... 	output_high ( FAN_1 ); 
+0F4F:  BCF    28.0
+0F50:  MOVF   28,W
+0F51:  BSF    03.5
+0F52:  MOVWF  07
+0F53:  BCF    03.5
+0F54:  BSF    07.0
+.................... 	output_float ( LED_2 ); 
+0F55:  BSF    03.5
+0F56:  BSF    06.4
+....................  
+.................... 	output_float ( RH_LIMIT_2_JUMPER ); 
+0F57:  BSF    05.4
+.................... 	output_float ( INCLUDE_TEMP_JUMPER ); 
+0F58:  BCF    03.5
+0F59:  BSF    28.2
+0F5A:  MOVF   28,W
+0F5B:  BSF    03.5
+0F5C:  MOVWF  07
+.................... 	// start modus 
+.................... 	cMenuState = STATE_AUTO;  // set first menu 
+0F5D:  BCF    03.5
+0F5E:  CLRF   2C
+....................  
+.................... 	cDisplayDataFlag = ON; // update display immediatly 
+0F5F:  MOVLW  01
+0F60:  MOVWF  29
+....................  
+.................... 	while ( TRUE )              // do forever 
+.................... 	{ 
+.................... 		PrintMenu();            // display screens and enviroment info 
+0F61:  BSF    0A.4
+0F62:  BCF    0A.3
+0F63:  GOTO   000
+0F64:  BCF    0A.4
+0F65:  BSF    0A.3
+.................... 		CheckSwitches();        // check and do any switch activity 
+0F66:  BCF    0A.3
+0F67:  GOTO   773
+0F68:  BSF    0A.3
+.................... 		AutoFan();				// routine itself checks if automode active 
+0F69:  GOTO   576
+.................... 		DelayedFan();			// routine itself checks if delayed mode active 
+0F6A:  BCF    0A.3
+0F6B:  GOTO   7CF
+0F6C:  BSF    0A.3
+.................... 		IntervalMinutes = getInterval(); 
+0F6D:  GOTO   607
+0F6E:  MOVF   7A,W
+0F6F:  MOVWF  3F
+0F70:  MOVF   79,W
+0F71:  MOVWF  3E
+0F72:  MOVF   78,W
+0F73:  MOVWF  3D
+0F74:  MOVF   77,W
+0F75:  MOVWF  3C
+0F76:  GOTO   6A8
+0F77:  MOVF   78,W
+0F78:  MOVWF  3B
+.................... 	} 
+0F79:  GOTO   761
+.................... } 
+....................  
+.................... //**************************************************************************** 
+....................  
+.................... void PrintMenu ( void ) 
+.................... { 
+0F7A:  SLEEP
+....................  
+.................... 	// PRINT LOWER LINE OF MENU 
+.................... 	LCD_SetPosition ( LINE_2 + 0 ); 
+*
+1000:  MOVLW  40
+1001:  MOVWF  44
+1002:  BCF    0A.4
+1003:  CALL   29C
+1004:  BSF    0A.4
+.................... 	switch ( cMenuState ) 
+.................... 	{ 
+1005:  MOVF   2C,W
+1006:  ADDLW  FC
+1007:  BTFSC  03.0
+1008:  GOTO   0AA
+1009:  ADDLW  04
+100A:  GOTO   340
+.................... 		case STATE_START: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "ON        Next->" ); 
+100B:  MOVLW  4F
+100C:  MOVWF  51
+100D:  BCF    0A.4
+100E:  CALL   2A9
+100F:  BSF    0A.4
+1010:  MOVLW  4E
+1011:  MOVWF  51
+1012:  BCF    0A.4
+1013:  CALL   2A9
+1014:  BSF    0A.4
+1015:  MOVLW  08
+1016:  MOVWF  3C
+1017:  MOVLW  20
+1018:  MOVWF  51
+1019:  BCF    0A.4
+101A:  CALL   2A9
+101B:  BSF    0A.4
+101C:  DECFSZ 3C,F
+101D:  GOTO   017
+101E:  MOVLW  02
+101F:  MOVWF  3D
+1020:  MOVF   3D,W
+1021:  BCF    0A.4
+1022:  CALL   05C
+1023:  BSF    0A.4
+1024:  INCF   3D,F
+1025:  MOVWF  77
+1026:  MOVWF  51
+1027:  BCF    0A.4
+1028:  CALL   2A9
+1029:  BSF    0A.4
+102A:  MOVLW  08
+102B:  SUBWF  3D,W
+102C:  BTFSS  03.2
+102D:  GOTO   020
+.................... 		} 
+.................... 		break; 
+102E:  GOTO   0AA
+....................  
+.................... 		case STATE_STOP: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "OFF       Next->" ); 
+102F:  MOVLW  4F
+1030:  MOVWF  51
+1031:  BCF    0A.4
+1032:  CALL   2A9
+1033:  BSF    0A.4
+1034:  MOVLW  46
+1035:  MOVWF  51
+1036:  BCF    0A.4
+1037:  CALL   2A9
+1038:  BSF    0A.4
+1039:  MOVLW  46
+103A:  MOVWF  51
+103B:  BCF    0A.4
+103C:  CALL   2A9
+103D:  BSF    0A.4
+103E:  MOVLW  07
+103F:  MOVWF  3C
+1040:  MOVLW  20
+1041:  MOVWF  51
+1042:  BCF    0A.4
+1043:  CALL   2A9
+1044:  BSF    0A.4
+1045:  DECFSZ 3C,F
+1046:  GOTO   040
+1047:  MOVLW  03
+1048:  MOVWF  3D
+1049:  MOVF   3D,W
+104A:  BCF    0A.4
+104B:  CALL   069
+104C:  BSF    0A.4
+104D:  INCF   3D,F
+104E:  MOVWF  77
+104F:  MOVWF  51
+1050:  BCF    0A.4
+1051:  CALL   2A9
+1052:  BSF    0A.4
+1053:  MOVLW  09
+1054:  SUBWF  3D,W
+1055:  BTFSS  03.2
+1056:  GOTO   049
+.................... 		} 
+.................... 		break; 
+1057:  GOTO   0AA
+....................  
+.................... 		case STATE_AUTO: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "AUTO      Next->" ); 
+1058:  CLRF   3C
+1059:  MOVF   3C,W
+105A:  BCF    0A.4
+105B:  CALL   077
+105C:  BSF    0A.4
+105D:  INCF   3C,F
+105E:  MOVWF  77
+105F:  MOVWF  51
+1060:  BCF    0A.4
+1061:  CALL   2A9
+1062:  BSF    0A.4
+1063:  MOVLW  04
+1064:  SUBWF  3C,W
+1065:  BTFSS  03.2
+1066:  GOTO   059
+1067:  MOVLW  06
+1068:  MOVWF  3D
+1069:  MOVLW  20
+106A:  MOVWF  51
+106B:  BCF    0A.4
+106C:  CALL   2A9
+106D:  BSF    0A.4
+106E:  DECFSZ 3D,F
+106F:  GOTO   069
+1070:  MOVLW  04
+1071:  MOVWF  3E
+1072:  MOVF   3E,W
+1073:  BCF    0A.4
+1074:  CALL   077
+1075:  BSF    0A.4
+1076:  INCF   3E,F
+1077:  MOVWF  77
+1078:  MOVWF  51
+1079:  BCF    0A.4
+107A:  CALL   2A9
+107B:  BSF    0A.4
+107C:  MOVLW  0A
+107D:  SUBWF  3E,W
+107E:  BTFSS  03.2
+107F:  GOTO   072
+.................... 		} 
+.................... 		break; 
+1080:  GOTO   0AA
+....................  
+.................... 		case STATE_DELAYED: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "Delayed   Next->" ); 
+1081:  CLRF   3C
+1082:  MOVF   3C,W
+1083:  BCF    0A.4
+1084:  CALL   086
+1085:  BSF    0A.4
+1086:  INCF   3C,F
+1087:  MOVWF  77
+1088:  MOVWF  51
+1089:  BCF    0A.4
+108A:  CALL   2A9
+108B:  BSF    0A.4
+108C:  MOVLW  07
+108D:  SUBWF  3C,W
+108E:  BTFSS  03.2
+108F:  GOTO   082
+1090:  MOVLW  03
+1091:  MOVWF  3D
+1092:  MOVLW  20
+1093:  MOVWF  51
+1094:  BCF    0A.4
+1095:  CALL   2A9
+1096:  BSF    0A.4
+1097:  DECFSZ 3D,F
+1098:  GOTO   092
+1099:  MOVLW  07
+109A:  MOVWF  3E
+109B:  MOVF   3E,W
+109C:  BCF    0A.4
+109D:  CALL   086
+109E:  BSF    0A.4
+109F:  INCF   3E,F
+10A0:  MOVWF  77
+10A1:  MOVWF  51
+10A2:  BCF    0A.4
+10A3:  CALL   2A9
+10A4:  BSF    0A.4
+10A5:  MOVLW  0D
+10A6:  SUBWF  3E,W
+10A7:  BTFSS  03.2
+10A8:  GOTO   09B
+.................... 		} 
+.................... 		break; 
+10A9:  GOTO   0AA
+....................  
+.................... 	} 
+....................  
+.................... 	if( cDisplaySettingsFlag == ON ) 
+10AA:  DECFSZ 35,W
+10AB:  GOTO   245
+.................... 	{ 
+.................... 		cDisplaySettingsFlag = OFF; 
+10AC:  CLRF   35
+.................... 		DisplaySettings(); 
+.................... 	} 
+....................  
+.................... 	// DISPLAY KLIMA DATA 
+.................... 	if ( cDisplayDataFlag == ON )                    // if interrupt signalled an ADC reading 
+*
+1245:  DECFSZ 29,W
+1246:  GOTO   33D
+.................... 	{ 
+.................... 		cDisplayDataFlag = OFF; 
+1247:  CLRF   29
+.................... 		DisplayData(); 
+.................... 	} 
+.................... } 
+*
+133D:  BSF    0A.3
+133E:  BCF    0A.4
+133F:  GOTO   764 (RETURN)
+....................  
+.................... void CheckSwitches ( void ) 
+.................... { 
+....................  
+.................... 	// INCREMENT/DECREMENT MENU 
+.................... 	if ( cMenuSwitchOn == YES )      // if interrupt caught the switch press 
+*
+0773:  DECFSZ 2E,W
+0774:  GOTO   77E
+.................... 	{ 
+.................... 		if ( cMenuState++ >= MAX_MENU_STATE )      // if at maximum 
+0775:  MOVF   2C,W
+0776:  INCF   2C,F
+0777:  SUBLW  02
+0778:  BTFSC  03.0
+0779:  GOTO   77B
+.................... 		{ 
+.................... 			cMenuState = 0;            // roll 
+077A:  CLRF   2C
+.................... 		} 
+.................... 		cMenuSwitchOn = NO;     // turn back off 
+077B:  CLRF   2E
+....................  
+.................... 		cSelectFlag = ON; // ny i v1.5 
+077C:  MOVLW  01
+077D:  MOVWF  2D
+.................... 	} 
+....................  
+....................    // CHECK IF SWITCH IS PRESSED, PERFORM ACTION AND PRINT MENU 
+.................... 	switch ( cMenuState ) 
+.................... 	{ 
+077E:  MOVF   2C,W
+077F:  ADDLW  FC
+0780:  BTFSC  03.0
+0781:  GOTO   7C4
+0782:  ADDLW  04
+0783:  GOTO   7C7
+.................... 		case ( STATE_START ): // START FAN 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if switch is pressed 
+0784:  DECFSZ 2D,W
+0785:  GOTO   798
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+0786:  CLRF   2D
+....................  
+.................... 				StartFan(); 
+....................  
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+*
+078F:  MOVLW  01
+0790:  MOVWF  3C
+0791:  CALL   271
+.................... 				cDisplayDataFlag = ON; 
+0792:  MOVLW  01
+0793:  MOVWF  29
+.................... 				cMenuSwitchOn = NO; 
+0794:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+0795:  CLRF   30
+.................... 				cInterruptCount = 0;    // synchronize interrupt timing from here 
+0796:  CLRF   2B
+.................... 				//cMenuState = STATE_STOP;    // menu displays "STOP" 
+.................... 				break; 
+0797:  GOTO   7C4
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		case ( STATE_STOP ): // STOP FAN 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if switch is pressed 
+0798:  DECFSZ 2D,W
+0799:  GOTO   7AA
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+079A:  CLRF   2D
+....................  
+.................... 				StopFan(); 
+....................  
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+*
+07A2:  MOVLW  01
+07A3:  MOVWF  3C
+07A4:  CALL   271
+.................... 				cDisplayDataFlag = ON; 
+07A5:  MOVLW  01
+07A6:  MOVWF  29
+.................... 				cMenuSwitchOn = NO; 
+07A7:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+07A8:  CLRF   30
+.................... 				//cMenuState = STATE_START;    // menu displays "START" 
+....................  
+.................... 				break; 
+07A9:  GOTO   7C4
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		case ( STATE_AUTO ): 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if switch is pressed 
+07AA:  DECFSZ 2D,W
+07AB:  GOTO   7B7
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+07AC:  CLRF   2D
+....................  
+.................... 				cFan1CanStop = YES;		// possible to stop when auto is selected 
+07AD:  MOVLW  01
+07AE:  MOVWF  3A
+....................  
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+07AF:  MOVWF  3C
+07B0:  CALL   271
+.................... 				cDisplayDataFlag = ON; 
+07B1:  MOVLW  01
+07B2:  MOVWF  29
+.................... 				cMenuSwitchOn = NO; 
+07B3:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+07B4:  CLRF   30
+.................... 				cInterruptCount = 0;    // synchronize interrupt timing from here 
+07B5:  CLRF   2B
+....................  
+.................... 				break; 
+07B6:  GOTO   7C4
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		case ( STATE_DELAYED ): 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if switch is pressed 
+07B7:  DECFSZ 2D,W
+07B8:  GOTO   7C4
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+07B9:  CLRF   2D
+....................  
+.................... 				cFan1CanStop = NO;		// always start when delayed is selected 
+07BA:  CLRF   3A
+....................  
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+07BB:  MOVLW  01
+07BC:  MOVWF  3C
+07BD:  CALL   271
+.................... 				cDisplayDataFlag = ON; 
+07BE:  MOVLW  01
+07BF:  MOVWF  29
+.................... 				cMenuSwitchOn = NO; 
+07C0:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+07C1:  CLRF   30
+.................... 				cInterruptCount = 0;    // synchronize interrupt timing from here 
+07C2:  CLRF   2B
+....................  
+.................... 				break; 
+07C3:  GOTO   7C4
+.................... 			} 
+.................... 		} 
+.................... 	} 
+.................... } 
+07C4:  BSF    0A.3
+07C5:  BCF    0A.4
+07C6:  GOTO   768 (RETURN)
+....................  
+....................  
+.................... void DisplaySettings ( void ) 
+.................... { 
+....................  
+.................... 	disable_interrupts ( INT_RTCC );     // turn off timer interrupt 
+*
+10AD:  BCF    0B.5
+.................... 	disable_interrupts ( GLOBAL );       // disable interrupts 
+10AE:  BCF    0B.6
+10AF:  BCF    0B.7
+10B0:  BTFSC  0B.7
+10B1:  GOTO   0AF
+....................  
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+10B2:  MOVLW  01
+10B3:  MOVWF  3C
+10B4:  BCF    0A.4
+10B5:  CALL   271
+10B6:  BSF    0A.4
+.................... 	LCD_SetPosition ( LINE_1 ); 
+10B7:  CLRF   44
+10B8:  BCF    0A.4
+10B9:  CALL   29C
+10BA:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, " Humidity limit " ); 
+10BB:  CLRF   3C
+10BC:  MOVF   3C,W
+10BD:  BCF    0A.4
+10BE:  CALL   098
+10BF:  BSF    0A.4
+10C0:  INCF   3C,F
+10C1:  MOVWF  77
+10C2:  MOVWF  51
+10C3:  BCF    0A.4
+10C4:  CALL   2A9
+10C5:  BSF    0A.4
+10C6:  MOVLW  10
+10C7:  SUBWF  3C,W
+10C8:  BTFSS  03.2
+10C9:  GOTO   0BC
+.................... 	LCD_SetPosition ( LINE_2 ); 
+10CA:  MOVLW  40
+10CB:  MOVWF  44
+10CC:  BCF    0A.4
+10CD:  CALL   29C
+10CE:  BSF    0A.4
+.................... 	if ( input (RH_LIMIT_2_JUMPER ) == LOW ) 
+10CF:  BSF    03.5
+10D0:  BSF    05.4
+10D1:  BCF    03.5
+10D2:  BTFSC  05.4
+10D3:  GOTO   0F1
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "%u%c - default+10", MAXIMUM_RH_2, C_PERCENT ); 
+10D4:  MOVLW  39
+10D5:  MOVWF  3D
+10D6:  MOVLW  1B
+10D7:  MOVWF  3E
+10D8:  BCF    0A.4
+10D9:  CALL   2EF
+10DA:  BSF    0A.4
+10DB:  MOVLW  25
+10DC:  MOVWF  51
+10DD:  BCF    0A.4
+10DE:  CALL   2A9
+10DF:  BSF    0A.4
+10E0:  MOVLW  04
+10E1:  MOVWF  3C
+10E2:  MOVF   3C,W
+10E3:  BCF    0A.4
+10E4:  CALL   0AD
+10E5:  BSF    0A.4
+10E6:  INCF   3C,F
+10E7:  MOVWF  77
+10E8:  MOVWF  51
+10E9:  BCF    0A.4
+10EA:  CALL   2A9
+10EB:  BSF    0A.4
+10EC:  MOVLW  11
+10ED:  SUBWF  3C,W
+10EE:  BTFSS  03.2
+10EF:  GOTO   0E2
+.................... 	} 
+.................... 	else 
+10F0:  GOTO   10F
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "      %u%c       ", MAXIMUM_RH_1, C_PERCENT ); 
+10F1:  MOVLW  06
+10F2:  MOVWF  3C
+10F3:  MOVLW  20
+10F4:  MOVWF  51
+10F5:  BCF    0A.4
+10F6:  CALL   2A9
+10F7:  BSF    0A.4
+10F8:  DECFSZ 3C,F
+10F9:  GOTO   0F3
+10FA:  MOVLW  2F
+10FB:  MOVWF  3D
+10FC:  MOVLW  1B
+10FD:  MOVWF  3E
+10FE:  BCF    0A.4
+10FF:  CALL   2EF
+1100:  BSF    0A.4
+1101:  MOVLW  25
+1102:  MOVWF  51
+1103:  BCF    0A.4
+1104:  CALL   2A9
+1105:  BSF    0A.4
+1106:  MOVLW  07
+1107:  MOVWF  3D
+1108:  MOVLW  20
+1109:  MOVWF  51
+110A:  BCF    0A.4
+110B:  CALL   2A9
+110C:  BSF    0A.4
+110D:  DECFSZ 3D,F
+110E:  GOTO   108
+.................... 	} 
+.................... 	delay_ms ( 3000 ); 
+110F:  MOVLW  0C
+1110:  MOVWF  3C
+1111:  MOVLW  FA
+1112:  MOVWF  52
+1113:  BCF    0A.4
+1114:  CALL   223
+1115:  BSF    0A.4
+1116:  DECFSZ 3C,F
+1117:  GOTO   111
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+1118:  MOVLW  01
+1119:  MOVWF  3C
+111A:  BCF    0A.4
+111B:  CALL   271
+111C:  BSF    0A.4
+.................... 	LCD_SetPosition ( LINE_1 ); 
+111D:  CLRF   44
+111E:  BCF    0A.4
+111F:  CALL   29C
+1120:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "Minimum run time" ); 
+1121:  CLRF   3C
+1122:  MOVF   3C,W
+1123:  BCF    0A.4
+1124:  CALL   0C3
+1125:  BSF    0A.4
+1126:  INCF   3C,F
+1127:  MOVWF  77
+1128:  MOVWF  51
+1129:  BCF    0A.4
+112A:  CALL   2A9
+112B:  BSF    0A.4
+112C:  MOVLW  10
+112D:  SUBWF  3C,W
+112E:  BTFSS  03.2
+112F:  GOTO   122
+.................... 	LCD_SetPosition ( LINE_2 ); 
+1130:  MOVLW  40
+1131:  MOVWF  44
+1132:  BCF    0A.4
+1133:  CALL   29C
+1134:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "%umin if Auto ON", MINIMUM_INTERVAL ); 
+1135:  MOVLW  03
+1136:  MOVWF  3D
+1137:  MOVLW  1B
+1138:  MOVWF  3E
+1139:  BCF    0A.4
+113A:  CALL   2EF
+113B:  BSF    0A.4
+113C:  MOVLW  02
+113D:  MOVWF  3C
+113E:  MOVF   3C,W
+113F:  BCF    0A.4
+1140:  CALL   0D8
+1141:  BSF    0A.4
+1142:  INCF   3C,F
+1143:  MOVWF  77
+1144:  MOVWF  51
+1145:  BCF    0A.4
+1146:  CALL   2A9
+1147:  BSF    0A.4
+1148:  MOVLW  10
+1149:  SUBWF  3C,W
+114A:  BTFSS  03.2
+114B:  GOTO   13E
+.................... 	delay_ms ( 3000 ); 
+114C:  MOVLW  0C
+114D:  MOVWF  3C
+114E:  MOVLW  FA
+114F:  MOVWF  52
+1150:  BCF    0A.4
+1151:  CALL   223
+1152:  BSF    0A.4
+1153:  DECFSZ 3C,F
+1154:  GOTO   14E
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+1155:  MOVLW  01
+1156:  MOVWF  3C
+1157:  BCF    0A.4
+1158:  CALL   271
+1159:  BSF    0A.4
+.................... 	LCD_SetPosition ( LINE_1 ); 
+115A:  CLRF   44
+115B:  BCF    0A.4
+115C:  CALL   29C
+115D:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "Not run if under" ); 
+115E:  CLRF   3C
+115F:  MOVF   3C,W
+1160:  BCF    0A.4
+1161:  CALL   0ED
+1162:  BSF    0A.4
+1163:  INCF   3C,F
+1164:  MOVWF  77
+1165:  MOVWF  51
+1166:  BCF    0A.4
+1167:  CALL   2A9
+1168:  BSF    0A.4
+1169:  MOVLW  10
+116A:  SUBWF  3C,W
+116B:  BTFSS  03.2
+116C:  GOTO   15F
+.................... 	LCD_SetPosition ( LINE_2 ); 
+116D:  MOVLW  40
+116E:  MOVWF  44
+116F:  BCF    0A.4
+1170:  CALL   29C
+1171:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "       %u%cC     ", MINIMUM_TEMP, C_DEGREES ); 
+1172:  MOVLW  07
+1173:  MOVWF  3C
+1174:  MOVLW  20
+1175:  MOVWF  51
+1176:  BCF    0A.4
+1177:  CALL   2A9
+1178:  BSF    0A.4
+1179:  DECFSZ 3C,F
+117A:  GOTO   174
+117B:  MOVLW  16
+117C:  MOVWF  3D
+117D:  MOVLW  1B
+117E:  MOVWF  3E
+117F:  BCF    0A.4
+1180:  CALL   2EF
+1181:  BSF    0A.4
+1182:  MOVLW  DF
+1183:  MOVWF  51
+1184:  BCF    0A.4
+1185:  CALL   2A9
+1186:  BSF    0A.4
+1187:  MOVLW  43
+1188:  MOVWF  51
+1189:  BCF    0A.4
+118A:  CALL   2A9
+118B:  BSF    0A.4
+118C:  MOVLW  05
+118D:  MOVWF  3D
+118E:  MOVLW  20
+118F:  MOVWF  51
+1190:  BCF    0A.4
+1191:  CALL   2A9
+1192:  BSF    0A.4
+1193:  DECFSZ 3D,F
+1194:  GOTO   18E
+.................... 	delay_ms ( 3000 ); 
+1195:  MOVLW  0C
+1196:  MOVWF  3C
+1197:  MOVLW  FA
+1198:  MOVWF  52
+1199:  BCF    0A.4
+119A:  CALL   223
+119B:  BSF    0A.4
+119C:  DECFSZ 3C,F
+119D:  GOTO   197
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+119E:  MOVLW  01
+119F:  MOVWF  3C
+11A0:  BCF    0A.4
+11A1:  CALL   271
+11A2:  BSF    0A.4
+.................... 	LCD_SetPosition ( LINE_1 ); 
+11A3:  CLRF   44
+11A4:  BCF    0A.4
+11A5:  CALL   29C
+11A6:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "When auto mode:" ); 
+11A7:  CLRF   3C
+11A8:  MOVF   3C,W
+11A9:  BCF    0A.4
+11AA:  CALL   105
+11AB:  BSF    0A.4
+11AC:  INCF   3C,F
+11AD:  MOVWF  77
+11AE:  MOVWF  51
+11AF:  BCF    0A.4
+11B0:  CALL   2A9
+11B1:  BSF    0A.4
+11B2:  MOVLW  0F
+11B3:  SUBWF  3C,W
+11B4:  BTFSS  03.2
+11B5:  GOTO   1A8
+.................... 	LCD_SetPosition ( LINE_2 ); 
+11B6:  MOVLW  40
+11B7:  MOVWF  44
+11B8:  BCF    0A.4
+11B9:  CALL   29C
+11BA:  BSF    0A.4
+.................... 	if ( input (INCLUDE_TEMP_JUMPER) == LOW) 
+11BB:  BSF    28.2
+11BC:  MOVF   28,W
+11BD:  BSF    03.5
+11BE:  MOVWF  07
+11BF:  BCF    03.5
+11C0:  BTFSC  07.2
+11C1:  GOTO   1D2
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "No check on temp" ); 
+11C2:  CLRF   3C
+11C3:  MOVF   3C,W
+11C4:  BCF    0A.4
+11C5:  CALL   119
+11C6:  BSF    0A.4
+11C7:  INCF   3C,F
+11C8:  MOVWF  77
+11C9:  MOVWF  51
+11CA:  BCF    0A.4
+11CB:  CALL   2A9
+11CC:  BSF    0A.4
+11CD:  MOVLW  10
+11CE:  SUBWF  3C,W
+11CF:  BTFSS  03.2
+11D0:  GOTO   1C3
+.................... 	} 
+.................... 	else 
+11D1:  GOTO   1EA
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "Check on temp   " ); 
+11D2:  CLRF   3C
+11D3:  MOVF   3C,W
+11D4:  BCF    0A.4
+11D5:  CALL   12E
+11D6:  BSF    0A.4
+11D7:  INCF   3C,F
+11D8:  MOVWF  77
+11D9:  MOVWF  51
+11DA:  BCF    0A.4
+11DB:  CALL   2A9
+11DC:  BSF    0A.4
+11DD:  MOVLW  0D
+11DE:  SUBWF  3C,W
+11DF:  BTFSS  03.2
+11E0:  GOTO   1D3
+11E1:  MOVLW  03
+11E2:  MOVWF  3D
+11E3:  MOVLW  20
+11E4:  MOVWF  51
+11E5:  BCF    0A.4
+11E6:  CALL   2A9
+11E7:  BSF    0A.4
+11E8:  DECFSZ 3D,F
+11E9:  GOTO   1E3
+.................... 	} 
+.................... 	delay_ms ( 3000 ); 
+11EA:  MOVLW  0C
+11EB:  MOVWF  3C
+11EC:  MOVLW  FA
+11ED:  MOVWF  52
+11EE:  BCF    0A.4
+11EF:  CALL   223
+11F0:  BSF    0A.4
+11F1:  DECFSZ 3C,F
+11F2:  GOTO   1EC
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+11F3:  MOVLW  01
+11F4:  MOVWF  3C
+11F5:  BCF    0A.4
+11F6:  CALL   271
+11F7:  BSF    0A.4
+.................... 	LCD_SetPosition ( LINE_1 ); 
+11F8:  CLRF   44
+11F9:  BCF    0A.4
+11FA:  CALL   29C
+11FB:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "Delayed run time" ); 
+11FC:  CLRF   3C
+11FD:  MOVF   3C,W
+11FE:  BCF    0A.4
+11FF:  CALL   140
+1200:  BSF    0A.4
+1201:  INCF   3C,F
+1202:  MOVWF  77
+1203:  MOVWF  51
+1204:  BCF    0A.4
+1205:  CALL   2A9
+1206:  BSF    0A.4
+1207:  MOVLW  10
+1208:  SUBWF  3C,W
+1209:  BTFSS  03.2
+120A:  GOTO   1FD
+.................... 	LCD_SetPosition ( LINE_2 ); 
+120B:  MOVLW  40
+120C:  MOVWF  44
+120D:  BCF    0A.4
+120E:  CALL   29C
+120F:  BSF    0A.4
+.................... 	printf ( LCD_PutChar, "%umin           ", IntervalMinutes ); 
+1210:  MOVF   3B,W
+1211:  MOVWF  3D
+1212:  MOVLW  1B
+1213:  MOVWF  3E
+1214:  BCF    0A.4
+1215:  CALL   2EF
+1216:  BSF    0A.4
+1217:  MOVLW  6D
+1218:  MOVWF  51
+1219:  BCF    0A.4
+121A:  CALL   2A9
+121B:  BSF    0A.4
+121C:  MOVLW  69
+121D:  MOVWF  51
+121E:  BCF    0A.4
+121F:  CALL   2A9
+1220:  BSF    0A.4
+1221:  MOVLW  6E
+1222:  MOVWF  51
+1223:  BCF    0A.4
+1224:  CALL   2A9
+1225:  BSF    0A.4
+1226:  MOVLW  0B
+1227:  MOVWF  3C
+1228:  MOVLW  20
+1229:  MOVWF  51
+122A:  BCF    0A.4
+122B:  CALL   2A9
+122C:  BSF    0A.4
+122D:  DECFSZ 3C,F
+122E:  GOTO   228
+.................... 	delay_ms ( 3000 ); 
+122F:  MOVLW  0C
+1230:  MOVWF  3C
+1231:  MOVLW  FA
+1232:  MOVWF  52
+1233:  BCF    0A.4
+1234:  CALL   223
+1235:  BSF    0A.4
+1236:  DECFSZ 3C,F
+1237:  GOTO   231
+....................  
+....................  
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+1238:  MOVLW  01
+1239:  MOVWF  3C
+123A:  BCF    0A.4
+123B:  CALL   271
+123C:  BSF    0A.4
+.................... 	cDisplayDataFlag = ON; 
+123D:  MOVLW  01
+123E:  MOVWF  29
+.................... 	cMenuSwitchOn = NO; 
+123F:  CLRF   2E
+.................... 	cSelectSwitchOn = NO; 
+1240:  CLRF   30
+.................... 	cInterruptCount = 0;    // synchronize interrupt timing from here 
+1241:  CLRF   2B
+.................... 	enable_interrupts ( INT_RTCC );     // turn on timer interrupt again 
+1242:  BSF    0B.5
+.................... 	enable_interrupts ( GLOBAL );       // enable interrupts again 
+1243:  MOVLW  C0
+1244:  IORWF  0B,F
+....................  
+.................... } 
+....................  
+.................... void DisplayData ( void ) 
+.................... { 
+.................... 	float f_rh; 
+.................... 	float f_temp; 
+....................  
+.................... 	f_rh = getRH(); 
+*
+1248:  BCF    0A.4
+1249:  CALL   5CA
+124A:  BSF    0A.4
+124B:  MOVF   7A,W
+124C:  MOVWF  3F
+124D:  MOVF   79,W
+124E:  MOVWF  3E
+124F:  MOVF   78,W
+1250:  MOVWF  3D
+1251:  MOVF   77,W
+1252:  MOVWF  3C
+....................  
+.................... 	// Relative Humidity 
+.................... 	LCD_SetPosition ( LINE_1 ); 
+1253:  CLRF   44
+1254:  BCF    0A.4
+1255:  CALL   29C
+1256:  BSF    0A.4
+....................  
+.................... 	if ( f_rh == 0.0 ) // 1023 
+1257:  MOVF   3F,W
+1258:  BSF    03.5
+1259:  MOVWF  23
+125A:  BCF    03.5
+125B:  MOVF   3E,W
+125C:  BSF    03.5
+125D:  MOVWF  22
+125E:  BCF    03.5
+125F:  MOVF   3D,W
+1260:  BSF    03.5
+1261:  MOVWF  21
+1262:  BCF    03.5
+1263:  MOVF   3C,W
+1264:  BSF    03.5
+1265:  MOVWF  20
+1266:  CLRF   27
+1267:  CLRF   26
+1268:  CLRF   25
+1269:  CLRF   24
+126A:  BCF    0A.4
+126B:  BCF    03.5
+126C:  CALL   6A8
+126D:  BSF    0A.4
+126E:  BTFSS  03.2
+126F:  GOTO   280
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "O/R" );    // out of range 
+1270:  MOVLW  4F
+1271:  MOVWF  51
+1272:  BCF    0A.4
+1273:  CALL   2A9
+1274:  BSF    0A.4
+1275:  MOVLW  2F
+1276:  MOVWF  51
+1277:  BCF    0A.4
+1278:  CALL   2A9
+1279:  BSF    0A.4
+127A:  MOVLW  52
+127B:  MOVWF  51
+127C:  BCF    0A.4
+127D:  CALL   2A9
+127E:  BSF    0A.4
+.................... 	} 
+.................... 	else 
+127F:  GOTO   296
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "%2.1f%c", f_rh, C_PERCENT ); 
+1280:  MOVLW  01
+1281:  MOVWF  04
+1282:  MOVF   3F,W
+1283:  MOVWF  47
+1284:  MOVF   3E,W
+1285:  MOVWF  46
+1286:  MOVF   3D,W
+1287:  MOVWF  45
+1288:  MOVF   3C,W
+1289:  MOVWF  44
+128A:  MOVLW  01
+128B:  MOVWF  48
+128C:  BCF    0A.4
+128D:  BSF    0A.3
+128E:  CALL   000
+128F:  BSF    0A.4
+1290:  BCF    0A.3
+1291:  MOVLW  25
+1292:  MOVWF  51
+1293:  BCF    0A.4
+1294:  CALL   2A9
+1295:  BSF    0A.4
+.................... 	} 
+....................  
+.................... 	// Temperature from NTC device 
+.................... 	LCD_SetPosition ( LINE_1 + 13 ); 
+1296:  MOVLW  0D
+1297:  MOVWF  44
+1298:  BCF    0A.4
+1299:  CALL   29C
+129A:  BSF    0A.4
+....................  
+.................... 	f_temp = getTemp(); 
+129B:  BCF    0A.4
+129C:  BSF    0A.3
+129D:  CALL   0E2
+129E:  BSF    0A.4
+129F:  BCF    0A.3
+12A0:  MOVF   7A,W
+12A1:  MOVWF  43
+12A2:  MOVF   79,W
+12A3:  MOVWF  42
+12A4:  MOVF   78,W
+12A5:  MOVWF  41
+12A6:  MOVF   77,W
+12A7:  MOVWF  40
+....................  
+.................... 	if ( f_temp == 100 ) 
+12A8:  MOVF   43,W
+12A9:  BSF    03.5
+12AA:  MOVWF  23
+12AB:  BCF    03.5
+12AC:  MOVF   42,W
+12AD:  BSF    03.5
+12AE:  MOVWF  22
+12AF:  BCF    03.5
+12B0:  MOVF   41,W
+12B1:  BSF    03.5
+12B2:  MOVWF  21
+12B3:  BCF    03.5
+12B4:  MOVF   40,W
+12B5:  BSF    03.5
+12B6:  MOVWF  20
+12B7:  CLRF   27
+12B8:  CLRF   26
+12B9:  MOVLW  48
+12BA:  MOVWF  25
+12BB:  MOVLW  85
+12BC:  MOVWF  24
+12BD:  BCF    0A.4
+12BE:  BCF    03.5
+12BF:  CALL   6A8
+12C0:  BSF    0A.4
+12C1:  BTFSS  03.2
+12C2:  GOTO   2D3
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "O/R" );    // out of range 
+12C3:  MOVLW  4F
+12C4:  MOVWF  51
+12C5:  BCF    0A.4
+12C6:  CALL   2A9
+12C7:  BSF    0A.4
+12C8:  MOVLW  2F
+12C9:  MOVWF  51
+12CA:  BCF    0A.4
+12CB:  CALL   2A9
+12CC:  BSF    0A.4
+12CD:  MOVLW  52
+12CE:  MOVWF  51
+12CF:  BCF    0A.4
+12D0:  CALL   2A9
+12D1:  BSF    0A.4
+.................... 	} 
+.................... 	else 
+12D2:  GOTO   2E8
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "%2.0f%c", f_temp, C_DEGREES ); 
+12D3:  MOVLW  01
+12D4:  MOVWF  04
+12D5:  MOVF   43,W
+12D6:  MOVWF  47
+12D7:  MOVF   42,W
+12D8:  MOVWF  46
+12D9:  MOVF   41,W
+12DA:  MOVWF  45
+12DB:  MOVF   40,W
+12DC:  MOVWF  44
+12DD:  CLRF   48
+12DE:  BCF    0A.4
+12DF:  BSF    0A.3
+12E0:  CALL   000
+12E1:  BSF    0A.4
+12E2:  BCF    0A.3
+12E3:  MOVLW  DF
+12E4:  MOVWF  51
+12E5:  BCF    0A.4
+12E6:  CALL   2A9
+12E7:  BSF    0A.4
+.................... 	} 
+....................  
+.................... 	// Display FAN operational status 
+.................... 	LCD_SetPosition ( LINE_1 + 6); // '45.0% AU OFF 25°' 
+12E8:  MOVLW  06
+12E9:  MOVWF  44
+12EA:  BCF    0A.4
+12EB:  CALL   29C
+12EC:  BSF    0A.4
+.................... 	if( cMenuState == STATE_AUTO ) 
+12ED:  MOVF   2C,F
+12EE:  BTFSS  03.2
+12EF:  GOTO   313
+.................... 	{ 
+.................... 		if( cFan1AutoState == OFF ) 
+12F0:  MOVF   38,F
+12F1:  BTFSS  03.2
+12F2:  GOTO   303
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "AU OFF" ); 
+12F3:  CLRF   44
+12F4:  MOVF   44,W
+12F5:  BCF    0A.4
+12F6:  CALL   155
+12F7:  BSF    0A.4
+12F8:  INCF   44,F
+12F9:  MOVWF  77
+12FA:  MOVWF  51
+12FB:  BCF    0A.4
+12FC:  CALL   2A9
+12FD:  BSF    0A.4
+12FE:  MOVLW  06
+12FF:  SUBWF  44,W
+1300:  BTFSS  03.2
+1301:  GOTO   2F4
+.................... 		} 
+.................... 		else 
+1302:  GOTO   312
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "AU ON " ); 
+1303:  CLRF   44
+1304:  MOVF   44,W
+1305:  BCF    0A.4
+1306:  CALL   160
+1307:  BSF    0A.4
+1308:  INCF   44,F
+1309:  MOVWF  77
+130A:  MOVWF  51
+130B:  BCF    0A.4
+130C:  CALL   2A9
+130D:  BSF    0A.4
+130E:  MOVLW  06
+130F:  SUBWF  44,W
+1310:  BTFSS  03.2
+1311:  GOTO   304
+.................... 		} 
+.................... 	} 
+.................... 	else 
+1312:  GOTO   33D
+.................... 	{ 
+.................... 		if( cFan1Flag == ON ) 
+1313:  DECFSZ 2A,W
+1314:  GOTO   325
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "  ON  " ); 
+1315:  CLRF   44
+1316:  MOVF   44,W
+1317:  BCF    0A.4
+1318:  CALL   16B
+1319:  BSF    0A.4
+131A:  INCF   44,F
+131B:  MOVWF  77
+131C:  MOVWF  51
+131D:  BCF    0A.4
+131E:  CALL   2A9
+131F:  BSF    0A.4
+1320:  MOVLW  06
+1321:  SUBWF  44,W
+1322:  BTFSS  03.2
+1323:  GOTO   316
+.................... 		} 
+.................... 		else 
+1324:  GOTO   33D
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "OFF   " ); 
+1325:  MOVLW  4F
+1326:  MOVWF  51
+1327:  BCF    0A.4
+1328:  CALL   2A9
+1329:  BSF    0A.4
+132A:  MOVLW  46
+132B:  MOVWF  51
+132C:  BCF    0A.4
+132D:  CALL   2A9
+132E:  BSF    0A.4
+132F:  MOVLW  46
+1330:  MOVWF  51
+1331:  BCF    0A.4
+1332:  CALL   2A9
+1333:  BSF    0A.4
+1334:  MOVLW  03
+1335:  MOVWF  44
+1336:  MOVLW  20
+1337:  MOVWF  51
+1338:  BCF    0A.4
+1339:  CALL   2A9
+133A:  BSF    0A.4
+133B:  DECFSZ 44,F
+133C:  GOTO   336
+.................... 		} 
+.................... 	} 
+.................... } 
+....................  
+....................  
+.................... float getTemp() 
+.................... { 
+.................... 	int16 adc_value; 
+.................... 	float ohm, tcelsius; 
+....................  
+....................  
+.................... 	// see ntc.h and ntc.c 
+....................  
+.................... 	set_adc_channel ( 1 ); // RA1, pin 3 
+*
+08E2:  MOVLW  08
+08E3:  MOVWF  78
+08E4:  MOVF   1F,W
+08E5:  ANDLW  C7
+08E6:  IORWF  78,W
+08E7:  MOVWF  1F
+.................... 	delay_us(50); 
+08E8:  MOVLW  21
+08E9:  MOVWF  77
+08EA:  DECFSZ 77,F
+08EB:  GOTO   0EA
+.................... 	adc_value = read_adc(); 
+08EC:  BSF    1F.2
+08ED:  BTFSC  1F.2
+08EE:  GOTO   0ED
+08EF:  BSF    03.5
+08F0:  MOVF   1E,W
+08F1:  BCF    03.5
+08F2:  MOVWF  48
+08F3:  MOVF   1E,W
+08F4:  MOVWF  49
+.................... 	ohm = adc_2_ohm ( adc_value ); 
+08F5:  MOVF   48,W
+08F6:  MOVWF  52
+*
+0959:  MOVF   7A,W
+095A:  MOVWF  4D
+095B:  MOVF   79,W
+095C:  MOVWF  4C
+095D:  MOVF   78,W
+095E:  MOVWF  4B
+095F:  MOVF   77,W
+0960:  MOVWF  4A
+.................... 	tcelsius = r2temperature ( ohm ); 
+0961:  MOVF   4D,W
+0962:  MOVWF  55
+0963:  MOVF   4C,W
+0964:  MOVWF  54
+0965:  MOVF   4B,W
+0966:  MOVWF  53
+0967:  MOVF   4A,W
+0968:  MOVWF  52
+*
+0D65:  MOVF   7A,W
+0D66:  MOVWF  51
+0D67:  MOVF   79,W
+0D68:  MOVWF  50
+0D69:  MOVF   78,W
+0D6A:  MOVWF  4F
+0D6B:  MOVF   77,W
+0D6C:  MOVWF  4E
+....................  
+.................... 	return ( float ) tcelsius; 
+0D6D:  MOVF   4E,W
+0D6E:  MOVWF  77
+0D6F:  MOVF   4F,W
+0D70:  MOVWF  78
+0D71:  MOVF   50,W
+0D72:  MOVWF  79
+0D73:  MOVF   51,W
+0D74:  MOVWF  7A
+.................... } 
+0D75:  RETLW  00
+....................  
+....................  
+.................... float getRH() 
+.................... { 
+....................  
+.................... 	int16 adc_value; 
+.................... 	float adc_volt, rh; 
+....................  
+.................... 	rh = 0.0; 
+*
+05CA:  CLRF   51
+05CB:  CLRF   50
+05CC:  CLRF   4F
+05CD:  CLRF   4E
+....................  
+.................... 	/* 
+.................... 		Formulas for the HIH3610 sensor 
+.................... 		RH: RH = ((A/D voltage / supply voltage) - 0.16) / 0.0062 
+.................... 		volt adc = iAdcHumValue / 1024 * 5 
+.................... 		(417 / 1024) * 5 = 2,0361328125 
+.................... 		(2,0361328125 / 5) = 0,4072265625 - 0,16 = 0,2472265625 / 0,0062 = 39,87 RH 
+.................... 		ELLER 
+.................... 		(417 / 1024) = 0,4072265625 - 0,16 = 0,2472265625 / 0,0062 = 39,87 RH 
+.................... 		0,4072265625 - 0,16 = 
+.................... 	*/ 
+.................... 	set_adc_channel ( 0 ); // RA0, pin 2 
+05CE:  MOVLW  00
+05CF:  MOVWF  78
+05D0:  MOVF   1F,W
+05D1:  ANDLW  C7
+05D2:  IORWF  78,W
+05D3:  MOVWF  1F
+.................... 	delay_us(50); 
+05D4:  MOVLW  21
+05D5:  MOVWF  77
+05D6:  DECFSZ 77,F
+05D7:  GOTO   5D6
+....................  
+.................... 	adc_value = read_adc(); 
+05D8:  BSF    1F.2
+05D9:  BTFSC  1F.2
+05DA:  GOTO   5D9
+05DB:  BSF    03.5
+05DC:  MOVF   1E,W
+05DD:  BCF    03.5
+05DE:  MOVWF  48
+05DF:  MOVF   1E,W
+05E0:  MOVWF  49
+....................  
+.................... 	if ( adc_value < 1 || adc_value > 1023 ) 
+05E1:  MOVF   48,F
+05E2:  BTFSS  03.2
+05E3:  GOTO   5E7
+05E4:  MOVF   49,F
+05E5:  BTFSC  03.2
+05E6:  GOTO   5EB
+05E7:  MOVF   49,W
+05E8:  SUBLW  03
+05E9:  BTFSC  03.0
+05EA:  GOTO   5F4
+.................... 		return rh; 
+05EB:  MOVF   4E,W
+05EC:  MOVWF  77
+05ED:  MOVF   4F,W
+05EE:  MOVWF  78
+05EF:  MOVF   50,W
+05F0:  MOVWF  79
+05F1:  MOVF   51,W
+05F2:  MOVWF  7A
+05F3:  GOTO   6A7
+....................  
+.................... 	// calc relative humidity from 10bit adc value 
+.................... 	adc_volt = ( float ) adc_value / 1023  * VDD; // 1023 leaves room for out-of-range 
+05F4:  MOVF   49,W
+05F5:  MOVWF  58
+05F6:  MOVF   48,W
+05F7:  MOVWF  57
+05F8:  CALL   324
+05F9:  MOVF   77,W
+05FA:  MOVWF  52
+05FB:  MOVF   78,W
+05FC:  MOVWF  53
+05FD:  MOVF   79,W
+05FE:  MOVWF  54
+05FF:  MOVF   7A,W
+0600:  MOVWF  55
+0601:  BSF    03.5
+0602:  MOVWF  27
+0603:  BCF    03.5
+0604:  MOVF   79,W
+0605:  BSF    03.5
+0606:  MOVWF  26
+0607:  BCF    03.5
+0608:  MOVF   78,W
+0609:  BSF    03.5
+060A:  MOVWF  25
+060B:  BCF    03.5
+060C:  MOVF   77,W
+060D:  BSF    03.5
+060E:  MOVWF  24
+060F:  CLRF   2B
+0610:  MOVLW  C0
+0611:  MOVWF  2A
+0612:  MOVLW  7F
+0613:  MOVWF  29
+0614:  MOVLW  88
+0615:  MOVWF  28
+0616:  BCF    03.5
+0617:  CALL   341
+0618:  MOVF   77,W
+0619:  MOVWF  56
+061A:  MOVF   78,W
+061B:  MOVWF  57
+061C:  MOVF   79,W
+061D:  MOVWF  58
+061E:  MOVF   7A,W
+061F:  MOVWF  59
+0620:  BSF    03.5
+0621:  MOVWF  23
+0622:  BCF    03.5
+0623:  MOVF   79,W
+0624:  BSF    03.5
+0625:  MOVWF  22
+0626:  BCF    03.5
+0627:  MOVF   78,W
+0628:  BSF    03.5
+0629:  MOVWF  21
+062A:  BCF    03.5
+062B:  MOVF   77,W
+062C:  BSF    03.5
+062D:  MOVWF  20
+062E:  CLRF   27
+062F:  CLRF   26
+0630:  MOVLW  20
+0631:  MOVWF  25
+0632:  MOVLW  81
+0633:  MOVWF  24
+0634:  BCF    03.5
+0635:  CALL   40D
+0636:  MOVF   7A,W
+0637:  MOVWF  4D
+0638:  MOVF   79,W
+0639:  MOVWF  4C
+063A:  MOVF   78,W
+063B:  MOVWF  4B
+063C:  MOVF   77,W
+063D:  MOVWF  4A
+.................... 	rh = ( ( float ) adc_volt / VDD  - 0.16 ) / 0.0062; // v1.5 
+063E:  MOVF   4D,W
+063F:  BSF    03.5
+0640:  MOVWF  27
+0641:  BCF    03.5
+0642:  MOVF   4C,W
+0643:  BSF    03.5
+0644:  MOVWF  26
+0645:  BCF    03.5
+0646:  MOVF   4B,W
+0647:  BSF    03.5
+0648:  MOVWF  25
+0649:  BCF    03.5
+064A:  MOVF   4A,W
+064B:  BSF    03.5
+064C:  MOVWF  24
+064D:  CLRF   2B
+064E:  CLRF   2A
+064F:  MOVLW  20
+0650:  MOVWF  29
+0651:  MOVLW  81
+0652:  MOVWF  28
+0653:  BCF    03.5
+0654:  CALL   341
+0655:  MOVF   77,W
+0656:  MOVWF  52
+0657:  MOVF   78,W
+0658:  MOVWF  53
+0659:  MOVF   79,W
+065A:  MOVWF  54
+065B:  MOVF   7A,W
+065C:  MOVWF  55
+065D:  BSF    03.1
+065E:  MOVF   7A,W
+065F:  BSF    03.5
+0660:  MOVWF  27
+0661:  BCF    03.5
+0662:  MOVF   79,W
+0663:  BSF    03.5
+0664:  MOVWF  26
+0665:  BCF    03.5
+0666:  MOVF   78,W
+0667:  BSF    03.5
+0668:  MOVWF  25
+0669:  BCF    03.5
+066A:  MOVF   77,W
+066B:  BSF    03.5
+066C:  MOVWF  24
+066D:  MOVLW  0A
+066E:  MOVWF  2B
+066F:  MOVLW  D7
+0670:  MOVWF  2A
+0671:  MOVLW  23
+0672:  MOVWF  29
+0673:  MOVLW  7C
+0674:  MOVWF  28
+0675:  BCF    03.5
+0676:  CALL   484
+0677:  MOVF   77,W
+0678:  MOVWF  56
+0679:  MOVF   78,W
+067A:  MOVWF  57
+067B:  MOVF   79,W
+067C:  MOVWF  58
+067D:  MOVF   7A,W
+067E:  MOVWF  59
+067F:  BSF    03.5
+0680:  MOVWF  27
+0681:  BCF    03.5
+0682:  MOVF   79,W
+0683:  BSF    03.5
+0684:  MOVWF  26
+0685:  BCF    03.5
+0686:  MOVF   78,W
+0687:  BSF    03.5
+0688:  MOVWF  25
+0689:  BCF    03.5
+068A:  MOVF   77,W
+068B:  BSF    03.5
+068C:  MOVWF  24
+068D:  MOVLW  5F
+068E:  MOVWF  2B
+068F:  MOVLW  29
+0690:  MOVWF  2A
+0691:  MOVLW  4B
+0692:  MOVWF  29
+0693:  MOVLW  77
+0694:  MOVWF  28
+0695:  BCF    03.5
+0696:  CALL   341
+0697:  MOVF   7A,W
+0698:  MOVWF  51
+0699:  MOVF   79,W
+069A:  MOVWF  50
+069B:  MOVF   78,W
+069C:  MOVWF  4F
+069D:  MOVF   77,W
+069E:  MOVWF  4E
+....................  
+.................... 	return rh; 
+069F:  MOVF   4E,W
+06A0:  MOVWF  77
+06A1:  MOVF   4F,W
+06A2:  MOVWF  78
+06A3:  MOVF   50,W
+06A4:  MOVWF  79
+06A5:  MOVF   51,W
+06A6:  MOVWF  7A
+....................  
+.................... } 
+06A7:  RETLW  00
+....................  
+....................  
+.................... float getInterval() 
+.................... { 
+....................  
+.................... 	int16 adc_value; 
+.................... 	float interval ; 
+....................  
+.................... 	interval = 0; 
+*
+0E07:  CLRF   41
+0E08:  CLRF   40
+0E09:  CLRF   3F
+0E0A:  CLRF   3E
+....................  
+.................... 	set_adc_channel ( 2 ); // RA2, pin 4 
+0E0B:  MOVLW  10
+0E0C:  MOVWF  78
+0E0D:  MOVF   1F,W
+0E0E:  ANDLW  C7
+0E0F:  IORWF  78,W
+0E10:  MOVWF  1F
+.................... 	delay_us(50); 
+0E11:  MOVLW  21
+0E12:  MOVWF  77
+0E13:  DECFSZ 77,F
+0E14:  GOTO   613
+....................  
+.................... 	adc_value = read_adc(); 
+0E15:  BSF    1F.2
+0E16:  BTFSC  1F.2
+0E17:  GOTO   616
+0E18:  BSF    03.5
+0E19:  MOVF   1E,W
+0E1A:  BCF    03.5
+0E1B:  MOVWF  3C
+0E1C:  MOVF   1E,W
+0E1D:  MOVWF  3D
+....................  
+.................... 	if ( adc_value < 1 || adc_value > 1023 ) 
+0E1E:  MOVF   3C,F
+0E1F:  BTFSS  03.2
+0E20:  GOTO   624
+0E21:  MOVF   3D,F
+0E22:  BTFSC  03.2
+0E23:  GOTO   628
+0E24:  MOVF   3D,W
+0E25:  SUBLW  03
+0E26:  BTFSC  03.0
+0E27:  GOTO   62F
+.................... 		return 30; // default 30 min 
+0E28:  MOVLW  83
+0E29:  MOVWF  77
+0E2A:  MOVLW  70
+0E2B:  MOVWF  78
+0E2C:  CLRF   79
+0E2D:  CLRF   7A
+0E2E:  GOTO   6A5
+....................  
+.................... 	// calc minutes from 10bit adc value in range 1 - 60 min 
+.................... 	interval = ( ( float ) adc_value * 3.6 / 60 ); // 3.6 because 60 min = 3600 sec (!?!) 
+0E2F:  MOVF   3D,W
+0E30:  MOVWF  58
+0E31:  MOVF   3C,W
+0E32:  MOVWF  57
+0E33:  BCF    0A.3
+0E34:  CALL   324
+0E35:  BSF    0A.3
+0E36:  MOVF   77,W
+0E37:  MOVWF  42
+0E38:  MOVF   78,W
+0E39:  MOVWF  43
+0E3A:  MOVF   79,W
+0E3B:  MOVWF  44
+0E3C:  MOVF   7A,W
+0E3D:  MOVWF  45
+0E3E:  BSF    03.5
+0E3F:  MOVWF  23
+0E40:  BCF    03.5
+0E41:  MOVF   44,W
+0E42:  BSF    03.5
+0E43:  MOVWF  22
+0E44:  BCF    03.5
+0E45:  MOVF   43,W
+0E46:  BSF    03.5
+0E47:  MOVWF  21
+0E48:  BCF    03.5
+0E49:  MOVF   42,W
+0E4A:  BSF    03.5
+0E4B:  MOVWF  20
+0E4C:  MOVLW  66
+0E4D:  MOVWF  27
+0E4E:  MOVWF  26
+0E4F:  MOVWF  25
+0E50:  MOVLW  80
+0E51:  MOVWF  24
+0E52:  BCF    0A.3
+0E53:  BCF    03.5
+0E54:  CALL   40D
+0E55:  BSF    0A.3
+0E56:  MOVF   77,W
+0E57:  MOVWF  46
+0E58:  MOVF   78,W
+0E59:  MOVWF  47
+0E5A:  MOVF   79,W
+0E5B:  MOVWF  48
+0E5C:  MOVF   7A,W
+0E5D:  MOVWF  49
+0E5E:  BSF    03.5
+0E5F:  MOVWF  27
+0E60:  BCF    03.5
+0E61:  MOVF   48,W
+0E62:  BSF    03.5
+0E63:  MOVWF  26
+0E64:  BCF    03.5
+0E65:  MOVF   47,W
+0E66:  BSF    03.5
+0E67:  MOVWF  25
+0E68:  BCF    03.5
+0E69:  MOVF   46,W
+0E6A:  BSF    03.5
+0E6B:  MOVWF  24
+0E6C:  CLRF   2B
+0E6D:  CLRF   2A
+0E6E:  MOVLW  70
+0E6F:  MOVWF  29
+0E70:  MOVLW  84
+0E71:  MOVWF  28
+0E72:  BCF    0A.3
+0E73:  BCF    03.5
+0E74:  CALL   341
+0E75:  BSF    0A.3
+0E76:  MOVF   7A,W
+0E77:  MOVWF  41
+0E78:  MOVF   79,W
+0E79:  MOVWF  40
+0E7A:  MOVF   78,W
+0E7B:  MOVWF  3F
+0E7C:  MOVF   77,W
+0E7D:  MOVWF  3E
+....................  
+.................... 	if ( interval < 1 ) 
+0E7E:  MOVF   41,W
+0E7F:  BSF    03.5
+0E80:  MOVWF  23
+0E81:  BCF    03.5
+0E82:  MOVF   40,W
+0E83:  BSF    03.5
+0E84:  MOVWF  22
+0E85:  BCF    03.5
+0E86:  MOVF   3F,W
+0E87:  BSF    03.5
+0E88:  MOVWF  21
+0E89:  BCF    03.5
+0E8A:  MOVF   3E,W
+0E8B:  BSF    03.5
+0E8C:  MOVWF  20
+0E8D:  CLRF   27
+0E8E:  CLRF   26
+0E8F:  CLRF   25
+0E90:  MOVLW  7F
+0E91:  MOVWF  24
+0E92:  BCF    0A.3
+0E93:  BCF    03.5
+0E94:  CALL   6A8
+0E95:  BSF    0A.3
+0E96:  BTFSS  03.0
+0E97:  GOTO   69D
+.................... 		interval = 1; 
+0E98:  CLRF   41
+0E99:  CLRF   40
+0E9A:  CLRF   3F
+0E9B:  MOVLW  7F
+0E9C:  MOVWF  3E
+....................  
+.................... 	return interval; 
+0E9D:  MOVF   3E,W
+0E9E:  MOVWF  77
+0E9F:  MOVF   3F,W
+0EA0:  MOVWF  78
+0EA1:  MOVF   40,W
+0EA2:  MOVWF  79
+0EA3:  MOVF   41,W
+0EA4:  MOVWF  7A
+.................... //30min = 1800 sec 
+.................... //60min = 3600 sec 
+.................... } 
+0EA5:  BSF    0A.3
+0EA6:  BCF    0A.4
+0EA7:  GOTO   76E (RETURN)
+....................  
+.................... //1023 * 3,6 = 3682,8 sec / 60 = 61,38 min 
+.................... //400 * 3,6 = 1440 sec / 60 = 24 min 
+.................... //100 * 3,6 = 360 sec / 60 = 6 min 
+....................  
+.................... void Reboot( void ) 
+.................... { 
+.................... 	reset_cpu(); 
+.................... } 
+....................  
+.................... void StartFan( void ) 
+.................... { 
+.................... 	cFan1Flag = ON; 
+*
+0787:  MOVLW  01
+0788:  MOVWF  2A
+.................... 	output_low ( FAN_1 ); 
+0789:  BCF    28.0
+078A:  MOVF   28,W
+078B:  BSF    03.5
+078C:  MOVWF  07
+078D:  BCF    03.5
+078E:  BCF    07.0
+.................... } 
+....................  
+.................... void StopFan( void ) 
+.................... { 
+.................... 	cFan1Flag = OFF; 
+*
+079B:  CLRF   2A
+.................... 	output_high ( FAN_1 ); 
+079C:  BCF    28.0
+079D:  MOVF   28,W
+079E:  BSF    03.5
+079F:  MOVWF  07
+07A0:  BCF    03.5
+07A1:  BSF    07.0
+.................... } 
+....................  
+.................... void DelayedFan( void ) 
+.................... { 
+.................... 	if ( cMenuState != STATE_DELAYED ) return; 
+*
+07CF:  MOVF   2C,W
+07D0:  SUBLW  03
+07D1:  BTFSS  03.2
+07D2:  GOTO   7EF
+....................  
+....................  
+.................... 	if( cFan1CanStop == NO ) 
+07D3:  MOVF   3A,F
+07D4:  BTFSS  03.2
+07D5:  GOTO   7E2
+.................... 	{ 
+.................... 			// time forces us to keep running 
+.................... 		if ( cFan1Flag == OFF ) 
+07D6:  MOVF   2A,F
+07D7:  BTFSS  03.2
+07D8:  GOTO   7E1
+.................... 		{ 
+.................... 			cFan1Flag = ON; 
+07D9:  MOVLW  01
+07DA:  MOVWF  2A
+.................... 			//cFan1CanStop = NO; 
+.................... 			output_low ( FAN_1 ); 
+07DB:  BCF    28.0
+07DC:  MOVF   28,W
+07DD:  BSF    03.5
+07DE:  MOVWF  07
+07DF:  BCF    03.5
+07E0:  BCF    07.0
+....................  
+.................... 		} 
+.................... 	} 
+.................... 	else 
+07E1:  GOTO   7ED
+.................... 	{ 
+.................... 		if ( cFan1Flag == ON ) // always on when here but.... 
+07E2:  DECFSZ 2A,W
+07E3:  GOTO   7EC
+.................... 		{ 
+.................... 			cFan1Flag = OFF; 
+07E4:  CLRF   2A
+.................... 			cFan1CanStop = NO; 
+07E5:  CLRF   3A
+.................... 			output_high ( FAN_1 ); 
+07E6:  BCF    28.0
+07E7:  MOVF   28,W
+07E8:  BSF    03.5
+07E9:  MOVWF  07
+07EA:  BCF    03.5
+07EB:  BSF    07.0
+.................... 		} 
+....................  
+.................... 		cMenuState = STATE_AUTO;    // menu returns to "AUTO" 
+07EC:  CLRF   2C
+.................... 	} 
+....................  
+.................... 	cFan1DelayedState = cFan1Flag; // for correct view in display 
+07ED:  MOVF   2A,W
+07EE:  MOVWF  39
+.................... } 
+07EF:  BSF    0A.3
+07F0:  BCF    0A.4
+07F1:  GOTO   76C (RETURN)
+....................  
+....................  
+.................... void AutoFan( void ) 
+.................... { 
+.................... 	float rh, tcelsius; 
+.................... 	float SELECTED_RH_LIMIT; 
+....................  
+.................... 	if ( cMenuState != STATE_AUTO ) return; 
+*
+0D76:  MOVF   2C,F
+0D77:  BTFSS  03.2
+0D78:  GOTO   604
+....................  
+.................... 	tcelsius = getTemp(); 
+0D79:  CALL   0E2
+0D7A:  MOVF   7A,W
+0D7B:  MOVWF  43
+0D7C:  MOVF   79,W
+0D7D:  MOVWF  42
+0D7E:  MOVF   78,W
+0D7F:  MOVWF  41
+0D80:  MOVF   77,W
+0D81:  MOVWF  40
+.................... 	rh = getRH(); 
+0D82:  BCF    0A.3
+0D83:  CALL   5CA
+0D84:  BSF    0A.3
+0D85:  MOVF   7A,W
+0D86:  MOVWF  3F
+0D87:  MOVF   79,W
+0D88:  MOVWF  3E
+0D89:  MOVF   78,W
+0D8A:  MOVWF  3D
+0D8B:  MOVF   77,W
+0D8C:  MOVWF  3C
+....................  
+.................... 	// Determine witch RH limit to use, based on jumper is on or not, can be changed on the fly 
+.................... 	if ( input (RH_LIMIT_2_JUMPER ) == LOW ) 
+0D8D:  BSF    03.5
+0D8E:  BSF    05.4
+0D8F:  BCF    03.5
+0D90:  BTFSC  05.4
+0D91:  GOTO   599
+.................... 	{ 
+.................... 		SELECTED_RH_LIMIT = MAXIMUM_RH_2; 
+0D92:  CLRF   47
+0D93:  CLRF   46
+0D94:  MOVLW  64
+0D95:  MOVWF  45
+0D96:  MOVLW  84
+0D97:  MOVWF  44
+.................... 	} 
+.................... 	else 
+0D98:  GOTO   59F
+.................... 	{ 
+.................... 		SELECTED_RH_LIMIT = MAXIMUM_RH_1; 
+0D99:  CLRF   47
+0D9A:  CLRF   46
+0D9B:  MOVLW  3C
+0D9C:  MOVWF  45
+0D9D:  MOVLW  84
+0D9E:  MOVWF  44
+.................... 	} 
+....................  
+.................... 	if( rh > SELECTED_RH_LIMIT ) 
+0D9F:  MOVF   47,W
+0DA0:  BSF    03.5
+0DA1:  MOVWF  23
+0DA2:  BCF    03.5
+0DA3:  MOVF   46,W
+0DA4:  BSF    03.5
+0DA5:  MOVWF  22
+0DA6:  BCF    03.5
+0DA7:  MOVF   45,W
+0DA8:  BSF    03.5
+0DA9:  MOVWF  21
+0DAA:  BCF    03.5
+0DAB:  MOVF   44,W
+0DAC:  BSF    03.5
+0DAD:  MOVWF  20
+0DAE:  BCF    03.5
+0DAF:  MOVF   3F,W
+0DB0:  BSF    03.5
+0DB1:  MOVWF  27
+0DB2:  BCF    03.5
+0DB3:  MOVF   3E,W
+0DB4:  BSF    03.5
+0DB5:  MOVWF  26
+0DB6:  BCF    03.5
+0DB7:  MOVF   3D,W
+0DB8:  BSF    03.5
+0DB9:  MOVWF  25
+0DBA:  BCF    03.5
+0DBB:  MOVF   3C,W
+0DBC:  BSF    03.5
+0DBD:  MOVWF  24
+0DBE:  BCF    0A.3
+0DBF:  BCF    03.5
+0DC0:  CALL   6A8
+0DC1:  BSF    0A.3
+0DC2:  BTFSS  03.0
+0DC3:  GOTO   5F5
+.................... 	{ 
+.................... 		if ( input (INCLUDE_TEMP_JUMPER) == LOW && tcelsius < MINIMUM_TEMP ) 
+0DC4:  BSF    28.2
+0DC5:  MOVF   28,W
+0DC6:  BSF    03.5
+0DC7:  MOVWF  07
+0DC8:  BCF    03.5
+0DC9:  BTFSC  07.2
+0DCA:  GOTO   5E7
+0DCB:  MOVF   43,W
+0DCC:  BSF    03.5
+0DCD:  MOVWF  23
+0DCE:  BCF    03.5
+0DCF:  MOVF   42,W
+0DD0:  BSF    03.5
+0DD1:  MOVWF  22
+0DD2:  BCF    03.5
+0DD3:  MOVF   41,W
+0DD4:  BSF    03.5
+0DD5:  MOVWF  21
+0DD6:  BCF    03.5
+0DD7:  MOVF   40,W
+0DD8:  BSF    03.5
+0DD9:  MOVWF  20
+0DDA:  CLRF   27
+0DDB:  CLRF   26
+0DDC:  MOVLW  30
+0DDD:  MOVWF  25
+0DDE:  MOVLW  83
+0DDF:  MOVWF  24
+0DE0:  BCF    0A.3
+0DE1:  BCF    03.5
+0DE2:  CALL   6A8
+0DE3:  BSF    0A.3
+0DE4:  BTFSS  03.0
+0DE5:  GOTO   5E7
+.................... 		{ 
+.................... 			//don't run if temp to low and check-temp switch is on 
+.................... 			return; 
+0DE6:  GOTO   604
+.................... 		} 
+.................... 		// RH is above upper threshold and temp check is either ok or deactivated, start fan if not already running 
+.................... 		if ( cFan1Flag == OFF ) 
+0DE7:  MOVF   2A,F
+0DE8:  BTFSS  03.2
+0DE9:  GOTO   5F3
+.................... 		{ 
+.................... 			cFan1Flag = ON; 
+0DEA:  MOVLW  01
+0DEB:  MOVWF  2A
+.................... 			cFan1CanStop = NO; 
+0DEC:  CLRF   3A
+.................... 			output_low ( FAN_1 ); 
+0DED:  BCF    28.0
+0DEE:  MOVF   28,W
+0DEF:  BSF    03.5
+0DF0:  MOVWF  07
+0DF1:  BCF    03.5
+0DF2:  BCF    07.0
+....................  
+.................... 		} 
+....................  
+.................... 		cFan1RunTime = 0; // reset interval counter. increases by interrupt timer. 
+0DF3:  CLRF   36
+.................... 	} 
+.................... 	else 
+0DF4:  GOTO   602
+.................... 	{ 
+.................... 		if( cFan1CanStop == NO ) 
+0DF5:  MOVF   3A,F
+0DF6:  BTFSC  03.2
+.................... 		{ 
+.................... 			// time forces us to keep running (to prevent hysteresis) 
+.................... 		} 
+.................... 		else 
+0DF7:  GOTO   602
+.................... 		{ 
+.................... 			if ( cFan1Flag == ON ) 
+0DF8:  DECFSZ 2A,W
+0DF9:  GOTO   602
+.................... 			{ 
+.................... 				cFan1Flag = OFF; 
+0DFA:  CLRF   2A
+.................... 				cFan1CanStop = NO; 
+0DFB:  CLRF   3A
+.................... 				output_high ( FAN_1 ); 
+0DFC:  BCF    28.0
+0DFD:  MOVF   28,W
+0DFE:  BSF    03.5
+0DFF:  MOVWF  07
+0E00:  BCF    03.5
+0E01:  BSF    07.0
+.................... 			} 
+.................... 		} 
+.................... 	} 
+.................... 	cFan1AutoState = cFan1Flag; // for correct view in display 
+0E02:  MOVF   2A,W
+0E03:  MOVWF  38
+.................... } 
+0E04:  BSF    0A.3
+0E05:  BCF    0A.4
+0E06:  GOTO   76A (RETURN)
+....................  
+....................  
+....................  
+
+Configuration Fuses:
+   Word  1: 3F39   XT NOWDT NOPUT NOPROTECT NOBROWNOUT NOLVP NOCPD NOWRT NODEBUG

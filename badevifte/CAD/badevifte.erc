@@ -1,0 +1,46 @@
+ERC control (27/4/2008-11:59:19)
+
+***** Sheet 1 (Root)
+ERC: Warning Pin input Unconnected (X= 4,600 inches, Y= 5,250 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 3,450 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 3,750 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 3,850 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 3,950 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 4,050 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 4,150 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 4,400 inches
+ERC: Warning Pin input Unconnected (X= 3,550 inches, Y= 4,700 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,200 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,450 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,550 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,650 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,750 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,850 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 3,950 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 4,150 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 4,250 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 4,500 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 4,600 inches
+ERC: Warning Pin input Unconnected (X= 5,550 inches, Y= 4,700 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 3,700 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 3,800 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 3,900 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 4,000 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 4,100 inches
+ERC: Warning Pin BiDi Unconnected (X= 8,500 inches, Y= 4,200 inches
+ERC: Warning Pin passive Unconnected (X= 8,500 inches, Y= 4,500 inches
+ERC: Warning Pin passive Unconnected (X= 8,500 inches, Y= 4,600 inches
+ERC: Warning Pin passive Unconnected (X= 6,200 inches, Y= 3,750 inches
+ERC: Warning Pin passive Unconnected (X= 6,200 inches, Y= 3,350 inches
+ERC: Warning Pin passive Unconnected (X= 2,900 inches, Y= 1,300 inches
+ERC: Warning Pin passive Unconnected (X= 3,300 inches, Y= 1,300 inches
+ERC: Warning Pin passive Unconnected (X= 4,400 inches, Y= 1,300 inches
+ERC: Warning Pin passive Unconnected (X= 6,200 inches, Y= 1,300 inches
+ERC: Warning Pin passive Unconnected (X= 6,600 inches, Y= 1,300 inches
+ERC: Warning Pin passive Unconnected (X= 2,350 inches, Y= 3,000 inches
+ERC: Warning Pin passive Unconnected (X= 2,350 inches, Y= 2,700 inches
+ERC: Warning Pin power_in not driven (Net 11) (X= 8,500 inches, Y= 3,100 inches
+ERC: Warning Pin input not driven (Net 6) (X= 3,550 inches, Y= 3,550 inches
+ERC: Warning Pin input not driven (Net 5) (X= 8,500 inches, Y= 3,600 inches
+
+ >> Errors ERC: 41

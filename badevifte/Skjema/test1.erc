@@ -1,0 +1,44 @@
+EAGLE Version 4.13 Copyright (c) 1988-2004 CadSoft
+
+Electrical Rule Check for //192.168.30.13/storage/Elektronikk/PIC/badevifte/Skjema/test1.sch at 20.11.2007 18:35:21 
+
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I2
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I1
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I0
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I7
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I6
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I5
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I4
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC1 I3
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC1P GND
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC1P VCC
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I2
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I1
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I0
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I7
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I6
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I5
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I4
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC2 I3
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC2P GND
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC2P VCC
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 A4
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 B3
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 A3
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 B2
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 A2
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 B1
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 A1
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 CI
+ERROR: Sheet 1/1: unconnected INPUT Pin: IC3 B4
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC3P VSS
+ERROR: Sheet 1/1: no SUPPLY for implicit POWER Pin IC3P VDD
+
+Parts not found in board:
+
+  IC3
+
+ERROR: Board and schematic are not consistent!
+
+   32 errors
+    0 warnings

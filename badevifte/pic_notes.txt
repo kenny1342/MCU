@@ -1,0 +1,53 @@
+/*
+The way to calculate the timing as an 8-bit timer is:
+Fosc/4 /prescaler/256 = freq.
+The main oscillator is divided by four. This is a hardware design and cannot be changed.
+The prescaler is an 8-bit register that can be programmed to one of nine settings to be a 1:1 to 1:256 divider.
+The 8-bit value in the setup statement tells the compiler to configure the timer as an 8-bit timer.
+So, if you have a 20MHZ oscillator running, with the prescaler set to 8 the formula is:
+20MHZ/4/8/256 = 20,000,000 /4 / 8 / 256
+This will give you aproximately 2441 interrupts each second or an interrupt every 409uS.
+
+
+Fra http://www.vermontficks.org/pic_calculations.xls
+(256-C5)*1 / (A5 * 1000000 / B5 / 4) * 1000
+C5: Preset Timer0 count before leaving interrupt (0-255)
+A5: Clock frequency (MHz)
+B5: Prescaler value
+->
+I = Resulting interrupt rate (mS)
+
+*/
+
+
+-----------------------------------------------------------------------------------------
+Finne Interrupt rate i ms:
+-----------------------------------------------------------------------------------------
+PRT: Preset Timer0 count before leaving interrupt (0-255)
+F: Oscillator frekvens i Hz (8MHz = 8000000)
+PS: Prescaler value (defineres i koden, f.eks: setup_counters ( RTCC_INTERNAL, RTCC_DIV_128 ) )
+I: Interrupt rate (ms)
+
+(256-PRT)*1 / (F / PS / 4) * 1000 = 16,000ms
+
+Ved Preset count 6, oscillator frekvens 8Mhz og Prescaler verdi 128:
+I = (256-6)*1 / (8000000 / 128 / 4) * 1000
+
+I = 16,000ms
+	========
+
+
+-----------------------------------------------------------------------------------------
+Velge loop teller verdi i interrupt:
+-----------------------------------------------------------------------------------------
+N: Time tick desired (ms)
+C: loop teller i Interrupt
+I: Interrupt rate (ms)
+
+C = N / (I / 1000)
+
+For 1 sekund (1000ms) tick ved 16,000ms interrupt rate, blir det da:
+C = 1,000 / (16,000 / 1000)
+
+C = 62,5
+	====

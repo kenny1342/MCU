@@ -1,0 +1,4 @@
+comp = "LCD1" module = "lcd_2x16_led_backlight-HY-1602F"
+comp = "Q1" module = "transistor-npn-TO92"
+comp = "R2" module = "ptc-ntc-N644B"
+comp = "U1" module = "TO220_VERT"

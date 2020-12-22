@@ -1,0 +1,5 @@
+[Units]
+Link=1
+1=badevifte1.o
+Count=2
+2=ntc.c

@@ -1,0 +1,5 @@
+f.eks:
+
+OHM tegn = 11110100 = F4 = 0xF4
+PROSENT = 00100101 = 25 = 0x25
+GRADER = 11011111 = DF = 0xDF

@@ -1,0 +1,1723 @@
+CCS PCM C Compiler, Version 4.013, 28193               13-okt-07 22:37
+
+               Filename: \\10.0.0.13\storage\Elektronikk\PIC\badevifte\badevifte1.0.lst
+
+               ROM used: 2230 words (27%)
+                         Largest free fragment is 2048
+               RAM used: 29 (8%) at main() level
+                         69 (19%) worst case
+               Stack:    6 worst case (5 in main + 1 for interrupts)
+
+*
+0000:  MOVLW  08
+0001:  MOVWF  0A
+0002:  GOTO   076
+0003:  NOP
+0004:  MOVWF  7F
+0005:  SWAPF  03,W
+0006:  CLRF   03
+0007:  MOVWF  21
+0008:  MOVF   0A,W
+0009:  MOVWF  20
+000A:  CLRF   0A
+000B:  MOVF   04,W
+000C:  MOVWF  22
+000D:  MOVF   77,W
+000E:  MOVWF  23
+000F:  MOVF   78,W
+0010:  MOVWF  24
+0011:  MOVF   79,W
+0012:  MOVWF  25
+0013:  MOVF   7A,W
+0014:  MOVWF  26
+0015:  MOVF   7B,W
+0016:  MOVWF  27
+0017:  BCF    03.7
+0018:  BCF    03.5
+0019:  BTFSS  0B.5
+001A:  GOTO   01D
+001B:  BTFSC  0B.2
+001C:  GOTO   030
+001D:  MOVF   22,W
+001E:  MOVWF  04
+001F:  MOVF   23,W
+0020:  MOVWF  77
+0021:  MOVF   24,W
+0022:  MOVWF  78
+0023:  MOVF   25,W
+0024:  MOVWF  79
+0025:  MOVF   26,W
+0026:  MOVWF  7A
+0027:  MOVF   27,W
+0028:  MOVWF  7B
+0029:  MOVF   20,W
+002A:  MOVWF  0A
+002B:  SWAPF  21,W
+002C:  MOVWF  03
+002D:  SWAPF  7F,F
+002E:  SWAPF  7F,W
+002F:  RETFIE
+0030:  BCF    0A.3
+0031:  BCF    0A.4
+0032:  GOTO   0B2
+.................... #include <16F876.H> 
+.................... //////// Standard Header file for the PIC16F876 device //////////////// 
+.................... #device PIC16F876 
+.................... #list 
+....................  
+....................  
+.................... #include <kenny.h> 
+.................... #case 
+....................  
+.................... #ifndef TRUE 
+.................... #define TRUE 1 
+.................... #endif 
+....................  
+.................... #ifndef FALSE 
+.................... #define FALSE 0 
+.................... #endif 
+....................  
+.................... #ifndef YES 
+.................... #define YES 1 
+.................... #endif 
+....................  
+.................... #ifndef NO 
+.................... #define NO 0 
+.................... #endif 
+....................  
+.................... #ifndef HIGH 
+.................... #define HIGH 1 
+.................... #endif 
+....................  
+.................... #ifndef LOW 
+.................... #define LOW 0 
+.................... #endif 
+....................  
+.................... #ifndef ON 
+.................... #define ON 1 
+.................... #endif 
+....................  
+.................... #ifndef OFF 
+.................... #define OFF 0 
+.................... #endif 
+....................  
+.................... #ifndef UP 
+.................... #define UP 1 
+.................... #endif 
+....................  
+.................... #ifndef DOWN 
+.................... #define DOWN 0 
+.................... #endif 
+....................  
+.................... #ifndef UCHAR 
+.................... #define UCHAR char 
+.................... #endif 
+....................  
+.................... #ifndef UINT 
+.................... #define UINT long 
+.................... #endif 
+....................  
+.................... #ifndef BIT 
+.................... #define BIT short 
+.................... #endif 
+....................  
+.................... #ifndef SCHAR 
+.................... #define SCHAR signed int 
+.................... #endif 
+....................  
+.................... #ifndef SINT 
+.................... #define SINT signed long 
+.................... #endif 
+....................  
+.................... #ifndef FLOAT 
+.................... #define FLOAT float 
+.................... #endif 
+....................  
+.................... #include <lcd.inc> 
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... #device ADC=10 
+....................  
+....................  
+....................  
+.................... #fuses XT, NOPROTECT, NOPUT, NOWDT, NOBROWNOUT, NOLVP, NOCPD, NOWRT 
+....................  
+.................... // ADC 
+.................... #define VDD                 5.00 
+....................  
+.................... // INTERNAL EEPROM ASSIGNMENTS 
+.................... #define SAMPLE_INTERVAL_HI 0 
+.................... #define SAMPLE_INTERVAL_LO 1 
+.................... #define SAMPLE_COUNT_HI    2 
+.................... #define SAMPLE_COUNT_LO    3 
+.................... #define LOGGING_STATE      4 
+.................... #define RANGE              5 
+....................  
+.................... /* 
+.................... // EXTERNAL EEPROM ASSIGNMENTS 128Kbit EEPROM is 16384 bytes 
+.................... #define EEPROM_BYTE_SIZE   16384 
+.................... #define EEPROM_SCL         PIN_B0 
+.................... #define EEPROM_SDA         PIN_B1 
+.................... */ 
+....................  
+.................... // LCD STUFF 
+.................... #define LCD_D0  PIN_C3 
+.................... #define LCD_D1  PIN_C4 
+.................... #define LCD_D2  PIN_C5 
+.................... #define LCD_D3  PIN_C6 
+.................... #define LCD_EN  PIN_B5 
+.................... #define LCD_RS  PIN_B6 
+.................... #define LINE_1  0x00 
+.................... #define LINE_2  0x40 
+.................... #define CLEAR_DISP  0x01 
+....................  
+.................... #define PERCENT             'p' 
+.................... #define CELCIUS             'C' 
+....................  
+....................  
+.................... #define MENU_SWITCH        PIN_C1 
+.................... #define SELECT_SWITCH      PIN_C2 
+....................  
+.................... //#define RX_IN               PIN_A4 //pinne 6 RA4 
+.................... #define LED_1               PIN_B3 //pinne 24 
+.................... #define LED_2               PIN_B4 //pinne 25 
+.................... #define FAN_1               PIN_C0 
+....................  
+.................... #define CMD_NUL     0 
+....................  
+.................... //#define MINIMUM_INTERVAL   1 
+.................... #define STATE_START        0 
+.................... #define STATE_STOP         1 
+.................... #define STATE_AUTO         2 
+.................... #define MAX_MENU_STATE     2 
+....................  
+.................... #define MINIMUM_INTERVAL   20 // minimum minutes to run when auto started (prevent hysteresis) 
+.................... #define UPPER_RH           40 //rh % when fan should start 
+.................... //#define LOWER_RH           30 //rh % when fan should stop 
+....................  
+....................  
+.................... #define hi(x)  (*(&x+1)) 
+....................  
+.................... #use delay ( clock=8000000 ) 
+*
+0108:  MOVLW  4C
+0109:  MOVWF  04
+010A:  BCF    03.7
+010B:  MOVF   00,W
+010C:  BTFSC  03.2
+010D:  GOTO   11B
+010E:  MOVLW  02
+010F:  MOVWF  78
+0110:  CLRF   77
+0111:  DECFSZ 77,F
+0112:  GOTO   111
+0113:  DECFSZ 78,F
+0114:  GOTO   110
+0115:  MOVLW  97
+0116:  MOVWF  77
+0117:  DECFSZ 77,F
+0118:  GOTO   117
+0119:  DECFSZ 00,F
+011A:  GOTO   10E
+011B:  RETLW  00
+.................... #use standard_io ( A ) 
+.................... #use standard_io ( B ) 
+.................... #use standard_io ( C ) 
+*
+087F:  MOVLW  FF
+0880:  BCF    03.5
+0881:  MOVWF  28
+....................  
+....................  
+.................... void LCD_Init ( void ); 
+.................... void LCD_SetPosition ( unsigned int cX ); 
+.................... void LCD_PutChar ( unsigned int cX ); 
+.................... void LCD_PutCmd ( unsigned int cX ); 
+.................... void LCD_PulseEnable ( void ); 
+.................... void LCD_SetData ( unsigned int cX ); 
+.................... void PrintMenu ( void );       // protos 
+.................... void SetTime ( void ); 
+.................... void CheckSwitches ( void ); 
+.................... void printVersionInfo ( void ); 
+.................... void DisplayData ( void ); 
+.................... void StartFan ( void ); 
+.................... void StopFan ( void ); 
+.................... void AutoFan ( void ); 
+.................... int16 getRH (); 
+....................  
+.................... //void DisplayData ( long iAdcValue, char cLoc ); 
+....................  
+.................... static char cDisplayDataFlag, cFan1Flag; 
+0882:  CLRF   29
+0883:  CLRF   2A
+.................... static char cInterruptCount; 
+0884:  CLRF   2B
+.................... static char cMenuState, cSelectFlag; 
+0885:  CLRF   2C
+0886:  CLRF   2D
+.................... static char cMenuSwitchOn, cMenuSwitchCount; 
+0887:  CLRF   2E
+0888:  CLRF   2F
+.................... static char cSelectSwitchOn, cSelectSwitchCount; 
+0889:  CLRF   30
+088A:  CLRF   31
+.................... //static char cFan1State [ 9 ]; 
+.................... static char cDisplayUpdate, cToggleFlag; 
+088B:  CLRF   32
+088C:  CLRF   33
+.................... static char cFan1RunTime, cFan1AutoState; 
+088D:  CLRF   34
+088E:  CLRF   35
+....................  
+....................  
+.................... /*******************************************************************/ 
+....................  
+.................... /* 
+.................... The way to calculate the timing as an 8-bit timer is: 
+.................... Fosc/4 /prescaler/256 = freq. 
+.................... The main oscillator is divided by four. This is a hardware design and cannot be changed. 
+.................... The prescaler is an 8-bit register that can be programmed to one of nine settings to be a 1:1 to 1:256 divider. 
+.................... The 8-bit value in the setup statement tells the compiler to configure the timer as an 8-bit timer. 
+.................... So, if you have a 20MHZ oscillator running, with the prescaler set to 8 the formula is: 
+.................... 20MHZ/4/8/256 = 20,000,000 /4 / 8 / 256 
+.................... This will give you aproximately 2441 interrupts each second or an interrupt every 409uS. 
+....................  
+....................  
+.................... Fra http://www.vermontficks.org/pic_calculations.xls 
+.................... (256-C5)*1 / (A5 * 1000000 / B5 / 4) * 1000 
+.................... C5: Preset Timer0 count before leaving interrupt (0-255) 
+.................... A5: Clock frequency (MHz) 
+.................... B5: Prescaler value 
+.................... = Resulting interrupt rate (mS) 
+....................  
+.................... */ 
+....................  
+.................... //interrupt rate (mS): (256-6)*1 / (8 * 1000000 / 128 / 4) * 1000 = 16,000 
+....................  
+.................... #int_rtcc 
+.................... void TimerInterrupt ( void ) // Gets here every 16.4mS at 8MHz, 8.2mS at 16MHz 
+.................... { 
+.................... 	if ( cInterruptCount++ == 16 )      // if one second yet 
+*
+00B2:  MOVF   2B,W
+00B3:  INCF   2B,F
+00B4:  SUBLW  10
+00B5:  BTFSS  03.2
+00B6:  GOTO   0DE
+.................... 	{ 
+....................  
+.................... 		cInterruptCount = 0; 
+00B7:  CLRF   2B
+....................  
+.................... 		if(cDisplayUpdate ++ == 5) // update disp every 5 sec 
+00B8:  MOVF   32,W
+00B9:  INCF   32,F
+00BA:  SUBLW  05
+00BB:  BTFSS  03.2
+00BC:  GOTO   0C0
+.................... 		{ 
+.................... 			cDisplayUpdate = 0; 
+00BD:  CLRF   32
+.................... 			cDisplayDataFlag = ON; // signal time to update temp/humidity 
+00BE:  MOVLW  01
+00BF:  MOVWF  29
+.................... 		} 
+....................  
+.................... 		// Vifte skal gå minst 20 minutter når AUTO slår den på 
+.................... 		//TODO: bytt fra sec til min 
+.................... 		if ( cFan1AutoState == ON ) 
+00C0:  DECFSZ 35,W
+00C1:  GOTO   0CB
+.................... 		{ 
+.................... 			cFan1RunTime ++; 
+00C2:  INCF   34,F
+.................... 			if( cFan1RunTime >= MINIMUM_INTERVAL ) // (MINIMUM_INTERVAL*60) 
+00C3:  MOVF   34,W
+00C4:  SUBLW  13
+00C5:  BTFSC  03.0
+00C6:  GOTO   0CB
+.................... 			{ 
+.................... 				if( cFan1Flag==ON ) 
+00C7:  DECFSZ 2A,W
+00C8:  GOTO   0CA
+.................... 				{ 
+.................... 					cFan1Flag = OFF; // signal ok to turn off fan if rh is under limits 
+00C9:  CLRF   2A
+.................... 				} 
+.................... 				cFan1RunTime = 0; 
+00CA:  CLRF   34
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		if ( input ( FAN_1 ) == LOW ) 
+00CB:  BSF    28.0
+00CC:  MOVF   28,W
+00CD:  BSF    03.5
+00CE:  MOVWF  07
+00CF:  BCF    03.5
+00D0:  BTFSC  07.0
+00D1:  GOTO   0DE
+.................... 		{ 
+.................... 			cToggleFlag ^= 1;              // toggle (blink) LED while fan is running 
+00D2:  MOVLW  01
+00D3:  XORWF  33,F
+.................... 			if ( cToggleFlag == 1) 
+00D4:  DECFSZ 33,W
+00D5:  GOTO   0DB
+.................... 			{ 
+.................... 				output_low ( LED_2 ); 
+00D6:  BSF    03.5
+00D7:  BCF    06.4
+00D8:  BCF    03.5
+00D9:  BCF    06.4
+.................... 			} 
+.................... 			else 
+00DA:  GOTO   0DE
+.................... 			{ 
+.................... 				output_float ( LED_2 ); 
+00DB:  BSF    03.5
+00DC:  BSF    06.4
+00DD:  BCF    03.5
+.................... 			} 
+.................... 		} 
+....................  
+.................... 	} 
+....................  
+....................  
+.................... 	if ( input ( MENU_SWITCH ) == LOW ) 
+00DE:  BSF    28.1
+00DF:  MOVF   28,W
+00E0:  BSF    03.5
+00E1:  MOVWF  07
+00E2:  BCF    03.5
+00E3:  BTFSC  07.1
+00E4:  GOTO   0EF
+.................... 	{ 
+.................... 		if ( cMenuSwitchCount++ == 1 )     // debounce for 30mS, (was 2) 
+00E5:  MOVF   2F,W
+00E6:  INCF   2F,F
+00E7:  SUBLW  01
+00E8:  BTFSS  03.2
+00E9:  GOTO   0EE
+.................... 		{ 
+.................... 			cMenuSwitchOn = YES;        // signal that switch was pressed 
+00EA:  MOVLW  01
+00EB:  MOVWF  2E
+.................... 			cMenuSwitchCount = 240; //cViewing ? 252 : 240;       // set up for auto repeat (faster if viewing) 
+00EC:  MOVLW  F0
+00ED:  MOVWF  2F
+.................... 		} 
+.................... 	} 
+.................... 	else 
+00EE:  GOTO   0F0
+.................... 	{ 
+.................... 		cMenuSwitchCount = 0;             // switch up, restart 
+00EF:  CLRF   2F
+.................... 	} 
+....................  
+....................  
+.................... 	if ( input ( SELECT_SWITCH ) == LOW ) 
+00F0:  BSF    28.2
+00F1:  MOVF   28,W
+00F2:  BSF    03.5
+00F3:  MOVWF  07
+00F4:  BCF    03.5
+00F5:  BTFSC  07.2
+00F6:  GOTO   101
+.................... 	{ 
+.................... 		if ( cSelectSwitchCount++ == 1 )  // debounce for 30mS (was 2) 
+00F7:  MOVF   31,W
+00F8:  INCF   31,F
+00F9:  SUBLW  01
+00FA:  BTFSS  03.2
+00FB:  GOTO   100
+.................... 		{ 
+.................... 			cSelectSwitchOn = YES;        // signal that switch was pressed 
+00FC:  MOVLW  01
+00FD:  MOVWF  30
+.................... 			cSelectSwitchCount = 240; // cViewing ? 252 : 240;       // set up for auto repeat (faster if viewing) 
+00FE:  MOVLW  F0
+00FF:  MOVWF  31
+.................... 		} 
+.................... 	} 
+.................... 	else 
+0100:  GOTO   102
+.................... 	{ 
+.................... 		cSelectSwitchCount = 0;             // switch is up, restart count 
+0101:  CLRF   31
+.................... 	} 
+....................  
+.................... 	set_rtcc ( 6 );     // Prescaler value, restart at adjusted value for 1-second accuracy 
+0102:  MOVLW  06
+0103:  MOVWF  01
+.................... } 
+....................  
+.................... //***************************************************************************** 
+....................  
+0104:  BCF    0B.2
+0105:  BCF    0A.3
+0106:  BCF    0A.4
+0107:  GOTO   01D
+.................... void printVersionInfo ( void ) 
+.................... { 
+.................... 	LCD_SetPosition ( LINE_1 + 0 ); 
+*
+01A1:  CLRF   3E
+01A2:  CALL   181
+.................... 	printf ( LCD_PutChar, " BADEVIFTE v1.2 " ); 
+01A3:  CLRF   36
+01A4:  MOVF   36,W
+01A5:  CALL   033
+01A6:  INCF   36,F
+01A7:  MOVWF  77
+01A8:  MOVWF  4B
+01A9:  CALL   18E
+01AA:  MOVLW  10
+01AB:  SUBWF  36,W
+01AC:  BTFSS  03.2
+01AD:  GOTO   1A4
+.................... 	LCD_SetPosition ( LINE_2+ 0 ); 
+01AE:  MOVLW  40
+01AF:  MOVWF  3E
+01B0:  CALL   181
+.................... 	printf ( LCD_PutChar, "Kenny 07.10.2007" ); 
+01B1:  CLRF   36
+01B2:  MOVF   36,W
+01B3:  CALL   048
+01B4:  INCF   36,F
+01B5:  MOVWF  77
+01B6:  MOVWF  4B
+01B7:  CALL   18E
+01B8:  MOVLW  10
+01B9:  SUBWF  36,W
+01BA:  BTFSS  03.2
+01BB:  GOTO   1B2
+.................... } 
+01BC:  BSF    0A.3
+01BD:  BCF    0A.4
+01BE:  GOTO   0C0 (RETURN)
+....................  
+.................... void main ( void ) 
+.................... { 
+*
+0876:  CLRF   04
+0877:  BCF    03.7
+0878:  MOVLW  1F
+0879:  ANDWF  03,F
+087A:  BSF    03.5
+087B:  BSF    1F.0
+087C:  BSF    1F.1
+087D:  BSF    1F.2
+087E:  BCF    1F.3
+.................... 	//char recChar; 
+.................... 	delay_ms ( 200 );           // wait enough time after VDD rise 
+*
+088F:  MOVLW  C8
+0890:  MOVWF  4C
+0891:  BCF    0A.3
+0892:  CALL   108
+0893:  BSF    0A.3
+.................... 	setup_counters ( RTCC_INTERNAL, RTCC_DIV_128 );       // 16mS roll @8MHz 
+0894:  MOVLW  06
+0895:  MOVWF  77
+0896:  BTFSS  77.3
+0897:  GOTO   0A1
+0898:  MOVLW  07
+0899:  CLRF   01
+089A:  MOVLW  81
+089B:  MOVWF  04
+089C:  BCF    03.7
+089D:  MOVF   00,W
+089E:  ANDLW  C0
+089F:  IORLW  0F
+08A0:  MOVWF  00
+08A1:  CLRWDT
+08A2:  MOVLW  81
+08A3:  MOVWF  04
+08A4:  MOVF   00,W
+08A5:  ANDLW  C0
+08A6:  IORWF  77,W
+08A7:  MOVWF  00
+....................  
+.................... 	output_low ( FAN_1 ); 
+08A8:  BCF    28.0
+08A9:  MOVF   28,W
+08AA:  BSF    03.5
+08AB:  MOVWF  07
+08AC:  BCF    03.5
+08AD:  BCF    07.0
+.................... 	output_low ( LED_1 ); 
+08AE:  BSF    03.5
+08AF:  BCF    06.3
+08B0:  BCF    03.5
+08B1:  BCF    06.3
+.................... 	output_low ( LED_2 ); 
+08B2:  BSF    03.5
+08B3:  BCF    06.4
+08B4:  BCF    03.5
+08B5:  BCF    06.4
+....................  
+....................  
+.................... 	LCD_Init(); 
+08B6:  BCF    0A.3
+08B7:  CALL   161
+08B8:  BSF    0A.3
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+08B9:  MOVLW  01
+08BA:  MOVWF  36
+08BB:  BCF    0A.3
+08BC:  CALL   156
+08BD:  BSF    0A.3
+....................  
+.................... 	printVersionInfo(); 
+08BE:  BCF    0A.3
+08BF:  GOTO   1A1
+08C0:  BSF    0A.3
+.................... 	delay_ms ( 5000 ); 
+08C1:  MOVLW  14
+08C2:  MOVWF  36
+08C3:  MOVLW  FA
+08C4:  MOVWF  4C
+08C5:  BCF    0A.3
+08C6:  CALL   108
+08C7:  BSF    0A.3
+08C8:  DECFSZ 36,F
+08C9:  GOTO   0C3
+.................... 	LCD_PutCmd ( CLEAR_DISP ); 
+08CA:  MOVLW  01
+08CB:  MOVWF  36
+08CC:  BCF    0A.3
+08CD:  CALL   156
+08CE:  BSF    0A.3
+.................... 	LCD_Init(); 
+08CF:  BCF    0A.3
+08D0:  CALL   161
+08D1:  BSF    0A.3
+....................  
+.................... 	// SETUP 
+.................... 	//port_c_pullups ( ON ); 
+.................... 	setup_ccp1 ( CCP_OFF ); 
+08D2:  BSF    28.2
+08D3:  MOVF   28,W
+08D4:  BSF    03.5
+08D5:  MOVWF  07
+08D6:  BCF    03.5
+08D7:  CLRF   17
+.................... 	setup_ccp2 ( CCP_OFF ); 
+08D8:  BSF    28.1
+08D9:  MOVF   28,W
+08DA:  BSF    03.5
+08DB:  MOVWF  07
+08DC:  BCF    03.5
+08DD:  CLRF   1D
+.................... 	setup_adc_ports ( RA0_ANALOG );     // these three statements set up the ADC 
+08DE:  BSF    03.5
+08DF:  BCF    1F.0
+08E0:  BSF    1F.1
+08E1:  BSF    1F.2
+08E2:  BSF    1F.3
+.................... 	setup_adc ( ADC_CLOCK_INTERNAL );   // clock source 
+08E3:  BCF    03.5
+08E4:  BSF    1F.6
+08E5:  BSF    1F.7
+08E6:  BSF    03.5
+08E7:  BSF    1F.7
+08E8:  BCF    03.5
+08E9:  BSF    1F.0
+.................... 	set_adc_channel ( 0 );              // select channel 
+08EA:  MOVLW  00
+08EB:  MOVWF  78
+08EC:  MOVF   1F,W
+08ED:  ANDLW  C7
+08EE:  IORWF  78,W
+08EF:  MOVWF  1F
+.................... 	enable_interrupts ( INT_RTCC );     // turn on timer interrupt 
+08F0:  BSF    0B.5
+.................... 	enable_interrupts ( GLOBAL );       // enable interrupts 
+08F1:  MOVLW  C0
+08F2:  IORWF  0B,F
+....................  
+.................... 	// INITIALIZE VARIABLES 
+.................... 	cFan1Flag = OFF; 
+08F3:  CLRF   2A
+.................... 	cSelectFlag = OFF; 
+08F4:  CLRF   2D
+.................... 	cToggleFlag = 0; 
+08F5:  CLRF   33
+.................... 	cMenuSwitchOn = OFF; 
+08F6:  CLRF   2E
+.................... 	cSelectSwitchOn = OFF; 
+08F7:  CLRF   30
+.................... 	cMenuSwitchCount = 0; 
+08F8:  CLRF   2F
+.................... 	cSelectSwitchCount = 0; 
+08F9:  CLRF   31
+....................  
+.................... 	output_float ( LED_2 ); 
+08FA:  BSF    03.5
+08FB:  BSF    06.4
+....................  
+....................  
+.................... 	// start moduser 
+.................... 	cMenuState = STATE_AUTO;  // set first menu 
+08FC:  MOVLW  02
+08FD:  BCF    03.5
+08FE:  MOVWF  2C
+.................... 	AutoFan(); 
+08FF:  BCF    0A.3
+0900:  CALL   55B
+0901:  BSF    0A.3
+.................... 	cDisplayDataFlag = ON; // update display 
+0902:  MOVLW  01
+0903:  MOVWF  29
+....................  
+....................  
+....................  
+.................... 	while ( TRUE )              // do forever 
+.................... 	{ 
+.................... 		PrintMenu();            // display screens and enviroment info 
+0904:  BCF    0A.3
+0905:  GOTO   6C3
+0906:  BSF    0A.3
+.................... 		CheckSwitches();        // check and do any switch activity 
+0907:  GOTO   000
+.................... 	} 
+0908:  GOTO   104
+.................... } 
+....................  
+.................... //**************************************************************************** 
+....................  
+.................... void PrintMenu ( void ) 
+.................... { 
+0909:  SLEEP
+....................  
+.................... 	// PRINT LOWER LINE OF MENU 
+.................... 	LCD_SetPosition ( LINE_2 + 0 ); 
+*
+06C3:  MOVLW  40
+06C4:  MOVWF  3E
+06C5:  CALL   181
+.................... 	switch ( cMenuState ) 
+.................... 	{ 
+06C6:  MOVF   2C,W
+06C7:  BTFSC  03.2
+06C8:  GOTO   6D0
+06C9:  XORLW  01
+06CA:  BTFSC  03.2
+06CB:  GOTO   6E9
+06CC:  XORLW  03
+06CD:  BTFSC  03.2
+06CE:  GOTO   702
+06CF:  GOTO   71B
+.................... 		case STATE_START: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "Start         OK" ); 
+06D0:  CLRF   36
+06D1:  MOVF   36,W
+06D2:  CALL   05D
+06D3:  INCF   36,F
+06D4:  MOVWF  77
+06D5:  MOVWF  4B
+06D6:  CALL   18E
+06D7:  MOVLW  05
+06D8:  SUBWF  36,W
+06D9:  BTFSS  03.2
+06DA:  GOTO   6D1
+06DB:  MOVLW  09
+06DC:  MOVWF  37
+06DD:  MOVLW  20
+06DE:  MOVWF  4B
+06DF:  CALL   18E
+06E0:  DECFSZ 37,F
+06E1:  GOTO   6DD
+06E2:  MOVLW  4F
+06E3:  MOVWF  4B
+06E4:  CALL   18E
+06E5:  MOVLW  4B
+06E6:  MOVWF  4B
+06E7:  CALL   18E
+.................... 		} 
+.................... 		break; 
+06E8:  GOTO   71B
+....................  
+.................... 		case STATE_STOP: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "Stop          OK" ); 
+06E9:  CLRF   36
+06EA:  MOVF   36,W
+06EB:  CALL   069
+06EC:  INCF   36,F
+06ED:  MOVWF  77
+06EE:  MOVWF  4B
+06EF:  CALL   18E
+06F0:  MOVLW  04
+06F1:  SUBWF  36,W
+06F2:  BTFSS  03.2
+06F3:  GOTO   6EA
+06F4:  MOVLW  0A
+06F5:  MOVWF  37
+06F6:  MOVLW  20
+06F7:  MOVWF  4B
+06F8:  CALL   18E
+06F9:  DECFSZ 37,F
+06FA:  GOTO   6F6
+06FB:  MOVLW  4F
+06FC:  MOVWF  4B
+06FD:  CALL   18E
+06FE:  MOVLW  4B
+06FF:  MOVWF  4B
+0700:  CALL   18E
+.................... 		} 
+.................... 		break; 
+0701:  GOTO   71B
+....................  
+.................... 		case STATE_AUTO: 
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "Auto          OK" ); 
+0702:  CLRF   36
+0703:  MOVF   36,W
+0704:  CALL   074
+0705:  INCF   36,F
+0706:  MOVWF  77
+0707:  MOVWF  4B
+0708:  CALL   18E
+0709:  MOVLW  04
+070A:  SUBWF  36,W
+070B:  BTFSS  03.2
+070C:  GOTO   703
+070D:  MOVLW  0A
+070E:  MOVWF  37
+070F:  MOVLW  20
+0710:  MOVWF  4B
+0711:  CALL   18E
+0712:  DECFSZ 37,F
+0713:  GOTO   70F
+0714:  MOVLW  4F
+0715:  MOVWF  4B
+0716:  CALL   18E
+0717:  MOVLW  4B
+0718:  MOVWF  4B
+0719:  CALL   18E
+.................... 		} 
+.................... 		break; 
+071A:  GOTO   71B
+....................  
+.................... 	} 
+....................  
+.................... 	// DISPLAY KLIMA DATA 
+.................... 	if ( cDisplayDataFlag == ON )                    // if interrupt signalled an ADC reading 
+071B:  DECFSZ 29,W
+071C:  GOTO   7A9
+.................... 	{ 
+.................... 		cDisplayDataFlag = OFF; 
+071D:  CLRF   29
+.................... 		DisplayData(); 
+.................... 	} 
+.................... } 
+*
+07A9:  BSF    0A.3
+07AA:  BCF    0A.4
+07AB:  GOTO   106 (RETURN)
+....................  
+.................... void CheckSwitches ( void ) 
+.................... { 
+....................  
+.................... 	// INCREMENT/DECREMENT MENU 
+.................... 	if ( cMenuSwitchOn == YES )      // if interrupt caught the switch press 
+*
+0800:  DECFSZ 2E,W
+0801:  GOTO   009
+.................... 	{ 
+.................... 		if ( cMenuState++ >= MAX_MENU_STATE )      // if at maximum 
+0802:  MOVF   2C,W
+0803:  INCF   2C,F
+0804:  SUBLW  01
+0805:  BTFSC  03.0
+0806:  GOTO   008
+.................... 		{ 
+.................... 			cMenuState = 0;            // roll 
+0807:  CLRF   2C
+.................... 		} 
+.................... 		cMenuSwitchOn = NO;     // turn back off 
+0808:  CLRF   2E
+.................... 	} 
+....................  
+.................... 	if ( cSelectSwitchOn == YES )      // if interrupt caught the switch press 
+0809:  DECFSZ 30,W
+080A:  GOTO   00E
+.................... 	{ 
+.................... 		cSelectFlag = ON; 
+080B:  MOVLW  01
+080C:  MOVWF  2D
+.................... 		cSelectSwitchOn = NO;     // turn back off 
+080D:  CLRF   30
+.................... 	} 
+....................  
+....................    // CHECK IF SELECT SWITCH IS PRESSED, PERFORM ACTION AND PRINT MENU 
+.................... 	switch ( cMenuState ) 
+.................... 	{ 
+080E:  MOVF   2C,W
+080F:  BTFSC  03.2
+0810:  GOTO   018
+0811:  XORLW  01
+0812:  BTFSC  03.2
+0813:  GOTO   03C
+0814:  XORLW  03
+0815:  BTFSC  03.2
+0816:  GOTO   058
+0817:  GOTO   073
+.................... 		case ( STATE_START ): // START VIFTE 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if SELECT (OK) switch is pressed 
+0818:  DECFSZ 2D,W
+0819:  GOTO   03C
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+081A:  CLRF   2D
+....................  
+.................... 				StartFan(); 
+.................... 				delay_ms ( 1000 ); 
+*
+0827:  MOVLW  04
+0828:  MOVWF  36
+0829:  MOVLW  FA
+082A:  MOVWF  4C
+082B:  BCF    0A.3
+082C:  CALL   108
+082D:  BSF    0A.3
+082E:  DECFSZ 36,F
+082F:  GOTO   029
+.................... 				cDisplayDataFlag = ON; 
+0830:  MOVLW  01
+0831:  MOVWF  29
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+0832:  MOVWF  36
+0833:  BCF    0A.3
+0834:  CALL   156
+0835:  BSF    0A.3
+.................... 				cMenuSwitchOn = NO; 
+0836:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+0837:  CLRF   30
+.................... 				cInterruptCount = 0;    // synchronize interrupt timing from here 
+0838:  CLRF   2B
+.................... 				cMenuState = STATE_STOP;    // menu displays "STOP" 
+0839:  MOVLW  01
+083A:  MOVWF  2C
+.................... 				break; 
+083B:  GOTO   073
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		case ( STATE_STOP ): // STOPP VIFTE 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if SELECT (OK) switch is pressed 
+083C:  DECFSZ 2D,W
+083D:  GOTO   058
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+083E:  CLRF   2D
+....................  
+.................... 				StopFan(); 
+.................... 				delay_ms ( 1000 ); 
+*
+0844:  MOVLW  04
+0845:  BCF    03.5
+0846:  MOVWF  36
+0847:  MOVLW  FA
+0848:  MOVWF  4C
+0849:  BCF    0A.3
+084A:  CALL   108
+084B:  BSF    0A.3
+084C:  DECFSZ 36,F
+084D:  GOTO   047
+.................... 				cDisplayDataFlag = ON; 
+084E:  MOVLW  01
+084F:  MOVWF  29
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+0850:  MOVWF  36
+0851:  BCF    0A.3
+0852:  CALL   156
+0853:  BSF    0A.3
+.................... 				cMenuSwitchOn = NO; 
+0854:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+0855:  CLRF   30
+.................... 				cMenuState = STATE_START;    // menu displays "START" 
+0856:  CLRF   2C
+....................  
+.................... 				break; 
+0857:  GOTO   073
+.................... 			} 
+.................... 		} 
+....................  
+.................... 		case ( STATE_AUTO ): 
+.................... 		{ 
+.................... 			if ( cSelectFlag == ON )    // if SELECT (OK) switch is pressed 
+0858:  DECFSZ 2D,W
+0859:  GOTO   073
+.................... 			{ 
+.................... 				cSelectFlag = OFF;         // turn flag off 
+085A:  CLRF   2D
+....................  
+.................... 				AutoFan(); 
+085B:  BCF    0A.3
+085C:  CALL   55B
+085D:  BSF    0A.3
+....................  
+.................... 				delay_ms ( 1000 ); 
+085E:  MOVLW  04
+085F:  MOVWF  36
+0860:  MOVLW  FA
+0861:  MOVWF  4C
+0862:  BCF    0A.3
+0863:  CALL   108
+0864:  BSF    0A.3
+0865:  DECFSZ 36,F
+0866:  GOTO   060
+.................... 				cDisplayDataFlag = ON; 
+0867:  MOVLW  01
+0868:  MOVWF  29
+.................... 				LCD_PutCmd ( CLEAR_DISP ); 
+0869:  MOVWF  36
+086A:  BCF    0A.3
+086B:  CALL   156
+086C:  BSF    0A.3
+.................... 				cMenuSwitchOn = NO; 
+086D:  CLRF   2E
+.................... 				cSelectSwitchOn = NO; 
+086E:  CLRF   30
+.................... 				cInterruptCount = 0;    // synchronize interrupt timing from here 
+086F:  CLRF   2B
+.................... 				cMenuState = STATE_STOP;    // menu displays "STOP" (fordi auto er start modus) 
+0870:  MOVLW  01
+0871:  MOVWF  2C
+....................  
+.................... 				break; 
+0872:  GOTO   073
+.................... 			} 
+.................... 		} 
+.................... 	} 
+.................... } 
+0873:  BSF    0A.3
+0874:  BCF    0A.4
+0875:  GOTO   108 (RETURN)
+....................  
+.................... void DisplayData ( void ) 
+.................... { 
+.................... 	float f_temp, f_rh; 
+....................  
+.................... 	f_rh = getRH(); 
+*
+071E:  CALL   47F
+071F:  MOVF   79,W
+0720:  MOVWF  49
+0721:  MOVF   78,W
+0722:  MOVWF  48
+0723:  CALL   1BF
+0724:  MOVF   7A,W
+0725:  MOVWF  3D
+0726:  MOVF   79,W
+0727:  MOVWF  3C
+0728:  MOVF   78,W
+0729:  MOVWF  3B
+072A:  MOVF   77,W
+072B:  MOVWF  3A
+....................  
+.................... 	// Relative Humidity 
+.................... 	LCD_SetPosition ( LINE_1 ); 
+072C:  CLRF   3E
+072D:  CALL   181
+....................  
+.................... 	if ( f_rh == 0x3FF ) 
+072E:  MOVF   3D,W
+072F:  MOVWF  41
+0730:  MOVF   3C,W
+0731:  MOVWF  40
+0732:  MOVF   3B,W
+0733:  MOVWF  3F
+0734:  MOVF   3A,W
+0735:  MOVWF  3E
+0736:  CLRF   45
+0737:  MOVLW  C0
+0738:  MOVWF  44
+0739:  MOVLW  7F
+073A:  MOVWF  43
+073B:  MOVLW  88
+073C:  MOVWF  42
+073D:  CALL   51C
+073E:  BTFSS  03.2
+073F:  GOTO   74A
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "O/R" );    // out of range 
+0740:  MOVLW  4F
+0741:  MOVWF  4B
+0742:  CALL   18E
+0743:  MOVLW  2F
+0744:  MOVWF  4B
+0745:  CALL   18E
+0746:  MOVLW  52
+0747:  MOVWF  4B
+0748:  CALL   18E
+.................... 	} 
+.................... 	else 
+0749:  GOTO   757
+.................... 	{ 
+.................... 		//printf ( LCD_PutChar, "%2.1f%c", f_rh, PERCENT ); 
+.................... 		printf ( LCD_PutChar, "%2.1f", f_rh ); // LCD takler jo ikke % ... 
+074A:  MOVLW  01
+074B:  MOVWF  04
+074C:  MOVF   3D,W
+074D:  MOVWF  41
+074E:  MOVF   3C,W
+074F:  MOVWF  40
+0750:  MOVF   3B,W
+0751:  MOVWF  3F
+0752:  MOVF   3A,W
+0753:  MOVWF  3E
+0754:  MOVLW  01
+0755:  MOVWF  42
+0756:  CALL   5F9
+.................... 	} 
+....................  
+.................... 	// Temperature 
+.................... 	f_temp = 0; // not implemented yet 
+0757:  CLRF   39
+0758:  CLRF   38
+0759:  CLRF   37
+075A:  CLRF   36
+.................... 	LCD_SetPosition ( LINE_1 + 12); 
+075B:  MOVLW  0C
+075C:  MOVWF  3E
+075D:  CALL   181
+.................... 	printf ( LCD_PutChar, "%2.1f", f_temp ); 
+075E:  MOVLW  01
+075F:  MOVWF  04
+0760:  MOVF   39,W
+0761:  MOVWF  41
+0762:  MOVF   38,W
+0763:  MOVWF  40
+0764:  MOVF   37,W
+0765:  MOVWF  3F
+0766:  MOVF   36,W
+0767:  MOVWF  3E
+0768:  MOVLW  01
+0769:  MOVWF  42
+076A:  CALL   5F9
+....................  
+.................... 	// FAN operational status 
+.................... 	LCD_SetPosition ( LINE_1 + 4); // '0.0 AUTO OFF 0.0' 
+076B:  MOVLW  04
+076C:  MOVWF  3E
+076D:  CALL   181
+.................... 	if( cMenuState == STATE_AUTO ) 
+076E:  MOVF   2C,W
+076F:  SUBLW  02
+0770:  BTFSS  03.2
+0771:  GOTO   78D
+.................... 	{ 
+.................... 		if( cFan1AutoState == OFF ) 
+0772:  MOVF   35,F
+0773:  BTFSS  03.2
+0774:  GOTO   781
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "AUTO OFF" ); 
+0775:  CLRF   3E
+0776:  MOVF   3E,W
+0777:  CALL   07F
+0778:  INCF   3E,F
+0779:  MOVWF  77
+077A:  MOVWF  4B
+077B:  CALL   18E
+077C:  MOVLW  08
+077D:  SUBWF  3E,W
+077E:  BTFSS  03.2
+077F:  GOTO   776
+.................... 		} 
+.................... 		else 
+0780:  GOTO   78C
+.................... 		{ 
+.................... 			printf ( LCD_PutChar, "AUTO ON" ); 
+0781:  CLRF   3E
+0782:  MOVF   3E,W
+0783:  CALL   08C
+0784:  INCF   3E,F
+0785:  MOVWF  77
+0786:  MOVWF  4B
+0787:  CALL   18E
+0788:  MOVLW  07
+0789:  SUBWF  3E,W
+078A:  BTFSS  03.2
+078B:  GOTO   782
+.................... 		} 
+.................... 	} 
+.................... 	else if( cMenuState == STATE_START ) 
+078C:  GOTO   7A9
+078D:  MOVF   2C,F
+078E:  BTFSS  03.2
+078F:  GOTO   79C
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, " RUNNING " ); 
+0790:  CLRF   3E
+0791:  MOVF   3E,W
+0792:  CALL   098
+0793:  INCF   3E,F
+0794:  MOVWF  77
+0795:  MOVWF  4B
+0796:  CALL   18E
+0797:  MOVLW  09
+0798:  SUBWF  3E,W
+0799:  BTFSS  03.2
+079A:  GOTO   791
+.................... 	} 
+.................... 	else if( cMenuState == STATE_STOP ) 
+079B:  GOTO   7A9
+079C:  DECFSZ 2C,W
+079D:  GOTO   7A9
+.................... 	{ 
+.................... 		printf ( LCD_PutChar, "STOPPED" ); 
+079E:  CLRF   3E
+079F:  MOVF   3E,W
+07A0:  CALL   0A6
+07A1:  INCF   3E,F
+07A2:  MOVWF  77
+07A3:  MOVWF  4B
+07A4:  CALL   18E
+07A5:  MOVLW  07
+07A6:  SUBWF  3E,W
+07A7:  BTFSS  03.2
+07A8:  GOTO   79F
+.................... 	} 
+....................  
+.................... } 
+....................  
+....................  
+.................... int16 getRH() 
+.................... { 
+....................  
+.................... 	int16 adc_value; 
+.................... 	float adc_volt, rh; 
+....................  
+.................... 	// RH: RH = ((A/D voltage / supply voltage) - 0.16) / 0.0062 
+.................... 	// volt adc = iAdcHumValue / 1024 * 5 
+.................... 	// (417 / 1024) * 5 = 2,0361328125 
+.................... 	// (2,0361328125 / 5) = 0,4072265625 - 0,16 = 0,2472265625 / 0,0062 = 39,87 RH 
+.................... 	// ELLER 
+.................... 	// (417 / 1024) = 0,4072265625 - 0,16 = 0,2472265625 / 0,0062 = 39,87 RH 
+.................... 	// 0,4072265625 - 0,16 = 
+.................... 	// 
+.................... 	set_adc_channel ( 0 ); 
+*
+047F:  MOVLW  00
+0480:  MOVWF  78
+0481:  MOVF   1F,W
+0482:  ANDLW  C7
+0483:  IORWF  78,W
+0484:  MOVWF  1F
+.................... 	adc_value = read_adc(); 
+0485:  BSF    1F.2
+0486:  BTFSC  1F.2
+0487:  GOTO   486
+0488:  BSF    03.5
+0489:  MOVF   1E,W
+048A:  BCF    03.5
+048B:  MOVWF  3E
+048C:  MOVF   1E,W
+048D:  MOVWF  3F
+....................  
+.................... 	// calc relative humidity from adc value 
+.................... 	adc_volt = ( float ) adc_value / 1023  * VDD; // 1023 leaves room for out-of-range 
+048E:  MOVF   3F,W
+048F:  MOVWF  49
+0490:  MOVF   3E,W
+0491:  MOVWF  48
+0492:  CALL   1BF
+0493:  MOVF   77,W
+0494:  MOVWF  48
+0495:  MOVF   78,W
+0496:  MOVWF  49
+0497:  MOVF   79,W
+0498:  MOVWF  4A
+0499:  MOVF   7A,W
+049A:  MOVWF  4B
+049B:  MOVWF  53
+049C:  MOVF   79,W
+049D:  MOVWF  52
+049E:  MOVF   78,W
+049F:  MOVWF  51
+04A0:  MOVF   77,W
+04A1:  MOVWF  50
+04A2:  CLRF   57
+04A3:  MOVLW  C0
+04A4:  MOVWF  56
+04A5:  MOVLW  7F
+04A6:  MOVWF  55
+04A7:  MOVLW  88
+04A8:  MOVWF  54
+04A9:  CALL   1DC
+04AA:  MOVF   77,W
+04AB:  MOVWF  4C
+04AC:  MOVF   78,W
+04AD:  MOVWF  4D
+04AE:  MOVF   79,W
+04AF:  MOVWF  4E
+04B0:  MOVF   7A,W
+04B1:  MOVWF  4F
+04B2:  MOVWF  53
+04B3:  MOVF   79,W
+04B4:  MOVWF  52
+04B5:  MOVF   78,W
+04B6:  MOVWF  51
+04B7:  MOVF   77,W
+04B8:  MOVWF  50
+04B9:  CLRF   57
+04BA:  CLRF   56
+04BB:  MOVLW  20
+04BC:  MOVWF  55
+04BD:  MOVLW  81
+04BE:  MOVWF  54
+04BF:  CALL   2A6
+04C0:  MOVF   7A,W
+04C1:  MOVWF  43
+04C2:  MOVF   79,W
+04C3:  MOVWF  42
+04C4:  MOVF   78,W
+04C5:  MOVWF  41
+04C6:  MOVF   77,W
+04C7:  MOVWF  40
+.................... 	rh = ( adc_volt / VDD  - 0.16 ) / 0.0062; 
+04C8:  MOVF   43,W
+04C9:  MOVWF  53
+04CA:  MOVF   42,W
+04CB:  MOVWF  52
+04CC:  MOVF   41,W
+04CD:  MOVWF  51
+04CE:  MOVF   40,W
+04CF:  MOVWF  50
+04D0:  CLRF   57
+04D1:  CLRF   56
+04D2:  MOVLW  20
+04D3:  MOVWF  55
+04D4:  MOVLW  81
+04D5:  MOVWF  54
+04D6:  CALL   1DC
+04D7:  MOVF   77,W
+04D8:  MOVWF  48
+04D9:  MOVF   78,W
+04DA:  MOVWF  49
+04DB:  MOVF   79,W
+04DC:  MOVWF  4A
+04DD:  MOVF   7A,W
+04DE:  MOVWF  4B
+04DF:  BSF    03.1
+04E0:  MOVF   7A,W
+04E1:  MOVWF  4F
+04E2:  MOVF   79,W
+04E3:  MOVWF  4E
+04E4:  MOVF   78,W
+04E5:  MOVWF  4D
+04E6:  MOVF   77,W
+04E7:  MOVWF  4C
+04E8:  MOVLW  0A
+04E9:  MOVWF  53
+04EA:  MOVLW  D7
+04EB:  MOVWF  52
+04EC:  MOVLW  23
+04ED:  MOVWF  51
+04EE:  MOVLW  7C
+04EF:  MOVWF  50
+04F0:  GOTO   31B
+04F1:  MOVF   77,W
+04F2:  MOVWF  4C
+04F3:  MOVF   78,W
+04F4:  MOVWF  4D
+04F5:  MOVF   79,W
+04F6:  MOVWF  4E
+04F7:  MOVF   7A,W
+04F8:  MOVWF  4F
+04F9:  MOVWF  53
+04FA:  MOVF   79,W
+04FB:  MOVWF  52
+04FC:  MOVF   78,W
+04FD:  MOVWF  51
+04FE:  MOVF   77,W
+04FF:  MOVWF  50
+0500:  MOVLW  5F
+0501:  MOVWF  57
+0502:  MOVLW  29
+0503:  MOVWF  56
+0504:  MOVLW  4B
+0505:  MOVWF  55
+0506:  MOVLW  77
+0507:  MOVWF  54
+0508:  CALL   1DC
+0509:  MOVF   7A,W
+050A:  MOVWF  47
+050B:  MOVF   79,W
+050C:  MOVWF  46
+050D:  MOVF   78,W
+050E:  MOVWF  45
+050F:  MOVF   77,W
+0510:  MOVWF  44
+....................  
+.................... 	return rh; 
+0511:  MOVF   47,W
+0512:  MOVWF  4B
+0513:  MOVF   46,W
+0514:  MOVWF  4A
+0515:  MOVF   45,W
+0516:  MOVWF  49
+0517:  MOVF   44,W
+0518:  MOVWF  48
+0519:  GOTO   45E
+051A:  MOVF   79,W
+....................  
+.................... } 
+051B:  RETLW  00
+....................  
+....................  
+.................... void Reboot( void ) 
+.................... { 
+.................... 	reset_cpu(); 
+.................... } 
+....................  
+.................... void StartFan( void ) 
+.................... { 
+.................... 	cFan1Flag = ON; 
+*
+081B:  MOVLW  01
+081C:  MOVWF  2A
+.................... 	output_low ( FAN_1 ); 
+081D:  BCF    28.0
+081E:  MOVF   28,W
+081F:  BSF    03.5
+0820:  MOVWF  07
+0821:  BCF    03.5
+0822:  BCF    07.0
+.................... 	output_low ( LED_2 ); 
+0823:  BSF    03.5
+0824:  BCF    06.4
+0825:  BCF    03.5
+0826:  BCF    06.4
+.................... } 
+....................  
+.................... void StopFan( void ) 
+.................... { 
+.................... 	cFan1Flag = OFF; 
+*
+083F:  CLRF   2A
+.................... 	output_float ( FAN_1 ); 
+0840:  BSF    28.0
+0841:  MOVF   28,W
+0842:  BSF    03.5
+0843:  MOVWF  07
+.................... 	//output_float ( LED_2 ); 
+.................... } 
+....................  
+....................  
+.................... void AutoFan( void ) 
+.................... { 
+.................... 	float rh; 
+....................  
+.................... 	rh = getRH(); 
+*
+055B:  CALL   47F
+055C:  MOVF   79,W
+055D:  MOVWF  49
+055E:  MOVF   78,W
+055F:  MOVWF  48
+0560:  CALL   1BF
+0561:  MOVF   7A,W
+0562:  MOVWF  39
+0563:  MOVF   79,W
+0564:  MOVWF  38
+0565:  MOVF   78,W
+0566:  MOVWF  37
+0567:  MOVF   77,W
+0568:  MOVWF  36
+....................  
+.................... 	if( rh > UPPER_RH ) // RH is above upper threshold, start fan if not already running 
+0569:  CLRF   41
+056A:  CLRF   40
+056B:  MOVLW  20
+056C:  MOVWF  3F
+056D:  MOVLW  84
+056E:  MOVWF  3E
+056F:  MOVF   39,W
+0570:  MOVWF  45
+0571:  MOVF   38,W
+0572:  MOVWF  44
+0573:  MOVF   37,W
+0574:  MOVWF  43
+0575:  MOVF   36,W
+0576:  MOVWF  42
+0577:  CALL   51C
+0578:  BTFSS  03.0
+0579:  GOTO   587
+.................... 	{ 
+.................... 		if ( cFan1AutoState == OFF ) 
+057A:  MOVF   35,F
+057B:  BTFSS  03.2
+057C:  GOTO   586
+.................... 		{ 
+.................... 			cFan1AutoState = ON; 
+057D:  MOVLW  01
+057E:  MOVWF  35
+.................... 			cFan1RunTime = 0; // starting fan, reset interval counter. increases by interrupt timer. 
+057F:  CLRF   34
+.................... 			output_low ( FAN_1 ); 
+0580:  BCF    28.0
+0581:  MOVF   28,W
+0582:  BSF    03.5
+0583:  MOVWF  07
+0584:  BCF    03.5
+0585:  BCF    07.0
+.................... 			//output_low ( LED_2 ); 
+.................... 		} 
+.................... 	} 
+.................... 	else 
+0586:  GOTO   595
+.................... 	{ 
+.................... 		if( cFan1Flag == ON ) // time forces us to keep running (to prevent hysteresis) 
+0587:  DECFSZ 2A,W
+0588:  GOTO   58C
+.................... 		{ 
+.................... 			cFan1AutoState = ON; 
+0589:  MOVLW  01
+058A:  MOVWF  35
+.................... 		} 
+.................... 		else 
+058B:  GOTO   595
+.................... 		{ 
+.................... 			if ( cFan1AutoState == ON ) 
+058C:  DECFSZ 35,W
+058D:  GOTO   595
+.................... 			{ 
+.................... 				cFan1AutoState = OFF; 
+058E:  CLRF   35
+.................... 				cFan1RunTime = 0; // stopping fan, reset interval counter 
+058F:  CLRF   34
+.................... 				output_float ( FAN_1 ); 
+0590:  BSF    28.0
+0591:  MOVF   28,W
+0592:  BSF    03.5
+0593:  MOVWF  07
+0594:  BCF    03.5
+.................... 				//output_float ( LED_2 ); 
+.................... 			} 
+.................... 		} 
+.................... 	} 
+....................  
+.................... } 
+0595:  RETLW  00
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... // LCD FUNCTIONS ================================= 
+....................  
+.................... void LCD_Init ( void ) 
+....................     { 
+....................     LCD_SetData ( 0x00 ); 
+*
+0161:  CLRF   4C
+0162:  CALL   11C
+....................     delay_ms ( 200 );       // wait enough time after Vdd rise 
+0163:  MOVLW  C8
+0164:  MOVWF  4C
+0165:  CALL   108
+....................     output_low ( LCD_RS ); 
+0166:  BSF    03.5
+0167:  BCF    06.6
+0168:  BCF    03.5
+0169:  BCF    06.6
+....................     LCD_SetData ( 0x03 );   // init with specific nibbles to start 4-bit mode 
+016A:  MOVLW  03
+016B:  MOVWF  4C
+016C:  CALL   11C
+....................     LCD_PulseEnable(); 
+016D:  CALL   145
+....................     LCD_PulseEnable(); 
+016E:  CALL   145
+....................     LCD_PulseEnable(); 
+016F:  CALL   145
+....................     LCD_SetData ( 0x02 );   // set 4-bit interface 
+0170:  MOVLW  02
+0171:  MOVWF  4C
+0172:  CALL   11C
+....................     LCD_PulseEnable();      // send dual nibbles hereafter, MSN first 
+0173:  CALL   145
+....................     LCD_PutCmd ( 0x2C );    // function set (all lines, 5x7 characters) 
+0174:  MOVLW  2C
+0175:  MOVWF  36
+0176:  CALL   156
+....................     LCD_PutCmd ( 0x0C );    // display ON, cursor off, no blink 
+0177:  MOVLW  0C
+0178:  MOVWF  36
+0179:  CALL   156
+....................     LCD_PutCmd ( 0x01 );    // clear display 
+017A:  MOVLW  01
+017B:  MOVWF  36
+017C:  CALL   156
+....................     LCD_PutCmd ( 0x06 );    // entry mode set, increment 
+017D:  MOVLW  06
+017E:  MOVWF  36
+017F:  CALL   156
+....................     } 
+0180:  RETLW  00
+....................  
+.................... void LCD_SetPosition ( unsigned int cX ) 
+....................     { 
+....................     // this subroutine works specifically for 4-bit Port A 
+....................     LCD_SetData ( swap ( cX ) | 0x08 ); 
+0181:  SWAPF  3E,F
+0182:  MOVF   3E,W
+0183:  IORLW  08
+0184:  MOVWF  3F
+0185:  MOVWF  4C
+0186:  CALL   11C
+....................     LCD_PulseEnable(); 
+0187:  CALL   145
+....................     LCD_SetData ( swap ( cX ) ); 
+0188:  SWAPF  3E,F
+0189:  MOVF   3E,W
+018A:  MOVWF  4C
+018B:  CALL   11C
+....................     LCD_PulseEnable(); 
+018C:  CALL   145
+....................     } 
+018D:  RETLW  00
+....................  
+.................... void LCD_PutChar ( unsigned int cX ) 
+....................     { 
+....................     // this subroutine works specifically for 4-bit Port A 
+....................     output_high ( LCD_RS ); 
+018E:  BSF    03.5
+018F:  BCF    06.6
+0190:  BCF    03.5
+0191:  BSF    06.6
+....................     LCD_SetData ( swap ( cX ) );     // send high nibble 
+0192:  SWAPF  4B,F
+0193:  MOVF   4B,W
+0194:  MOVWF  4C
+0195:  CALL   11C
+....................     LCD_PulseEnable(); 
+0196:  CALL   145
+....................     LCD_SetData ( swap ( cX ) );     // send low nibble 
+0197:  SWAPF  4B,F
+0198:  MOVF   4B,W
+0199:  MOVWF  4C
+019A:  CALL   11C
+....................     LCD_PulseEnable(); 
+019B:  CALL   145
+....................     output_low ( LCD_RS ); 
+019C:  BSF    03.5
+019D:  BCF    06.6
+019E:  BCF    03.5
+019F:  BCF    06.6
+....................     } 
+01A0:  RETLW  00
+....................  
+.................... void LCD_PutCmd ( unsigned int cX ) 
+....................     { 
+....................     // this subroutine works specifically for 4-bit Port A 
+....................     LCD_SetData ( swap ( cX ) );     // send high nibble 
+*
+0156:  SWAPF  36,F
+0157:  MOVF   36,W
+0158:  MOVWF  4C
+0159:  CALL   11C
+....................     LCD_PulseEnable(); 
+015A:  CALL   145
+....................     LCD_SetData ( swap ( cX ) );     // send low nibble 
+015B:  SWAPF  36,F
+015C:  MOVF   36,W
+015D:  MOVWF  4C
+015E:  CALL   11C
+....................     LCD_PulseEnable(); 
+015F:  CALL   145
+....................     } 
+0160:  RETLW  00
+....................  
+.................... void LCD_PulseEnable ( void ) 
+....................     { 
+....................     output_high ( LCD_EN ); 
+*
+0145:  BSF    03.5
+0146:  BCF    06.5
+0147:  BCF    03.5
+0148:  BSF    06.5
+....................     delay_us ( 10 ); 
+0149:  MOVLW  06
+014A:  MOVWF  77
+014B:  DECFSZ 77,F
+014C:  GOTO   14B
+014D:  NOP
+....................     output_low ( LCD_EN ); 
+014E:  BSF    03.5
+014F:  BCF    06.5
+0150:  BCF    03.5
+0151:  BCF    06.5
+....................     delay_ms ( 5 ); 
+0152:  MOVLW  05
+0153:  MOVWF  4C
+0154:  CALL   108
+....................     } 
+0155:  RETLW  00
+....................  
+.................... void LCD_SetData ( unsigned int cX ) 
+....................     { 
+....................     output_bit ( LCD_D0, cX & 0x01 ); 
+*
+011C:  BTFSC  4C.0
+011D:  GOTO   120
+011E:  BCF    07.3
+011F:  GOTO   121
+0120:  BSF    07.3
+0121:  BCF    28.3
+0122:  MOVF   28,W
+0123:  BSF    03.5
+0124:  MOVWF  07
+....................     output_bit ( LCD_D1, cX & 0x02 ); 
+0125:  BCF    03.5
+0126:  BTFSC  4C.1
+0127:  GOTO   12A
+0128:  BCF    07.4
+0129:  GOTO   12B
+012A:  BSF    07.4
+012B:  BCF    28.4
+012C:  MOVF   28,W
+012D:  BSF    03.5
+012E:  MOVWF  07
+....................     output_bit ( LCD_D2, cX & 0x04 ); 
+012F:  BCF    03.5
+0130:  BTFSC  4C.2
+0131:  GOTO   134
+0132:  BCF    07.5
+0133:  GOTO   135
+0134:  BSF    07.5
+0135:  BCF    28.5
+0136:  MOVF   28,W
+0137:  BSF    03.5
+0138:  MOVWF  07
+....................     output_bit ( LCD_D3, cX & 0x08 ); 
+0139:  BCF    03.5
+013A:  BTFSC  4C.3
+013B:  GOTO   13E
+013C:  BCF    07.6
+013D:  GOTO   13F
+013E:  BSF    07.6
+013F:  BCF    28.6
+0140:  MOVF   28,W
+0141:  BSF    03.5
+0142:  MOVWF  07
+....................     } 
+0143:  BCF    03.5
+0144:  RETLW  00
+
+Configuration Fuses:
+   Word  1: 3F39   XT NOWDT NOPUT NOPROTECT NOBROWNOUT NOLVP NOCPD NOWRT NODEBUG

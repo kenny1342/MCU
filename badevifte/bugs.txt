@@ -1,0 +1,14 @@
+- etter over 100%, når igjen under 100%, blir '%' tegn til høyre stående igjen. eks
+'95,8%%AUTO ON'
+
+
+OBSERVASJONER GJORT PÅ BAD
+===========================
+
+- verdier: on > 65%.
+- delayed bør være 30min, om ikke allerede er det.
+
+- etter auto on, etter stopp igjen, bør det går 15 min før auto on igjen, for å unngå hysterese.
+
+- raskere blink
+

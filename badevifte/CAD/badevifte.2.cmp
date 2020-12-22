@@ -1,0 +1,129 @@
+Cmp-Mod V01 Created by Cvpcb (2007-11-29-c) date = 27/4/2008-12:20:45
+
+BeginCmp
+TimeStamp = 48145B50;
+Reference = C1;
+ValeurCmp = 220;
+IdModule  = SM1206;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145BB0;
+Reference = C2;
+ValeurCmp = 0.1;
+IdModule  = C1;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145E5C;
+Reference = C3;
+ValeurCmp = 22;
+IdModule  = SM1206;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145F0C;
+Reference = C4;
+ValeurCmp = 0.1;
+IdModule  = C1-1;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145FC3;
+Reference = C5;
+ValeurCmp = 0.1;
+IdModule  = C1-1;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145FD6;
+Reference = C6;
+ValeurCmp = 10;
+IdModule  = SM1206;
+EndCmp
+
+BeginCmp
+TimeStamp = 481462A5;
+Reference = D1;
+ValeurCmp = 1N4148;
+IdModule  = D4;
+EndCmp
+
+BeginCmp
+TimeStamp = 4814617C;
+Reference = K1;
+ValeurCmp = 12v;
+IdModule  = 8DIPCMS;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810E86B;
+Reference = LCD1;
+ValeurCmp = LCD_2X16_SIL;
+IdModule  = lcd_2x16_led_backlight-HY-1602F;
+EndCmp
+
+BeginCmp
+TimeStamp = 48145A11;
+Reference = P1;
+ValeurCmp = CONN_2;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = 48146413;
+Reference = P2;
+ValeurCmp = CONN_4;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810E8A1;
+Reference = Q1;
+ValeurCmp = BC547B;
+IdModule  = transistor-npn-TO92;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810EBD1;
+Reference = R1;
+ValeurCmp = 4K7;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810EAE9;
+Reference = R2;
+ValeurCmp = NTC644B;
+IdModule  = ptc-ntc-N644B;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810EEAB;
+Reference = RV1;
+ValeurCmp = 20K;
+IdModule  = SM1206;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810E916;
+Reference = U1;
+ValeurCmp = LM7812;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810E772;
+Reference = U2;
+ValeurCmp = PIC16F876;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = 4810E92B;
+Reference = U3;
+ValeurCmp = LM7805;
+IdModule  = ;
+EndCmp
+
+EndListe

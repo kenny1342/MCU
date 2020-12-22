@@ -1,0 +1,17 @@
+Cmp-Mod V01 Created by Cvpcb (2007-11-29-c) date = 27/4/2008-14:58:35
+
+BeginCmp
+TimeStamp = 48148E6F;
+Reference = U1;
+ValeurCmp = LM7812;
+IdModule  = LM78XX;
+EndCmp
+
+BeginCmp
+TimeStamp = 48148E76;
+Reference = U2;
+ValeurCmp = LM7812;
+IdModule  = LM78XX;
+EndCmp
+
+EndListe

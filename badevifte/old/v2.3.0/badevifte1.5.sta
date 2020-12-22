@@ -1,0 +1,146 @@
+
+ROM used: 3842 (47%)
+          3859 (47%) including unused fragments
+
+          2 Average locations per line
+          7 Average locations per statement
+
+RAM used: 30 (8%) at main() level
+          111 (30%) worst case
+
+Stack used: 6 worst case (out of 7 total available)
+
+Lines Stmts  %   Files
+----- ----- ---  -----
+  724   269  52  badevifte1.5.c
+  244     0   0  C:\PROGRA~1\PICC\devices\16F876.H
+   66     0   0  kenny.h
+  762   238  46  C:\PROGRA~1\PICC\drivers\math.h
+   26     0   0  ntc.h
+   55    13   2  ntc.c
+----- -----
+ 1877   520 Total
+
+Page ROM  %  RAM   Vol Diff  Functions:
+---- --- --- ---   --- ----  ----------
+0     63   2  10   351  5.6  @FLT
+0     31   1   4  1025  5.3  @SFTOI
+0     29   1   2   119  2.0  @ITOF
+0    225   6  14   356  5.6  @DIVFF
+0    349   9  16             @ADDFF
+0    117   3  13   800  2.9  @MULFF
+0     37   1   2   800  2.9  @SITOF
+ Inline       25  1095  8.4  log
+ Inline        9   155  3.7  adc_2_ohm
+ Inline       13   403  2.8  r2temperature
+0     20   1   1             @delay_ms1
+0     76   2   1   837  5.8  TimerInterrupt
+0     30   1   1   119  2.0  printVersionInfo
+0     21   1   0             @const224
+0     21   1   0             @const225
+1    146   4   1   770  2.9  main
+1    368  10   3   396  5.4  PrintMenu
+0     13   0   0             @const228
+0     14   0   0             @const229
+0     15   0   0             @const230
+0     21   1   0   892  5.8  @const231
+1      8   0   0   682  4.2  @goto10628
+1    300   8   2  1987  6.3  CheckSwitches
+0     21   1   0             @const233
+0     21   1   3             @DIV88
+0     53   1   2             @PRINTF_U_192
+0     21   1   0             @const241
+0     21   1   0             @const242
+0     21   1   0             @const243
+1      8   0   0   786  4.3  @goto10714
+ Inline        6   797  4.2  DisplayData
+0     33   1   5    56  1.6  @FTOSD
+0     66   2  13    56  1.6  @DIV3232
+0    204   5  13   423  4.7  @PRINTF_L32D_192FPFPF
+0     11   0   0   134  1.3  @const260
+0     14   0   0    90  1.4  @const261
+1    981  26  10   179  2.7  getTemp
+0    182   5  18   355  6.3  getRH
+ Inline        0    56  1.6  StartFan
+ Inline        0    56  1.6  StopFan
+0     97   3   9   570  6.2  AutoFan
+0     32   1   0   245  1.4  LCD_Init
+0     13   0   2   104  1.7  LCD_SetPosition
+0     19   0   1   134  1.3  LCD_PutChar
+0     11   0   1    90  1.4  LCD_PutCmd
+0     17   0   0    72  1.2  LCD_PulseEnable
+0     41   1   1   174  2.3  LCD_SetData
+
+Program metrics:
+    Functions               34
+    Statements              520
+    Comments                542
+    Volume (V)              27388
+    Difficilty (D)          118.9
+    Effort to implement (E) 3256080
+    Time to implement (T)   50 hours, 15 minutes
+    Est Delivered Bugs (B)  7
+    Cyclomatic Complexity   73
+    Maintainability (MI)    87
+
+ Segment     Used  Free
+-----------  ----  ----
+00000-00003     4  0  
+00004-00032    47  0  
+00033-007FF  1980  17  
+00800-00FFF  1811  237  
+01000-017FF     0  2048  
+01800-01FFF     0  2048  
+
+
+
+THE FOLLOWING IS TEMPORARY FOR DIAGNOSTIC USE ONLY:
+
+    n1    n2    N1    N2   v(G)
+    12    30    37    28     1    @FLT
+    11    65   101    63    10    @SFTOI
+     5    16    14    13     0    @ITOF
+    12    30    38    28     1    @DIVFF
+     0     1     0     0     0    @ADDFF
+     6    63    70    61     0    @MULFF
+     6    63    70    61     0    @SITOF
+    17    77    91    76     2    log
+     9    17    19    14     1    adc_2_ohm
+    12    57    39    27     1    r2temperature
+     0     1     0     0     0    @delay_ms1
+    12    55    85    53     8    TimerInterrupt
+     5    16    14    13     0    printVersionInfo
+     0     1     0     0     0    @const224
+     0     1     0     0     0    @const225
+     6    61    68    59     0    main
+    12    29    48    26     5    PrintMenu
+     0     1     0     0     0    @const228
+     0     1     0     0     0    @const229
+     0     1     0     0     0    @const230
+    12    59    88    57     8    @const231
+     9    52    66    49     4    @goto10628
+    13   124   159   121    10    CheckSwitches
+     0     1     0     0     0    @const233
+     0     1     0     0     0    @DIV88
+     0     1     0     0     0    @PRINTF_U_192
+     0     1     0     0     0    @const241
+     0     1     0     0     0    @const242
+     0     1     0     0     0    @const243
+     9    57    76    54     5    @goto10714
+     9    59    76    55     5    DisplayData
+     4     9     8     7     0    @FTOSD
+     4     9     8     7     0    @DIV3232
+    10    33    47    31     5    @PRINTF_L32D_192FPFPF
+     3    17    16    15     0    @const260
+     3    12    12    11     0    @const261
+     6    20    20    18     0    getTemp
+    13    31    35    30     1    getRH
+     4     9     8     7     0    StartFan
+     4     9     8     7     0    StopFan
+    13    41    60    39     6    AutoFan
+     3    25    28    23     0    LCD_Init
+     4    14    13    12     0    LCD_SetPosition
+     3    17    16    15     0    LCD_PutChar
+     3    12    12    11     0    LCD_PutCmd
+     3    11    10     9     0    LCD_PulseEnable
+     5    21    18    19     0    LCD_SetData

@@ -1,0 +1,14 @@
+# EESchema Netlist Version 1.1 created  27/4/2008-14:58:35
+(
+ ( 48148E6F LM78XX U1 LM7812
+  ( GND N-000001 )
+  ( VI N-000003 )
+  ( VO N-000002 )
+ )
+ ( 48148E76 LM78XX U2 LM7812
+  ( GND N-000001 )
+  ( VI N-000002 )
+  ( VO N-000003 )
+ )
+)
+*
