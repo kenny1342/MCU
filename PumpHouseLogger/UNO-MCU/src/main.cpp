@@ -15,6 +15,9 @@
 const char string_0[] PROGMEM = "PumpHouseLogger (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
+
+static adc_avg ADC_temp_1;
+static adc_avg ADC_waterpressure;
 SoftwareSerial Serial_esp8266(2, 3); // RX, TX
 static sensors_type SENSORS ;
 const int interval = 800;   // interval at which to send data (millisecs)
@@ -38,15 +41,22 @@ void setup()
   Serial_esp8266.begin(115200);
   Serial_esp8266.println("uno initializing...");
 
+  // initialize all ADC readings to 0:
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    ADC_temp_1.readings[thisReading] = 0;
+    ADC_waterpressure.readings[thisReading] = 0;
+  }
+
+  analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
+
   wdt_enable(WDTO_4S);
 
 }
 
 void loop() // run over and over
 {
-  
-  uint8_t x = 0;
-  uint16_t tmp;
+    
+  double tmp;
   uint32_t currentMillis = 0;
   static uint32_t previousMillis = 0;
   JsonArray data;
@@ -58,6 +68,7 @@ void loop() // run over and over
     
     previousMillis = currentMillis;
 
+    // Initiate the JSON doc
     doc.clear();
     // Add values in the document
     doc["sensor"] = "pumphouse";
@@ -66,52 +77,47 @@ void loop() // run over and over
 
     //----------- WATER PRESSURE **********
 
-    analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
-    SENSORS.adc_waterpump = 0;    
-    for(x=0; x<ADC_SAMPLE_COUNT; x++) // get average from 'samplecnt' readings
-    {
-      SENSORS.adc_waterpump += analogRead(ADC_CH_WATERP); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
-      delay(1);
+    ADC_waterpressure.total -= ADC_waterpressure.readings[ADC_waterpressure.readIndex];
+    ADC_waterpressure.readings[ADC_waterpressure.readIndex] = analogRead(ADC_CH_WATERP); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
+    ADC_waterpressure.total += ADC_waterpressure.readings[ADC_waterpressure.readIndex];
+    ADC_waterpressure.readIndex += 1;
+
+    if (ADC_waterpressure.readIndex >= numReadings) {
+      ADC_waterpressure.readIndex = 0;
     }
-    SENSORS.adc_waterpump /= ADC_SAMPLE_COUNT;
+
+    ADC_waterpressure.average = ADC_waterpressure.total / numReadings;
 
     // 10-bit ADC, Bar=(ADC*BarMAX)/(2^10). Sensor drop -0.5V/bar (1024/10, minimum sensor output)
     // Integer math instead of float, factor of 100 gives 2 decimals
-    tmp = ( (SENSORS.adc_waterpump * (double)PRESSURE_SENS_MAX) * 100L) / 1024;
-    tmp += (int16_t)CORR_FACTOR_PRESSURE_SENSOR;
+    tmp = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
+    tmp += (double)CORR_FACTOR_PRESSURE_SENSOR;
 
-    sprintf(SENSORS.water_pressure_bar, "%d.%d", tmp / 100, tmp % 100);
     data = doc.createNestedArray("pressure_bar");
-
-    if(tmp < 1000) { // make sure we don't exceed 4 chars (2 decimals), else we corrupt SRAM and everything crashes
-      sprintf(SENSORS.water_pressure_bar, "%d.%02u", tmp / 100, tmp % 100);
-      data.add(SENSORS.water_pressure_bar);
-    } else {
-      data.add("O/R");
-    }
-
+    
+    dtostrf(tmp, 3, 1, SENSORS.water_pressure_bar );
+    data.add(SENSORS.water_pressure_bar);
 
     //------------- TEMPERATURE ***********
-    SENSORS.adc_temp_1 = 0;
-    for(x=0; x<ADC_SAMPLE_COUNT; x++) // get average from 'samplecnt' readings
-    {
-      SENSORS.adc_temp_1 += analogRead(ADC_CH_TEMP_1); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
-      delay(1);
-    }
-    SENSORS.adc_temp_1 /= ADC_SAMPLE_COUNT;
-    // Read analog voltage and convert it to Kelvin (0.489 = 500/1023) and subtract Kelvin zer (273.15)
-    tmp = ((SENSORS.adc_temp_1 * 0.489) * 10L)  - 273.15;
 
-    Serial.println(SENSORS.adc_temp_1);
+    ADC_temp_1.total -= ADC_temp_1.readings[ADC_temp_1.readIndex];
+    ADC_temp_1.readings[ADC_temp_1.readIndex] = analogRead(ADC_CH_TEMP_1); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
+    ADC_temp_1.total += ADC_temp_1.readings[ADC_temp_1.readIndex];
+    ADC_temp_1.readIndex += 1;
+
+    if (ADC_temp_1.readIndex >= numReadings) {
+      ADC_temp_1.readIndex = 0;
+    }
+
+    ADC_temp_1.average = ADC_temp_1.total / numReadings;
+
+    // LM335 outputs mv/Kelvin, convert ADC to millivold and subtract Kelvin zero (273.15) to get Celsius
+    tmp = (double) (((5000.0 * (double)ADC_temp_1.average) / 1024L) / 10L) - 273.15;
+    
+    dtostrf(tmp, 3, 1, SENSORS.temp_pumphouse );
     data = doc.createNestedArray("temp_c");
+    data.add(SENSORS.temp_pumphouse);
 
-    if(tmp < 10000) { // make sure we don't exceed 4 chars (1 decimals), else we corrupt SRAM and everything crashes
-      sprintf(SENSORS.temp_pumphouse, "%02d.%u", tmp / 100, tmp % 10);
-      data.add(SENSORS.temp_pumphouse);
-    } else {
-      data.add("O/R");
-    }
-  
     dataString = "";
     // Generate the minified JSON
     serializeJson(doc, dataString);
