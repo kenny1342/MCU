@@ -16,7 +16,7 @@
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
-const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpHouseLogger (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 
 int blynk_button_V2 = 0;
 

@@ -12,7 +12,7 @@
 #include <ArduinoJson.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
-const char string_0[] PROGMEM = "PumpHouseLogger (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 
