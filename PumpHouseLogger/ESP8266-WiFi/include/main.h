@@ -2,8 +2,14 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-#define FIRMWARE_VERSION    "0.10"
-// #define BLYNK_TOKEN         "YvC4EfhIoGyWjgxEumhj-txdtwooSyg4"  // Auth Token from project in the Blynk App
+// Helpers to read strings from build options macros
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
+
+#define FIRMWARE_VERSION    "0.11"
+#ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
+    #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
+#endif
 #define PIN_SW_RST          13
 #define PIN_LED_1           14
 

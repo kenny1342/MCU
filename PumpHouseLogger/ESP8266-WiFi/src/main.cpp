@@ -20,7 +20,7 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpHouseLogger (MCU ESP8266-WiFi)
 
 int blynk_button_V2 = 0;
 
-const char auth[] = BLYNK_TOKEN;
+//const char auth[] = BLYNK_TOKEN;
 char json_output[200];
 char data_string[200];
 
@@ -129,8 +129,8 @@ void setup(void) {
 
 void ConnectBlynk() {
   Serial.print(F("Connecting to Blynk servers (timeout 10 sec), token="));
-  Serial.println(auth);
-  Blynk.config(auth);  // in place of Blynk.begin(auth, ssid, pass);
+  Serial.println(STR(BLYNK_TOKEN));
+  Blynk.config(STR(BLYNK_TOKEN));  // in place of Blynk.begin(auth, ssid, pass);
   Blynk.connect(10000U);  // timeout set to 10 seconds and then continue without Blynk
   while (Blynk.connect() == false) {
     // Wait until connected
