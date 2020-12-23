@@ -1,0 +1,616 @@
+CCS PCM C Compiler, Version 4.104, 5967               06-okt-10 19:11
+
+               Filename: C:\kenny\PIC\Kjøleskap\main.lst
+
+               ROM used: 299 words (15%)
+                         Largest free fragment is 1749
+               RAM used: 21 (9%) at main() level
+                         22 (10%) worst case
+               Stack:    3 worst case (2 in main + 1 for interrupts)
+
+*
+0000:  MOVLW  00
+0001:  MOVWF  0A
+0002:  GOTO   09C
+0003:  NOP
+0004:  MOVWF  7F
+0005:  SWAPF  03,W
+0006:  CLRF   03
+0007:  MOVWF  21
+0008:  MOVF   7F,W
+0009:  MOVWF  20
+000A:  MOVF   0A,W
+000B:  MOVWF  27
+000C:  CLRF   0A
+000D:  SWAPF  20,F
+000E:  MOVF   04,W
+000F:  MOVWF  22
+0010:  MOVF   77,W
+0011:  MOVWF  23
+0012:  MOVF   78,W
+0013:  MOVWF  24
+0014:  MOVF   79,W
+0015:  MOVWF  25
+0016:  MOVF   7A,W
+0017:  MOVWF  26
+0018:  BCF    03.7
+0019:  BCF    03.5
+001A:  MOVLW  8C
+001B:  MOVWF  04
+001C:  BTFSS  00.0
+001D:  GOTO   020
+001E:  BTFSC  0C.0
+001F:  GOTO   03B
+0020:  MOVLW  8C
+0021:  MOVWF  04
+0022:  BTFSS  00.1
+0023:  GOTO   026
+0024:  BTFSC  0C.1
+0025:  GOTO   03E
+0026:  BTFSS  0B.5
+0027:  GOTO   02A
+0028:  BTFSC  0B.2
+0029:  GOTO   044
+002A:  MOVF   22,W
+002B:  MOVWF  04
+002C:  MOVF   23,W
+002D:  MOVWF  77
+002E:  MOVF   24,W
+002F:  MOVWF  78
+0030:  MOVF   25,W
+0031:  MOVWF  79
+0032:  MOVF   26,W
+0033:  MOVWF  7A
+0034:  MOVF   27,W
+0035:  MOVWF  0A
+0036:  SWAPF  21,W
+0037:  MOVWF  03
+0038:  SWAPF  7F,F
+0039:  SWAPF  7F,W
+003A:  RETFIE
+.................... #include "16F628A.h" 
+.................... //////// Standard Header file for the PIC16F628A device //////////////// 
+.................... #device PIC16F628A 
+.................... #list 
+....................  
+....................  
+.................... #FUSES NOWDT                    //No Watch Dog Timer 
+.................... #FUSES INTRC_IO                 //Internal RC Osc, no CLKOUT 
+.................... //#FUSES RC_IO                    //Resistor/Capacitor Osc 
+.................... //#FUES XT 
+.................... #FUSES NOPUT                    //No Power Up Timer 
+.................... #FUSES NOPROTECT                //Code not protected from reading 
+.................... #FUSES NOBROWNOUT               //No brownout reset 
+.................... #FUSES NOMCLR                   //Master Clear pin used for I/O 
+.................... //#FUSES MCLR 
+.................... #FUSES NOLVP                    //No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O 
+.................... #FUSES NOCPD                    //No EE protection 
+.................... //#FUSES RESERVED                 //Used to set the reserved FUSE bits 
+....................  
+.................... #define ON 1 
+.................... #define OFF 0 
+.................... #define GREEN 0 
+.................... #define AMBER 1 
+....................  
+.................... #use delay(clock=4000000) 
+*
+0065:  MOVLW  30
+0066:  MOVWF  04
+0067:  BCF    03.7
+0068:  MOVF   00,W
+0069:  BTFSC  03.2
+006A:  GOTO   079
+006B:  MOVLW  01
+006C:  MOVWF  78
+006D:  CLRF   77
+006E:  DECFSZ 77,F
+006F:  GOTO   06E
+0070:  DECFSZ 78,F
+0071:  GOTO   06D
+0072:  MOVLW  4A
+0073:  MOVWF  77
+0074:  DECFSZ 77,F
+0075:  GOTO   074
+0076:  GOTO   077
+0077:  DECFSZ 00,F
+0078:  GOTO   06B
+0079:  RETURN
+.................... #use fast_io(A) 
+....................  
+.................... typedef struct 
+.................... { 
+....................     int1 DL1; 
+....................     int1 DL2; 
+....................     int1 DL3; 
+....................     int1 COM; 
+.................... } LEDStruct; 
+....................      
+.................... #define LED_DL3 PIN_B2 // p8 red led, alarm fryser 
+.................... #define LED_DL1 PIN_B3 // p9  
+.................... #define LED_DL2 PIN_A2 // p1 "super cool" kjøl, orange en stund mens kjøl tvangskjøres? 
+.................... #define LED_COM PIN_A3 // p2, common for LEDs 
+....................  
+.................... #define SW_FRIDGE  PIN_B2    // "super cool", kjøl, DL2 orange til ferdig? 
+.................... #define SW_FREEZE  PIN_B3    // nedfrysning, DL1 orange til ferdig 
+....................  
+.................... #define SENSOR_FREEZER PIN_A0 // p17, CN2-1 
+.................... #define SENSOR_FRIDGE  PIN_A1 // p18, CN2-4 
+.................... #define SENSOR_COM_7K  PIN_B6 // via R9 til sensor-com (pin 2+3 på CN2) 
+.................... #define SENSOR_COM_1K  PIN_B7 // via R10 til sensor-com (pin 2+3 på CN2) 
+....................  
+.................... #define OUT_RL1 PIN_B0 // p6, rele HVA? 
+.................... #define OUT_RL2 PIN_B1  // p7, rele HVA? 
+....................  
+.................... #define ADC_FREEZER 0 
+.................... #define ADC_FRIDGE  1 
+....................  
+.................... #define SET_RELAY1(STATUS) (output_bit(OUT_RL1, !STATUS)) 
+.................... #define SET_RELAY2(STATUS) (output_bit(OUT_RL2, !STATUS)) 
+....................  
+.................... #define SET_LED(LED,STATUS) (output_bit(LED, !STATUS)) 
+....................  
+.................... int1 SW_fridge_pressed, SW_freeze_pressed; 
+.................... int8  AD_timeout; 
+.................... int16 AD_val, AD_counter; 
+....................  
+.................... LEDStruct LEDs; 
+....................  
+....................  
+.................... void get_AD(); 
+....................  
+....................  
+.................... #int_TIMER1 
+.................... void  TIMER1_isr(void) // OF 524ms 
+.................... { 
+....................     //get_AD(); 
+.................... } 
+....................  
+*
+003B:  BCF    0C.0
+003C:  BCF    0A.3
+003D:  GOTO   02A
+.................... #int_TIMER2 
+.................... void  TIMER2_isr(void)  // OF 256us 
+.................... { 
+....................     AD_counter++; // add 256us 
+003E:  INCF   2C,F
+003F:  BTFSC  03.2
+0040:  INCF   2D,F
+.................... } 
+....................  
+0041:  BCF    0C.1
+0042:  BCF    0A.3
+0043:  GOTO   02A
+.................... #int_TIMER0 
+.................... void  TIMER0_isr(void) // OF every 1ms 
+.................... { 
+....................     //AD_counter++; 
+....................      
+....................     if(++AD_timeout == 255) AD_timeout = 0; 
+0044:  INCF   29,F
+0045:  INCFSZ 29,W
+0046:  GOTO   048
+0047:  CLRF   29
+....................      
+....................     /* 
+....................     set_tris_a(0b11110011); 
+....................     if(!input(SW_FRIDGE)) SW_fridge_pressed = 1;// else SW_fridge_pressed = 0; 
+....................     if(input(SW_FREEZE)) SW_freeze_pressed = 1;     
+....................     set_tris_a(0b11110000); 
+....................     */ 
+....................      
+....................     output_bit(LED_COM, LEDs.COM); 
+0048:  BTFSC  2E.3
+0049:  GOTO   04C
+004A:  BCF    05.3
+004B:  GOTO   04D
+004C:  BSF    05.3
+....................     output_bit(LED_DL1, LEDs.DL1); 
+004D:  BTFSC  2E.0
+004E:  GOTO   051
+004F:  BCF    06.3
+0050:  GOTO   052
+0051:  BSF    06.3
+0052:  BSF    03.5
+0053:  BCF    06.3
+....................     output_bit(LED_DL2, LEDs.DL2); 
+0054:  BCF    03.5
+0055:  BTFSC  2E.1
+0056:  GOTO   059
+0057:  BCF    05.2
+0058:  GOTO   05A
+0059:  BSF    05.2
+....................     output_bit(LED_DL3, LEDs.DL3); 
+005A:  BTFSC  2E.2
+005B:  GOTO   05E
+005C:  BCF    06.2
+005D:  GOTO   05F
+005E:  BSF    06.2
+005F:  BSF    03.5
+0060:  BCF    06.2
+....................      
+.................... } 
+....................  
+0061:  BCF    03.5
+0062:  BCF    0B.2
+0063:  BCF    0A.3
+0064:  GOTO   02A
+.................... void main() 
+.................... { 
+*
+009C:  CLRF   04
+009D:  BCF    03.7
+009E:  MOVLW  1F
+009F:  ANDWF  03,F
+00A0:  BSF    03.5
+00A1:  BSF    0E.3
+00A2:  MOVLW  07
+00A3:  BCF    03.5
+00A4:  MOVWF  1F
+....................  
+....................    setup_timer_0(RTCC_INTERNAL|RTCC_DIV_4); 
+00A5:  BSF    03.5
+00A6:  MOVF   01,W
+00A7:  ANDLW  C0
+00A8:  IORLW  01
+00A9:  MOVWF  01
+....................    setup_timer_1(T1_INTERNAL|T1_DIV_BY_8); // ISR 524ms 
+00AA:  MOVLW  B5
+00AB:  BCF    03.5
+00AC:  MOVWF  10
+....................    //setup_timer_2(T2_DIV_BY_16,255,16); // OF 4ms 
+....................    setup_timer_2(T2_DIV_BY_1,255,16); // OF 256us 
+00AD:  MOVLW  78
+00AE:  MOVWF  78
+00AF:  IORLW  04
+00B0:  MOVWF  12
+00B1:  MOVLW  FF
+00B2:  BSF    03.5
+00B3:  MOVWF  12
+....................     
+....................    setup_comparator(NC_NC_NC_NC); 
+00B4:  MOVLW  07
+00B5:  BCF    03.5
+00B6:  MOVWF  1F
+00B7:  BSF    03.5
+00B8:  MOVF   05,W
+00B9:  MOVWF  05
+00BA:  MOVLW  03
+00BB:  MOVWF  77
+00BC:  DECFSZ 77,F
+00BD:  GOTO   0BC
+00BE:  BCF    03.5
+00BF:  MOVF   1F,W
+00C0:  BCF    0C.6
+....................    setup_vref(FALSE); 
+00C1:  BSF    03.5
+00C2:  CLRF   1F
+....................    enable_interrupts(INT_TIMER1); 
+00C3:  BSF    0C.0
+....................    enable_interrupts(INT_TIMER2); 
+00C4:  BSF    0C.1
+....................    enable_interrupts(INT_TIMER0); 
+00C5:  BCF    03.5
+00C6:  BSF    0B.5
+....................    enable_interrupts(GLOBAL); 
+00C7:  MOVLW  C0
+00C8:  IORWF  0B,F
+....................     
+....................    set_tris_a(0b11110000); // A7-A0, A0-A3 LEDs & SW 
+00C9:  MOVLW  F0
+00CA:  TRIS   5
+....................    
+....................   LEDs.COM = GREEN;  
+00CB:  BCF    2E.3
+....................   LEDs=0; 
+00CC:  CLRF   2E
+....................    
+....................   while(true) 
+....................   { 
+....................      
+....................     //if(input(SENSOR_FREEZER)) LEDs.DL3 = ON; else LEDs.DL3 = OFF; 
+....................     //continue; 
+....................      
+....................     get_AD(); 
+00CD:  GOTO   07A
+....................      
+....................     if(AD_val >0 && AD_val < 2)     
+00CE:  MOVF   2A,F
+00CF:  BTFSS  03.2
+00D0:  GOTO   0D4
+00D1:  MOVF   2B,F
+00D2:  BTFSC  03.2
+00D3:  GOTO   0DE
+00D4:  MOVF   2B,F
+00D5:  BTFSS  03.2
+00D6:  GOTO   0DE
+00D7:  MOVF   2A,W
+00D8:  SUBLW  01
+00D9:  BTFSS  03.0
+00DA:  GOTO   0DE
+....................     { 
+....................         LEDs.DL1 = ON; 
+00DB:  BSF    2E.0
+....................         LEDs.DL2 = OFF; 
+00DC:  BCF    2E.1
+....................         LEDs.DL3 = OFF; 
+00DD:  BCF    2E.2
+....................     }     
+....................      
+....................     if (AD_val >= 2 && AD_val < 4) 
+00DE:  MOVF   2B,F
+00DF:  BTFSS  03.2
+00E0:  GOTO   0E5
+00E1:  MOVF   2A,W
+00E2:  SUBLW  01
+00E3:  BTFSC  03.0
+00E4:  GOTO   0EF
+00E5:  MOVF   2B,F
+00E6:  BTFSS  03.2
+00E7:  GOTO   0EF
+00E8:  MOVF   2A,W
+00E9:  SUBLW  03
+00EA:  BTFSS  03.0
+00EB:  GOTO   0EF
+....................     {     
+....................         LEDs.DL2 = ON; 
+00EC:  BSF    2E.1
+....................         LEDs.DL1 = OFF; 
+00ED:  BCF    2E.0
+....................         LEDs.DL3 = OFF;         
+00EE:  BCF    2E.2
+....................     }                 
+....................      
+....................     if(AD_val >= 4) 
+00EF:  MOVF   2B,F
+00F0:  BTFSS  03.2
+00F1:  GOTO   0F6
+00F2:  MOVF   2A,W
+00F3:  SUBLW  03
+00F4:  BTFSC  03.0
+00F5:  GOTO   0F9
+....................     { 
+....................         LEDs.DL3 = ON; 
+00F6:  BSF    2E.2
+....................         LEDs.DL1 = OFF; 
+00F7:  BCF    2E.0
+....................         LEDs.DL2 = OFF; 
+00F8:  BCF    2E.1
+....................  
+....................     }     
+....................    
+....................   } 
+00F9:  GOTO   0CD
+....................        
+....................   while(true) 
+....................   { 
+....................     while(SW_fridge_pressed) 
+....................     { 
+00FA:  BTFSS  28.0
+00FB:  GOTO   101
+....................         //LEDs.DL3 = !LEDs.DL3; 
+....................         //LEDs.COM = !LEDs.COM; 
+....................         SW_fridge_pressed = 0; 
+00FC:  BCF    28.0
+....................         delay_ms(100); 
+00FD:  MOVLW  64
+00FE:  MOVWF  30
+00FF:  CALL   065
+....................     } 
+0100:  GOTO   0FA
+....................     /* 
+....................     while(SW_freeze_pressed) 
+....................     { 
+....................         LEDs.DL3 = !LEDs.DL3; 
+....................         //LEDs.COM = !LEDs.COM; 
+....................         SW_freeze_pressed = 0; 
+....................         delay_ms(100); 
+....................     } 
+.................... */ 
+....................       
+....................      
+....................     LEDs.DL1 = ON; 
+0101:  BSF    2E.0
+....................     //SET_RELAY1(ON); 
+....................     delay_ms(500);     
+0102:  MOVLW  02
+0103:  MOVWF  2F
+0104:  MOVLW  FA
+0105:  MOVWF  30
+0106:  CALL   065
+0107:  DECFSZ 2F,F
+0108:  GOTO   104
+....................     LEDs.DL2 = ON; 
+0109:  BSF    2E.1
+....................     //SET_RELAY2(ON); 
+....................      
+....................     delay_ms(500);     
+010A:  MOVLW  02
+010B:  MOVWF  2F
+010C:  MOVLW  FA
+010D:  MOVWF  30
+010E:  CALL   065
+010F:  DECFSZ 2F,F
+0110:  GOTO   10C
+....................      
+....................     LEDs.DL1 = OFF; 
+0111:  BCF    2E.0
+....................     SET_RELAY1(OFF); 
+0112:  BSF    06.0
+0113:  BSF    03.5
+0114:  BCF    06.0
+....................     delay_ms(500);     
+0115:  MOVLW  02
+0116:  BCF    03.5
+0117:  MOVWF  2F
+0118:  MOVLW  FA
+0119:  MOVWF  30
+011A:  CALL   065
+011B:  DECFSZ 2F,F
+011C:  GOTO   118
+....................     LEDs.DL2 = OFF; 
+011D:  BCF    2E.1
+....................     SET_RELAY2(OFF); 
+011E:  BSF    06.1
+011F:  BSF    03.5
+0120:  BCF    06.1
+....................     delay_ms(500); 
+0121:  MOVLW  02
+0122:  BCF    03.5
+0123:  MOVWF  2F
+0124:  MOVLW  FA
+0125:  MOVWF  30
+0126:  CALL   065
+0127:  DECFSZ 2F,F
+0128:  GOTO   124
+....................      
+....................      
+....................     //LEDs.DL3 = OFF; 
+....................      
+....................     //delay_ms(5000); 
+....................     //output_high(LED_DL3); 
+....................   } 
+0129:  GOTO   0FA
+....................  
+....................    while(0) 
+....................    { 
+.................... /****** LEDS ************* 
+.................... com=low and DL1=high: green 
+.................... com=high and DL1/DL2=low: orange 
+.................... com=low and DL3=high: red 
+.................... - com usually low = green 
+.................... ***************************/ 
+....................  
+....................       output_high(LED_COM);  
+....................       output_low(LED_DL1);   
+....................       output_high(LED_DL2); 
+....................       delay_ms(2000); 
+....................       output_high(LED_DL1); 
+....................       output_low(LED_DL2); 
+....................       delay_ms(2000); 
+....................       output_low(LED_COM); 
+....................       output_low(LED_DL1);  
+....................       output_high(LED_DL2);  
+....................       delay_ms(2000); 
+....................       output_high(LED_DL1); 
+....................       output_low(LED_DL2); 
+....................       delay_ms(2000); 
+....................       output_low(LED_DL1); 
+....................       output_low(LED_DL2); 
+....................       output_high(LED_DL3); 
+....................       delay_ms(2000); 
+....................       output_low(LED_DL3); 
+....................        
+....................    } 
+....................  
+.................... } 
+....................  
+.................... void get_AD() 
+.................... { 
+012A:  SLEEP
+....................     AD_timeout = 0; 
+*
+007A:  CLRF   29
+....................      
+....................     output_float(SENSOR_COM_1K);  
+007B:  BSF    03.5
+007C:  BSF    06.7
+....................     output_float(SENSOR_COM_7K);  
+007D:  BSF    06.6
+....................      
+....................         // make pin output 
+....................     set_tris_a(0b11110000); // A0, A1 output 
+007E:  MOVLW  F0
+007F:  TRIS   5
+....................     // make the pin POSITIVE (+) for one milisecond 
+....................      
+....................     output_high(SENSOR_FREEZER); 
+0080:  BCF    03.5
+0081:  BSF    05.0
+....................     //output_low(SENSOR_FREEZER); 
+....................      
+....................     delay_ms(100); 
+0082:  MOVLW  64
+0083:  MOVWF  30
+0084:  CALL   065
+....................      
+....................     // Make the I/O pin as INPUT and measure how long stays as POSITIVE (+).  
+....................     AD_counter=0; 
+0085:  CLRF   2D
+0086:  CLRF   2C
+....................      
+....................     //output_low(SENSOR_COM_1K); 
+....................     //output_float(SENSOR_FREEZER); 
+....................  
+....................     set_tris_a(0b11110011); // A0, A1 input 
+0087:  MOVLW  F3
+0088:  TRIS   5
+....................      
+....................     //output_low(SENSOR_COM_1K); 
+....................     output_low(SENSOR_COM_7K); 
+0089:  BSF    03.5
+008A:  BCF    06.6
+008B:  BCF    03.5
+008C:  BCF    06.6
+....................     //output_high(SENSOR_COM_1K); // so cap can discharge 
+....................     //output_high(SENSOR_COM_7K); // so cap can discharge 
+....................      
+....................      
+....................     while(input(SENSOR_FREEZER) && AD_timeout < 254)  
+....................     { 
+008D:  BTFSS  05.0
+008E:  GOTO   097
+008F:  MOVF   29,W
+0090:  SUBLW  FD
+0091:  BTFSS  03.0
+0092:  GOTO   097
+....................         //LEDs.DL3 = ON; 
+....................         AD_counter++; 
+0093:  INCF   2C,F
+0094:  BTFSC  03.2
+0095:  INCF   2D,F
+....................     } 
+0096:  GOTO   08D
+....................     //LEDs.DL3 = OFF; 
+....................      
+....................     AD_val = AD_counter; 
+0097:  MOVF   2D,W
+0098:  MOVWF  2B
+0099:  MOVF   2C,W
+009A:  MOVWF  2A
+....................  
+....................     //output_float(SENSOR_COM_1K);  
+....................     //output_float(SENSOR_COM_7K);  
+....................  
+....................     //LEDs.DL2 = ON; 
+....................     //delay_ms(500); 
+....................     //LEDs.DL2 = OFF; 
+.................... }     
+009B:  GOTO   0CE (RETURN)
+.................... /** 
+.................... * Read X samples from ADC, average them and return result 
+.................... * If samples=1, just one reading is done (rearly used) 
+.................... **/ 
+.................... /* 
+.................... unsigned int8 getAvgADC(unsigned int8 channel, unsigned int8 samples) 
+.................... { 
+....................    unsigned int16 temp_adc_value=0; 
+....................    if(samples == 0) samples = 20; 
+....................     
+....................    for (x=0;x<samples;x++) 
+....................    { 
+....................       set_adc_channel ( channel ); 
+....................       delay_us(50); 
+....................       temp_adc_value += read_adc(); 
+....................    } 
+....................  
+....................    temp_adc_value /= samples; 
+....................  
+....................    if (temp_adc_value < 1) temp_adc_value=1; // never divide by zero: 
+....................  
+....................    return (int8) temp_adc_value; 
+.................... } 
+.................... */ 
+
+Configuration Fuses:
+   Word  1: 3F18   NOWDT NOPUT NOPROTECT NOBROWNOUT NOMCLR NOLVP INTRC_IO NOCPD

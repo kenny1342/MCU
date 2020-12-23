@@ -1,0 +1,4954 @@
+CCS PCH C Compiler, Version 4.104, 5967               09-jan-11 10:38
+
+               Filename: C:\kenny\PIC\Kjøleskap\18F1320\main.lst
+
+               ROM used: 8008 bytes (98%)
+                         Largest free fragment is 180
+               RAM used: 177 (69%) at main() level
+                         206 (80%) worst case
+               Stack:    6 worst case (4 in main + 2 for interrupts)
+
+*
+0000:  GOTO   1A88
+*
+0008:  MOVWF  04
+000A:  MOVFF  FD8,05
+000E:  MOVFF  FE0,06
+0012:  MOVLB  0
+0014:  MOVFF  FE9,0C
+0018:  MOVFF  FEA,07
+001C:  MOVFF  FE1,08
+0020:  MOVFF  FE2,09
+0024:  MOVFF  FD9,0A
+0028:  MOVFF  FDA,0B
+002C:  MOVFF  FF3,12
+0030:  MOVFF  FF4,13
+0034:  MOVFF  FFA,14
+0038:  MOVFF  00,0E
+003C:  MOVFF  01,0F
+0040:  MOVFF  02,10
+0044:  MOVFF  03,11
+0048:  BTFSS  FF2.5
+004A:  GOTO   0054
+004E:  BTFSC  FF2.2
+0050:  GOTO   00BA
+0054:  BTFSS  F9D.0
+0056:  GOTO   0060
+005A:  BTFSC  F9E.0
+005C:  GOTO   0258
+0060:  BTFSS  F9D.1
+0062:  GOTO   006C
+0066:  BTFSC  F9E.1
+0068:  GOTO   0288
+006C:  BTFSS  FA0.1
+006E:  GOTO   0078
+0072:  BTFSC  FA1.1
+0074:  GOTO   03F0
+0078:  MOVFF  0E,00
+007C:  MOVFF  0F,01
+0080:  MOVFF  10,02
+0084:  MOVFF  11,03
+0088:  MOVFF  0C,FE9
+008C:  MOVFF  07,FEA
+0090:  BSF    07.7
+0092:  MOVFF  08,FE1
+0096:  MOVFF  09,FE2
+009A:  MOVFF  0A,FD9
+009E:  MOVFF  0B,FDA
+00A2:  MOVFF  12,FF3
+00A6:  MOVFF  13,FF4
+00AA:  MOVFF  14,FFA
+00AE:  MOVF   04,W
+00B0:  MOVFF  06,FE0
+00B4:  MOVFF  05,FD8
+00B8:  RETFIE 0
+.................... #include "18F1320.h" 
+.................... //////// Standard Header file for the PIC18F1320 device //////////////// 
+.................... #device PIC18F1320 
+.................... #list 
+....................  
+.................... /* BUGS 
+.................... - FIXED - slår av og på rele, mens de er på 
+.................... - FIXED - bytt max_run_min til int16 
+.................... - FIXED - ikke sensor_fault når åpen krets 
+....................  
+.................... TODO's 
+.................... - Add auto-reset alarm etter feks 16 timer 
+.................... - FIXED - Kalibrer frys POT, helt kaos i koden (og sjekk kjøl POT) 
+.................... - Prøv å få et system i green/amber led håndtering 
+.................... - FIXED - Flytt mer vars til structs 
+.................... - FIXED - Revurder hvordan debug blir gjort 
+.................... - FIXED - Add blinkrate on red led 
+.................... - FIXED - Add supercool, kjør kjøl til 0C (kun om innenfor max_run_min, evt juster denne under denne modusen) 
+.................... - FIXED - Add deepfreeze, kjør frys ned til -26 (kun om innenfor max_run_min, evt juster denne under denne modusen) 
+.................... - FIXED - Add #IFDEF DEBUG på alle debug statements 
+.................... - FIXED - Add #IFDEF DEBUG på aktuelle defines som har med timing 
+.................... - FIXED - Få switches mer responsive også med delay's i koden 
+....................  
+....................  
+.................... */ 
+.................... /****** LEDS ************* 
+.................... com=low and DL1=high: green 
+.................... com=high and DL1/DL2=low: orange 
+.................... com=low and DL3=high: red 
+.................... - com usually low = green 
+.................... ***************************/ 
+....................  
+.................... /****** SWITCHES ************* 
+.................... Alltid lav på en side 
+.................... For å teste SW2: 
+.................... - Kjør B2 høy 
+.................... ***************************/ 
+....................  
+....................  
+.................... //#include <math.h> 
+.................... #include "main.h" 
+.................... #case 
+.................... //#device HIGH_INTS=TRUE 
+.................... #device adc=10 *=16  
+....................  
+....................  
+.................... #FUSES WDT                 	    //Watch Dog Timer enabled in  
+.................... #FUSES WDT4096                	// WDT base is 4ms on 18f1320, wdt timeout = 4*4096=16384ms = 16,3 sec 
+.................... #FUSES INTRC_IO              	//Internal RC Osc, no CLKOUT 
+.................... #FUSES NOFCMEN               	//Fail-safe clock monitor disabled 
+.................... #FUSES BROWNOUT              	//Reset when brownout detected 
+.................... #FUSES BORV27                	//Brownout reset at 2.7V 
+.................... #FUSES NOPUT                 	//No Power Up Timer 
+.................... #FUSES NOCPD                 	//No EE protection 
+.................... #FUSES STVREN                	//Stack full/underflow will cause reset 
+.................... #FUSES NODEBUG               	//No Debug mode for ICD 
+.................... #FUSES NOLVP                 	//No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O 
+.................... #FUSES NOWRT                 	//Program memory not write protected 
+.................... #FUSES NOWRTD                	//Data EEPROM not write protected 
+.................... #FUSES NOWRTC                	//configuration not registers write protected 
+.................... #FUSES NOIESO                	//Internal External Switch Over mode disabled 
+.................... //#FUSES IESO                  	//Internal External Switch Over mode enabled 
+.................... #FUSES NOEBTR                	//Memory not protected from table reads 
+.................... #FUSES NOEBTRB               	//Boot block not protected from table reads 
+.................... #FUSES NOMCLR                	//Master Clear pin used for I/O 
+.................... #FUSES NOPROTECT             	//Code not protected from reading 
+.................... #FUSES NOCPB                 	//No Boot Block code protection 
+.................... #FUSES NOWRTB                	//Boot block not write protected 
+....................  
+....................  
+.................... #use delay(clock=4000000, RESTART_WDT) 
+*
+0786:  CLRF   FEA
+0788:  MOVLW  B0
+078A:  MOVWF  FE9
+078C:  MOVF   FEF,W
+078E:  BZ    07B2
+0790:  MOVLW  01
+0792:  MOVWF  01
+0794:  MOVLW  BF
+0796:  MOVWF  00
+0798:  CLRWDT
+079A:  DECFSZ 00,F
+079C:  BRA    0798
+079E:  DECFSZ 01,F
+07A0:  BRA    0794
+07A2:  MOVLW  4A
+07A4:  MOVWF  00
+07A6:  DECFSZ 00,F
+07A8:  BRA    07A6
+07AA:  NOP   
+07AC:  CLRWDT
+07AE:  DECFSZ FEF,F
+07B0:  BRA    0790
+07B2:  RETLW  00
+.................... #use rs232(baud=9600,parity=N,xmit=PIN_A6,rcv=PIN_A1,bits=8,INVERT, RESTART_WDT) 
+07B4:  BCF    F92.6
+07B6:  BSF    F89.6
+07B8:  MOVLW  08
+07BA:  MOVWF  01
+07BC:  BRA    07BE
+07BE:  NOP   
+07C0:  BSF    01.7
+07C2:  BRA    07E0
+07C4:  BCF    01.7
+07C6:  RRCF   xB9,F
+07C8:  BTFSC  FD8.0
+07CA:  BCF    F89.6
+07CC:  BTFSS  FD8.0
+07CE:  BSF    F89.6
+07D0:  BSF    01.6
+07D2:  BRA    07E0
+07D4:  BCF    01.6
+07D6:  DECFSZ 01,F
+07D8:  BRA    07C6
+07DA:  BRA    07DC
+07DC:  NOP   
+07DE:  BCF    F89.6
+07E0:  MOVLW  1C
+07E2:  MOVWF  FE9
+07E4:  DECFSZ FE9,F
+07E6:  BRA    07E4
+07E8:  NOP   
+07EA:  CLRWDT
+07EC:  BTFSC  01.7
+07EE:  BRA    07C4
+07F0:  BTFSC  01.6
+07F2:  BRA    07D4
+07F4:  GOTO   0806 (RETURN)
+....................  
+....................  
+.................... #use fast_io(A) 
+.................... #use fast_io(B) 
+....................  
+.................... #BYTE PORTB=0xF81 
+.................... //#BIT  B2bit=PORTB.2 
+....................  
+.................... #priority TIMER0 
+....................  
+....................  
+.................... /************************ FLAGS USED UNDER DEVELOPMENT PHASE ************************/ 
+.................... //#define NO_RELAY // uncomment for not letting motors start up 
+.................... #define DEBUG  // level 1 
+.................... #define DEBUG_ALARMS 
+.................... //#define DEBUG2 // level 2, for rare logging 
+....................  
+....................  
+.................... /****** Values written to EEPROM when Flashed *****/ 
+.................... #define SW_MAJOR_V (int8) 02                  
+.................... #define SW_MINOR_V (int8) 01                 
+.................... #define HW_MAJOR_V (int8) 01 
+.................... #define HW_MINOR_V (int8) 07 
+....................  
+....................  
+.................... /******* ADC Ref. Voltage Scale Factor, used in ADC 2 Temperature function ********** 
+.................... Example: Scalefactor for measure VDD (5V): 
+.................... 5.000 divide this number by 1023 (max output of 10 bit A/D) to obtain the ScaleFactor.  
+.................... 5000000/1023 = 4888  
+.................... 4900000/1023 = 4789 
+.................... Calc millivolt from factor with: Factor*1023/1000 
+.................... The reference in use is 5V so for the 10bit ADC each ADC bit is worth 5.0/1023 = 4.88mV 
+.................... - temp increase when higher VDD_SF (+10 = ~+0,5C 
+.................... ******************************************************************************/ 
+.................... #define VDD_SF 4790  
+.................... //#define VDD_SF 4850 // 4.961V (240V, normal operation) prev: v1.14:4858 - org når alt virka ok 4868 4.979V  
+.................... //#define VDD_SF 4680 // 4.787V (ICD2) 
+.................... //#define VDD_SF 4789 // 4.9V (240V, normal operation) 
+.................... //#define VDD_SF 4888 // 5.0V 
+....................  
+.................... /************************ DIV OPERATIONAL SETTINGS AND TUNING *****************************/ 
+.................... #define SAMPLE_COUNT     3 //3 number of samples for avg reading of temps (ISR TIMER1 sets interval) 
+.................... #define SAMPLE_COUNT_POT 4 // number of samples for avg reading of POTs (ISR TIMER1 sets interval) 
+.................... #define SAMPLE_INTERVAL_COUNT 6   //6 required nr of equal samples with SAMPLE_INTERVAL_SECS secs between, before any actions  
+.................... #define SAMPLE_INTERVAL_SECS  5  //15 seconds between each long time samples 
+....................  
+.................... /******* Thresholds for alarms + SuperCool/DeepFreeze modes *******/ 
+....................  
+.................... #define FREEZER_MIN_TEMP -28      // for flagging "freezer_to_cold" 
+.................... #define FRIDGE_MIN_TEMP 0         // for flagging "fridge_to_cold" 
+....................  
+....................  
+.................... #define M_SUPERCOOL_TEMP     0    // when button pressed, we try to force temp down to this 
+.................... #define M_FASTFREEZE_TEMP   -26   // when button pressed, we try to force temp down to this 
+.................... #define M_FASTFREEZE_MIN    120   // Minutes FastFreeze should run after reaching M_FASTFREEZE_TEMP. 
+....................  
+.................... /******* Used for controlling motors *******/ 
+.................... #define WAIT_MIN_AFTER_LONG_RUN 30 // minutes to wait before starting motors after too long run 
+....................  
+.................... #define FREEZER_DEGREES_UNDER 3    // degrees diff between pot and real temp before stopping 
+.................... #define FREEZER_DEGREES_OVER  2    // degrees diff between pot and real temp before starting 
+.................... #define FREEZER_RUN_TEMP_OFFSET 0 //2 -5 pga sensor plassert i grillene (lavere stopper tidligere) 
+.................... #define FREEZER_STOP_TEMP_OFFSET 0 //0 -7 avg når grillen tempereres (lavere starter senere) 
+....................  
+.................... //A safe tempreture for a fridge to be at is 3C, plus/minus 2 degrees. 
+.................... #define FRIDGE_DEGREES_UNDER 2    //2 real temp degrees under pot before stopping 
+.................... #define FRIDGE_DEGREES_OVER  1    // real temp degrees over pot before starting 
+.................... #define FRIDGE_RUN_TEMP_OFFSET 0  //1 -14 (lavere stopper tidligere) 
+.................... #define FRIDGE_STOP_TEMP_OFFSET -1 //0 -8 (lavere starter senere) 
+....................  
+.................... /******* Motor runtimes *******/ 
+.................... #define FREEZER_MAX_RUN_MIN  240  //(4 hours) never run longer than X mins ( *2 if supercool-mode) 
+.................... #define FREEZER_MIN_RUN_MIN  15   // when started, never run less than X mins 
+.................... #define FREEZER_MIN_STOP_MIN 10   // when stopped, always stop for X mins 
+....................  
+.................... #define FRIDGE_MAX_RUN_MIN  240   //(4 hours) never run longer than X mins ( *2 if deepfreeze-mode) 
+.................... #define FRIDGE_MIN_RUN_MIN  15    // when started, never run less than X mins 
+.................... #define FRIDGE_MIN_STOP_MIN 10     // when stopped, always stop for X mins 
+....................  
+....................  
+....................  
+.................... /******************************** PIN/ADC DEFINES ********************************/ 
+.................... // *LEDIG*  
+.................... // B3 p18 dig 
+....................          
+.................... /*** SKAL VÆRE OK ***/ 
+.................... #define ADC_FRIDGE     5 // p9 (B1/AN5) -> CN2-4 
+.................... #define ADC_FREEZER      4 // p8 (B0/AN4) -> CN2-1  
+....................  
+.................... #define ADC_POT_FREEZER 1 // p2 (A1/AN1) 
+.................... #define ADC_POT_FRIDGE  6 // p10 (B4/AN6) 
+....................  
+.................... #define POT_FRIDGE_PULLDOWN   PIN_A0 // p1 setting low when ad read the pots 
+.................... //#define SENSOR_COM_7K  PIN_B6 // p12 via R9 til sensor-com (pin 2+3 på CN2) 
+.................... #define POT_FREEZER_PULLDOWN  PIN_B6 // p12 (was SENSOR_COM_7K R9 til sensor-com, pin 2+3 på CN2) 
+....................  
+.................... #define SENSOR_COM      PIN_B7 // p13 til base på transistor som mater +5 til sensor-com (pin 2+3 på CN2) 
+....................  
+.................... // TODO: finn ut hva som trigger Q5.... 
+.................... #define TRANSISTOR_Q5C  PIN_A5 //p4 MCLR, en transistor som tydligvis kjører pinne high/low av en eller annen grunn....? 
+....................  
+.................... // TODO: 
+.................... #define VOLTAGE         PIN_A4 //p3 , denne har konstant +5..... og noe mer, SJEKK UT DETTE!!! 
+....................  
+.................... #define POT_FRIDGE_R4   PIN_B4 //p10 
+.................... #define POT_FREEZE_R5   PIN_A1 // p2 
+....................  
+.................... #define SW_FRIDGE  PIN_B5    // p17 SW2 "super cool", kjøl, DL2 orange til ferdig? 
+.................... #define SW_FREEZE  PIN_B2    // SW3 nedfrysning, DL1 orange til ferdig 
+....................  
+.................... #define LED_COM PIN_A7 // p16, common for LEDs 
+.................... #define LED_DL3 PIN_B2 // p17 red led, alarm fryser 
+.................... #define LED_DL1 PIN_B3 // p9  
+.................... #define LED_DL2 PIN_B5 // p11 "super cool" kjøl, orange en stund mens kjøl tvangskjøres? 
+....................  
+.................... #define OUT_RL2 PIN_A2 // p6, rele frys 
+.................... #define OUT_RL1 PIN_A3  // p7, rele kjøl 
+....................  
+....................  
+.................... /******************************** TRIS SETTINGS ********************************/ 
+....................  
+.................... #define TRISA_NORMAL         0b00110011 // A4 +5, A1 is a POT, read by ADC. A0=POT_FRIDGE_PULLDOWN, needs to float (input) when not sampling. (same with B6) 
+.................... #define TRISA_SAMPLE_SENSORS 0b00110011 // A4 +5, A1 is a POT, read by ADC. A0=POT_FRIDGE_PULLDOWN, output low when sampling. (same with B6) 
+.................... #define TRISA_SAMPLE_POTS    0b00110010 // A4 +5, A0 pulldown output 
+....................  
+.................... #define TRISB_NORMAL          0b01010011  //0b01010011 B7-B0: B7=SENSOR-COM, B6=PULLDOWN, B5=DL2+SW3, B4=ANA-POT, B3=DL1,B2=DL3+SW2, B1-B0=ANA-SENSORS 
+.................... #define TRISB_SAMPLE_SENSORS  0b01010011  
+.................... #define TRISB_SAMPLE_SWITCHES 0b01110111 
+.................... #define TRISB_SAMPLE_POTS     0b00010011 // B6 pulldown output 
+....................  
+.................... /******************************** GENERAL CONSTANTS ********************************/ 
+.................... #define ON 1 
+.................... #define OFF 0 
+.................... #define YES 1 
+.................... #define NO 0 
+....................  
+.................... #define NOT_READY -101 
+.................... #define POT_OFF -100 
+.................... #define POT_MAX -127 
+....................      
+....................  
+.................... /******************************** EEPROM ADDRESSES ********************************/ 
+.................... #define MEM_ADDR_RESTART    0xFF 
+....................  
+.................... #rom int8 0xf00000 = {SW_MAJOR_V, SW_MINOR_V, HW_MAJOR_V, HW_MINOR_V} 
+.................... #rom int8 0xf00010 = {FREEZER_RUN_TEMP_OFFSET} 
+.................... #rom int8 0xf00020 = {FREEZER_STOP_TEMP_OFFSET} 
+.................... #rom int8 0xf00030 = {FRIDGE_RUN_TEMP_OFFSET} 
+.................... #rom int8 0xf00040 = {FRIDGE_STOP_TEMP_OFFSET} 
+.................... #rom      0xf00050 = {VDD_SF} 
+....................  
+.................... /******************************** Structs & Enums ********************************/ 
+.................... typedef struct 
+.................... { 
+....................     //int8 COM;  
+....................     int8 DL1; 
+....................     int8 DL2; 
+....................     int8 DL3; 
+....................     int1 DL1_Color; 
+....................     int1 DL2_Color; 
+....................     int1 COM_Last; 
+....................      
+.................... } LEDStruct; 
+....................  
+....................  typedef struct  
+....................  { 
+....................      //int1 auto_reset_this; 
+....................      int1 alarm_active; 
+....................      int1 reset_done; 
+....................      int1 fridge_temp; 
+....................      int1 freezer_temp;      
+....................      int1 fridge_sensor_fault; 
+....................      int1 freezer_sensor_fault; 
+....................      int1 fridge_run_to_long; 
+....................      int1 freezer_run_to_long;      
+....................      int16 auto_reset_timeout_mins; 
+....................      //int8 first_alarm[20]; 
+....................      //int8 last_alarm[20]; 
+....................      //int8 tmp[20]; 
+....................  } AlarmStruct; 
+....................  
+....................  typedef struct  
+....................  { 
+....................      signed int8 fridge_real; 
+....................      signed int8 fridge_calc; 
+....................      signed int8 fridge_run; 
+....................      signed int8 pot_fridge; 
+....................      signed int8 freezer_real; 
+....................      signed int8 freezer_calc; 
+....................      signed int8 freezer_run; 
+....................      signed int8 pot_freezer; 
+....................      int1 fridge_to_warm; 
+....................      int1 fridge_to_cold; 
+....................      int1 freezer_to_warm; 
+....................      int1 freezer_to_cold; 
+....................  } TempsStruct; 
+....................  
+....................  typedef struct  
+....................  { 
+....................      //int1 sample_ready; 
+....................      int8 index; 
+....................      int8 tries; 
+....................      signed int8 samples[SAMPLE_COUNT]; 
+....................      int8 last_index; 
+....................      int8 last_tries; 
+....................      signed int8 last_samples[6]; // last 6 samples need to be equal, before we call for actions 
+....................      int1 do_actions; 
+....................      int1 do_final_sample; 
+....................      int16 avg_adc_value; 
+....................  } SampleStruct; 
+....................  
+....................  typedef struct  
+....................  { 
+....................      int8 index;      
+....................      int16 samples[SAMPLE_COUNT_POT];      
+....................      int16 avg_adc_value; 
+....................  } SampleStructPot; 
+....................  
+.................... typedef struct 
+.................... { 
+....................     int1 run_fridge; 
+....................     int1 run_freezer; 
+....................     int1 fridge_running; 
+....................     int1 freezer_running; 
+....................     int1 mode_supercool; 
+....................     int1 mode_fastfreeze; 
+....................     int1 fastfreeze_reached_temp; 
+....................     int1 sampling; 
+....................     int1 sampling_switches; 
+....................     int8 fridge_run_mins; 
+....................     int16 fridge_total_run_mins; 
+....................     int8 freezer_run_mins; 
+....................     int16 freezer_total_run_mins; 
+....................     int8 fridge_stopped_mins; 
+....................     int8 freezer_stopped_mins; 
+....................     int8 fastfreeze_run_mins; 
+.................... } StatusStruct; 
+....................      
+.................... typedef struct 
+.................... { 
+....................     unsigned int8 freezer_degrees_under; // really a constant, but can change in code in some circumstanses 
+....................     unsigned int8 fridge_degrees_under;  // really a constant, but can change in code in some circumstanses 
+....................     signed int8 freezer_run_temp_offset; 
+....................     signed int8 freezer_stop_temp_offset; 
+....................     signed int8 fridge_run_temp_offset;     
+....................     signed int8 fridge_stop_temp_offset;     
+.................... } ConfigStruct; 
+....................  
+.................... /**** MACROS ***/ 
+.................... #ifdef NO_RELAY // always off 
+....................     #define SET_RELAY1(STATUS) (output_bit(OUT_RL1, 1)) 
+....................     #define SET_RELAY2(STATUS) (output_bit(OUT_RL2, 1)) 
+.................... #else 
+....................     #define SET_RELAY1(STATUS) (output_bit(OUT_RL1, !STATUS)) 
+....................     #define SET_RELAY2(STATUS) (output_bit(OUT_RL2, !STATUS)) 
+.................... #endif 
+....................  
+.................... #define SET_LED(LED,STATUS) (output_bit(LED, !STATUS)) 
+.................... #define Start_Fridge_Motor (SET_RELAY1(ON), Status.fridge_running=YES, started2++) 
+.................... #define Stop_Fridge_Motor (SET_RELAY1(OFF), Status.fridge_running=NO) 
+.................... #define Start_Freezer_Motor (SET_RELAY2(ON), Status.freezer_running=YES, started1++) 
+.................... #define Stop_Freezer_Motor (SET_RELAY2(OFF), Status.freezer_running=NO) 
+....................  
+.................... #define EnableSensors       (output_low(SENSOR_COM), Status.sampling=YES) // Turn transistor ON to power sensors  
+.................... #define DisableSensors      (output_high(SENSOR_COM), Status.sampling=NO) // Turn transistor OFF to turn off sensors 
+....................  
+.................... enum LED_MODE {LED_OFF, LED_ON, LED_BLINK=3, LED_BLINK_FAST=4}; 
+.................... enum LED_COLOR {LED_GREEN, LED_AMBER}; 
+....................  
+.................... //typedef enum {red, green=2,blue}colors; 
+....................  
+.................... /******************************** RAM VARIABLES ********************************/ 
+....................  
+.................... int1 do_read_temp, do_LED_updates, blink_toggle, blink_toggle_fast, print_debug; 
+....................  
+.................... unsigned int8 ISR_counter1, sample_timer_sec, debug_timer_sec; 
+.................... unsigned int16 ISR_counter0, ISR_counter0_2; 
+....................  
+.................... static unsigned int16 SW_fridge_time, SW_freezer_time; 
+.................... static unsigned int8 started1, started2; 
+.................... static unsigned int8 poweredup_mins; 
+.................... unsigned int8 x; // general loop counter etc 
+.................... static unsigned int16 adc_val; 
+.................... static volatile signed int8 min_val, max_val; 
+.................... unsigned int8 prev_restart_reason, curr_restart_reason; 
+.................... //static signed int8 sample_run_f, sample_run_k, sample_stop_f, sample_stop_k; 
+.................... //unsigned int8 *ptrstr; 
+....................  
+.................... unsigned int8 last_error[40]; 
+....................  
+.................... ConfigStruct config; 
+.................... TempsStruct Temps; 
+.................... LEDStruct LEDs; 
+.................... AlarmStruct Alarms; 
+.................... SampleStruct SampleFridge; 
+.................... SampleStructPot SampleFridgePot; 
+.................... SampleStruct SampleFreezer; 
+.................... SampleStructPot SampleFreezerPot; 
+.................... StatusStruct Status; 
+....................  
+.................... //signed int8 CONST FridgeLookup[8] = {POT_OFF,5,4,3,2,1,0,POT_MAX}; 
+....................  
+.................... //a lookup table that is not declared static is almost certainly a mistake 
+.................... //const int16 FridgeLookup[6] = {700,600,500,400,300,200}; 
+....................  
+....................  
+.................... /******************************** FUNCTION PROTOS ********************************/ 
+....................  
+.................... void main(void); 
+.................... #separate 
+.................... void initialize_hardware(void); 
+.................... #separate 
+.................... void initialize_software(void); 
+.................... #separate 
+.................... void doDecision_Freezer(void); 
+.................... #separate 
+.................... void doDecision_Fridge(void); 
+.................... void doActions(void); 
+.................... #separate 
+.................... void setLEDs(void); 
+.................... void updateAlarms(void); 
+.................... #separate 
+.................... void debug2(unsigned int8 c); 
+.................... #separate 
+.................... void STREAM_DEBUG(unsigned int8 c); 
+....................  
+.................... //#include <stdlibm.h> //malloc 
+.................... #include <string.h> 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... ////        (C) Copyright 1996,2008 Custom Computer Services            //// 
+.................... //// This source code may only be used by licensed users of the CCS C   //// 
+.................... //// compiler.  This source code may only be distributed to other       //// 
+.................... //// licensed users of the CCS C compiler.  No other use, reproduction  //// 
+.................... //// or distribution is permitted without written permission.           //// 
+.................... //// Derivative programs created using this software in object code     //// 
+.................... //// form are not restricted in any way.                                //// 
+.................... //////////////////////////////////////////////////////////////////////////// 
+....................  
+.................... #ifndef _STRING 
+.................... #define _STRING 
+.................... #include <stddef.h> 
+.................... /////////////////////////////////////////////////////////////////////////// 
+.................... ////        (C) Copyright 1996,2003 Custom Computer Services           //// 
+.................... //// This source code may only be used by licensed users of the CCS C  //// 
+.................... //// compiler.  This source code may only be distributed to other      //// 
+.................... //// licensed users of the CCS C compiler.  No other use, reproduction //// 
+.................... //// or distribution is permitted without written permission.          //// 
+.................... //// Derivative programs created using this software in object code    //// 
+.................... //// form are not restricted in any way.                               //// 
+.................... /////////////////////////////////////////////////////////////////////////// 
+....................  
+.................... #ifndef _STDDEF 
+....................  
+.................... #define _STDDEF 
+....................  
+.................... #if sizeof(unsigned int8 *)==1 
+.................... #define ptrdiff_t unsigned int8 
+.................... #else 
+.................... #define ptrdiff_t unsigned int16 
+.................... #endif 
+....................  
+.................... #define size_t unsigned int8 
+.................... #define wchar_t char 
+.................... #define NULL 0 
+....................  
+.................... #define offsetof(s,f) (offsetofbit(s,f)/8) 
+....................  
+.................... #endif 
+....................  
+.................... #include <ctype.h> 
+.................... //////////////////////////////////////////////////////////////////////////// 
+.................... ////        (C) Copyright 1996,2003 Custom Computer Services            //// 
+.................... //// This source code may only be used by licensed users of the CCS C   //// 
+.................... //// compiler.  This source code may only be distributed to other       //// 
+.................... //// licensed users of the CCS C compiler.  No other use, reproduction  //// 
+.................... //// or distribution is permitted without written permission.           //// 
+.................... //// Derivative programs created using this software in object code     //// 
+.................... //// form are not restricted in any way.                                //// 
+.................... //////////////////////////////////////////////////////////////////////////// 
+....................  
+.................... #ifndef _CTYPE 
+.................... #define _CTYPE 
+....................  
+.................... #define islower(x)  isamong(x,"abcdefghijklmnopqrstuvwxyz") 
+.................... #define isupper(x)  isamong(x,"ABCDEFGHIJKLMNOPQRSTUVWXYZ") 
+.................... #define isalnum(x)  isamong(x,"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz") 
+.................... #define isalpha(x)  isamong(x,"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz") 
+.................... #define isdigit(x)  isamong(x,"0123456789") 
+.................... #define isspace(x)  ((x)==' ') 
+.................... #define isxdigit(x) isamong(x,"0123456789ABCDEFabcdef") 
+.................... #define iscntrl(x)  ((x)<' ') 
+.................... #define isprint(x)  ((x)>=' ') 
+.................... #define isgraph(x)  ((x)>' ') 
+.................... #define ispunct(x)  (((x)>' ')&&!isalnum(x)) 
+....................  
+.................... #endif 
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... ////////////////////////////////////////////// 
+.................... //// Uncomment the following define to    //// 
+.................... //// allow some functions to use a        //// 
+.................... //// quicker algorithm, but use more ROM  //// 
+.................... ////                                      //// 
+.................... //// #define FASTER_BUT_MORE_ROM          //// 
+.................... ////////////////////////////////////////////// 
+....................  
+....................  
+....................  
+.................... /*Copying functions*/ 
+.................... /* standard template: 
+....................    void *memmove(void *s1, void *s2, size_t n). 
+....................    Copies max of n characters safely (not following ending '\0') 
+....................    from s2 in s1; if s2 has less than n characters, appends 0 */ 
+....................  
+.................... char *memmove(void *s1,char *s2,size_t n) 
+.................... { 
+....................    char *sc1; 
+....................    char *sc2; 
+....................    sc1=s1; 
+....................    sc2=s2; 
+....................    if(sc2<sc1 && sc1 <sc2 +n) 
+....................       for(sc1+=n,sc2+=n;0<n;--n) 
+....................          *--sc1=*--sc2; 
+....................    else 
+....................       for(;0<n;--n) 
+....................          *sc1++=*sc2++; 
+....................   return s1; 
+....................   } 
+....................  
+.................... /* Standard template: char *strcpy(char *s1, const char *s2) 
+....................    copies the string s2 including the null character to s1. 
+....................    This is a compiler built in to handle the different address 
+....................    spaces */ 
+....................  
+.................... #define strcopy strcpy 
+....................  
+.................... /* standard template: 
+....................    char *strncpy(char *s1, const char *s2, size_t n). 
+....................    Copies max of n characters (not following ending '\0') 
+....................    from s2 in s1; if s2 has less than n characters, appends 0 */ 
+....................  
+.................... char *strncpy(char *s1, char *s2, size_t n) 
+.................... { 
+....................   char *s; 
+....................  
+....................   for (s = s1; n > 0 && *s2 != '\0'; n--) 
+....................      *s++ = *s2++; 
+....................   for (; n > 0; n--) 
+....................      *s++ = '\0'; 
+....................  
+....................   return(s1); 
+.................... } 
+.................... /***********************************************************/ 
+....................  
+.................... /*concatenation functions*/ 
+.................... /* standard template: char *strcat(char *s1, const char *s2) 
+.................... appends s2 to s1*/ 
+....................  
+.................... char *strcat(char *s1, char *s2) 
+.................... { 
+....................    char *s; 
+....................  
+....................    for (s = s1; *s != '\0'; ++s); 
+....................    while(*s2 != '\0') 
+....................    { 
+....................       *s = *s2; 
+....................       ++s; 
+....................       ++s2; 
+....................    } 
+....................  
+....................    *s = '\0'; 
+....................    return(s1); 
+.................... } 
+.................... /* standard template: char *strncat(char *s1, char *s2,size_t n) 
+.................... appends not more than n characters from s2 to s1*/ 
+....................  
+.................... char *strncat(char *s1, char *s2, size_t n) 
+.................... { 
+....................    char *s; 
+....................  
+....................    for (s = s1; *s != '\0'; ++s); 
+....................    while(*s2 != '\0' && 0<n) 
+....................    { 
+....................       *s = *s2; 
+....................       ++s; 
+....................       ++s2; 
+....................       --n; 
+....................    } 
+....................  
+....................    *s = '\0'; 
+....................    return(s1); 
+.................... } 
+....................  
+.................... /***********************************************************/ 
+....................  
+....................  
+.................... /*comparison functions*/ 
+.................... /* standard template: signed int memcmp(void *s1, void *s2). 
+....................    Compares s1 & s2; returns -1 if s1<s2, 0 if s1=s2, 1 if s1>s2 */ 
+....................  
+.................... signed int8 memcmp(void * s1,char *s2,size_t n) 
+.................... { 
+.................... char *su1, *su2; 
+.................... for(su1=s1, su2=s2; 0<n; ++su1, ++su2, --n) 
+.................... { 
+....................    if(*su1!=*su2) 
+....................       return ((*su1<*su2)?-1:+1); 
+.................... } 
+.................... return 0; 
+.................... } 
+....................  
+.................... /* standard template: int strcmp(const char *s1, const char *s2). 
+....................    Compares s1 & s2; returns -1 if s1<s2, 0 if s1=s2, 1 if s1>s2 */ 
+....................  
+.................... signed int8 strcmp(char *s1, char *s2) 
+.................... { 
+....................    for (; *s1 == *s2; s1++, s2++) 
+....................       if (*s1 == '\0') 
+....................          return(0); 
+....................    return((*s1 < *s2) ? -1: 1); 
+.................... } 
+.................... /* standard template: int strcoll(const char *s1, const char *s2). 
+....................    Compares s1 & s2; returns -1 if s1<s2, 0 if s1=s2, 1 if s1>s2 */ 
+....................  
+.................... signed int8 strcoll(char *s1, char *s2) 
+.................... { 
+....................    for (; *s1 == *s2; s1++, s2++) 
+....................       if (*s1 == '\0') 
+....................          return(0); 
+....................    return((*s1 < *s2) ? -1: 1); 
+.................... } 
+....................  
+.................... /* standard template: 
+....................    int strncmp(const char *s1, const char *s2, size_t n). 
+....................    Compares max of n characters (not following 0) from s1 to s2; 
+....................    returns same as strcmp */ 
+....................  
+.................... signed int8 strncmp(char *s1, char *s2, size_t n) 
+.................... { 
+....................    for (; n > 0; s1++, s2++, n--) 
+....................       if (*s1 != *s2) 
+....................          return((*s1 <*s2) ? -1: 1); 
+....................       else if (*s1 == '\0') 
+....................          return(0); 
+....................    return(0); 
+.................... } 
+.................... /* standard template: 
+....................    int strxfrm(const char *s1, const char *s2, size_t n). 
+....................    transforms maximum of n characters from s2 and places them into s1*/ 
+.................... size_t strxfrm(char *s1, char *s2, size_t n) 
+.................... { 
+....................   char *s; 
+....................   unsigned int8 n1; 
+....................   n1=n; 
+....................   for (s = s1; n > 0 && *s2 != '\0'; n--) 
+....................      *s++ = *s2++; 
+....................   for (; n > 0; n--) 
+....................      *s++ = '\0'; 
+....................  
+....................   return(n1); 
+.................... } 
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... /***********************************************************/ 
+.................... /*Search functions*/ 
+.................... /* standard template: void *memchr(const char *s, int c). 
+....................    Finds first occurrence of c in n characters of s */ 
+....................  
+.................... char *memchr(void *s,unsigned int8 c,size_t n) 
+.................... { 
+....................    char uc; 
+....................    char *su; 
+....................    uc=c; 
+....................    for(su=s;0<n;++su,--n) 
+....................       if(*su==uc) 
+....................       return su; 
+....................    return NULL; 
+.................... } 
+....................  
+.................... /* standard template: char *strchr(const char *s, int c). 
+....................    Finds first occurrence of c in s */ 
+....................  
+.................... char *strchr(char *s, unsigned int8 c) 
+.................... { 
+....................    for (; *s != c; s++) 
+....................       if (*s == '\0') 
+....................          return(0); 
+....................    return(s); 
+.................... } 
+.................... /* standard template: 
+....................    size_t strcspn(const char *s1, const char *s2). 
+....................    Computes length of max initial segment of s1 that 
+....................    consists entirely of characters NOT from s2*/ 
+....................  
+.................... unsigned int8  strcspn(char *s1, char *s2) 
+.................... { 
+....................    char *sc1, *sc2; 
+....................  
+....................    for (sc1 = s1; *sc1 != 0; sc1++) 
+....................       for (sc2 = s2; *sc2 != 0; sc2++) 
+....................          if (*sc1 == *sc2) 
+....................             return(sc1 - s1); 
+....................    return(sc1 - s1); 
+.................... } 
+.................... /* standard template: 
+....................    char *strpbrk(const char *s1, const char *s2). 
+....................    Locates first occurence of any character from s2 in s1; 
+....................    returns s1 if s2 is empty string */ 
+....................  
+.................... char *strpbrk(char *s1, char *s2) 
+.................... { 
+....................    char *sc1, *sc2; 
+....................  
+....................    for (sc1 = s1; *sc1 != 0; sc1++) 
+....................       for (sc2 = s2; *sc2 != 0; sc2++) 
+....................          if (*sc1 == *sc2) 
+....................             return(sc1); 
+....................    return(0); 
+.................... } 
+....................  
+....................  
+.................... /* standard template: char *strrchr(const char *s, int c). 
+....................    Finds last occurrence of c in s */ 
+....................  
+.................... char *strrchr(char *s, unsigned int8 c) 
+.................... { 
+....................    char *p; 
+....................  
+....................    for (p = 0; ; s++) 
+....................    { 
+....................       if (*s == c) 
+....................          p = s; 
+....................       if (*s == '\0') 
+....................          return(p); 
+....................    } 
+.................... } 
+.................... /* computes length of max initial segment of s1 consisting 
+....................    entirely of characters from s2 */ 
+....................  
+.................... unsigned int8  strspn(char *s1, char *s2) 
+.................... { 
+....................    char *sc1, *sc2; 
+....................  
+....................    for (sc1 = s1; *sc1 != 0; sc1++) 
+....................       for (sc2 = s2; ; sc2++) 
+....................     if (*sc2 == '\0') 
+....................        return(sc1 - s1); 
+....................          else if (*sc1 == *sc2) 
+....................             break; 
+....................    return(sc1 - s1); 
+.................... } 
+.................... /* standard template: 
+....................    char *strstr(const char *s1, const char *s2); 
+....................    Locates first occurence of character sequence s2 in s1; 
+....................    returns 0 if s2 is empty string 
+....................  
+....................    Uncomment #define FASTER_BUT_MORE_ROM at the top of the 
+....................    file to use the faster algorithm */ 
+.................... char *strstr(char *s1, char *s2) 
+.................... { 
+....................    char *s, *t; 
+....................  
+....................    #ifdef FASTER_BUT_MORE_ROM 
+....................    if (*s2 == '\0') 
+....................          return(s1); 
+....................    #endif 
+....................  
+....................    while (*s1) 
+....................    { 
+....................       for(s = s1, t = s2; *t && (*s == *t); ++s, ++t); 
+....................  
+....................       if (*t == '\0') 
+....................          return s1; 
+....................       ++s1; 
+....................       #ifdef FASTER_BUT_MORE_ROM 
+....................          while(*s1 != '\0' && *s1 != *s2) 
+....................             ++s1; 
+....................       #endif 
+....................    } 
+....................    return 0; 
+.................... } 
+....................  
+.................... /* standard template: char *strtok(char *s1, const char *s2). 
+....................  
+....................    Finds next token in s1 delimited by a character from separator 
+....................    string s2 (which can be different from call to call).  First call 
+....................    starts at beginning of s1 searching for first character NOT 
+....................    contained in s2; returns 0 if none is found. 
+....................    If one is found, it is the start of first token (return value). 
+....................    Function then searches from there for a character contained in s2. 
+....................    If none is found, current token extends to end of s1, and subsequent 
+....................    searches for a token will return 0.  If one is found, it is 
+....................    overwritten by '\0', which terminates current token.  Function saves 
+....................    pointer to following character from which next search will start. 
+....................    Each subsequent call, with 0 as first argument, starts searching 
+....................    from saved pointer */ 
+....................  
+.................... char *strtok(char *s1, char *s2) 
+.................... { 
+....................    char *beg, *end; 
+....................    static char *save; 
+....................  
+....................    beg = (s1)? s1: save; 
+....................    beg += strspn(beg, s2); 
+....................    if (*beg == '\0') 
+....................    { 
+....................       *save = ' '; 
+....................       return(0); 
+....................    } 
+....................    end = strpbrk(beg, s2); 
+....................    if (*end != '\0') 
+....................    { 
+....................       *end = '\0'; 
+....................       end++; 
+....................    } 
+....................    save = end; 
+....................    return(beg); 
+.................... } 
+....................  
+.................... /*****************************************************************/ 
+.................... /*Miscellaneous functions*/ 
+.................... /* standard template 
+.................... maps error number in errnum to an error message string 
+.................... Returns: Pointer to string 
+.................... */ 
+.................... #ifdef _ERRNO 
+.................... char * strerror(unsigned int8 errnum) 
+.................... { 
+.................... char s[15]; 
+.................... switch( errnum) 
+.................... { 
+.................... case 0: 
+....................    strcpy(s,"no errors"); 
+....................    return s; 
+.................... case EDOM : 
+....................    strcpy(s,"domain error"); 
+....................    return s; 
+.................... case ERANGE: 
+....................    strcpy(s,"range error"); 
+....................    return s; 
+.................... } 
+.................... } 
+.................... #ENDIF 
+.................... /* standard template: size_t strlen(const char *s). 
+....................    Computes length of s1 (preceding terminating 0) */ 
+....................  
+.................... unsigned int8 strlen(char *s) 
+.................... { 
+....................    char *sc; 
+....................  
+....................    for (sc = s; *sc != 0; sc++); 
+....................    return(sc - s); 
+.................... } 
+....................  
+.................... /* standard template: size_t stricmp(const char *s1, const char *s2). 
+....................    Compares s1 to s2 ignoring case (upper vs. lower) */ 
+....................  
+.................... signed int8 stricmp(char *s1, char *s2) 
+.................... { 
+....................  for(; *s1==*s2||(isalpha(*s1)&&isalpha(*s2)&&(*s1==*s2+32||*s2==*s1+32)); 
+....................     s1++, s2++) 
+....................     if (*s1 == '\0') 
+....................        return(0); 
+....................  return((*s1 < *s2) ? -1: 1); 
+.................... } 
+....................  
+....................  
+.................... /* standard template: char *strlwr(char *s). 
+....................    Replaces uppercase letters by lowercase; 
+....................    returns pointer to new string s */ 
+....................  
+.................... char *strlwr(char *s) 
+.................... { 
+....................    char *p; 
+....................  
+....................    for (p = s; *p != '\0'; p++) 
+....................       if (*p >= 'A' && *p <='Z') 
+....................          *p += 'a' - 'A'; 
+....................    return(s); 
+.................... } 
+....................  
+....................  
+.................... /************************************************************/ 
+....................  
+....................  
+.................... #endif 
+....................  
+....................  
+....................  
+.................... #include "ISR.c" 
+.................... #int_TIMER0 
+.................... void  TIMER0_isr(void) // OF every 1ms 
+.................... { 
+....................      
+....................     if(++ISR_counter0 == 60000) // 60 sec 
+*
+00BA:  INCF   1A,F
+00BC:  BTFSC  FD8.2
+00BE:  INCF   1B,F
+00C0:  MOVF   1A,W
+00C2:  SUBLW  60
+00C4:  BNZ   0148
+00C6:  MOVF   1B,W
+00C8:  SUBLW  EA
+00CA:  BNZ   0148
+....................     {         
+....................         if(!Alarms.reset_done)  
+00CC:  BTFSC  67.1
+00CE:  BRA    00E8
+....................         { 
+....................             if(++Alarms.auto_reset_timeout_mins == 720) //12 hours 
+00D0:  INCF   68,F
+00D2:  BTFSC  FD8.2
+00D4:  INCF   69,F
+00D6:  MOVF   68,W
+00D8:  SUBLW  D0
+00DA:  BNZ   00E8
+00DC:  MOVF   69,W
+00DE:  SUBLW  02
+00E0:  BNZ   00E8
+....................             { 
+....................                 Alarms.reset_done = YES; 
+00E2:  BSF    67.1
+....................                 Alarms.auto_reset_timeout_mins = 0L; 
+00E4:  CLRF   69
+00E6:  CLRF   68
+....................             }                 
+....................         } 
+....................              
+....................              
+....................         if(poweredup_mins < 255) poweredup_mins++; 
+00E8:  INCFSZ 24,W
+00EA:  BRA    00EE
+00EC:  BRA    00F0
+00EE:  INCF   24,F
+....................          
+....................         if(Status.mode_fastfreeze && Status.fastfreeze_reached_temp) 
+00F0:  BTFSS  xA0.5
+00F2:  BRA    0106
+00F4:  BTFSS  xA0.6
+00F6:  BRA    0106
+....................         { 
+....................             if(++Status.fastfreeze_run_mins >= M_FASTFREEZE_MIN) 
+00F8:  INCF   xAA,F
+00FA:  MOVF   xAA,W
+00FC:  SUBLW  77
+00FE:  BC    0104
+....................             { 
+....................                 Status.mode_fastfreeze = OFF;    
+0100:  BCF    xA0.5
+....................                 Status.fastfreeze_reached_temp = NO; 
+0102:  BCF    xA0.6
+....................             }     
+....................         } 
+....................         else 
+0104:  BRA    0108
+....................             Status.fastfreeze_run_mins = 0; 
+0106:  CLRF   xAA
+....................              
+....................         if(Status.fridge_running) 
+0108:  BTFSS  xA0.2
+010A:  BRA    0122
+....................         { 
+....................             Status.fridge_stopped_mins = 0; 
+010C:  CLRF   xA8
+....................             Status.fridge_run_mins++; 
+010E:  INCF   xA2,F
+....................             if(Status.fridge_total_run_mins < 65535) Status.fridge_total_run_mins++; 
+0110:  INCFSZ xA3,W
+0112:  BRA    011A
+0114:  INCFSZ xA4,W
+0116:  BRA    011A
+0118:  BRA    0120
+011A:  INCF   xA3,F
+011C:  BTFSC  FD8.2
+011E:  INCF   xA4,F
+....................         }     
+....................         else 
+0120:  BRA    0126
+....................         { 
+....................             Status.fridge_stopped_mins++; 
+0122:  INCF   xA8,F
+....................             Status.fridge_run_mins = 0; 
+0124:  CLRF   xA2
+....................  
+....................         }     
+....................          
+....................         if(Status.freezer_running)               
+0126:  BTFSS  xA0.3
+0128:  BRA    0140
+....................         { 
+....................             Status.freezer_stopped_mins = 0; 
+012A:  CLRF   xA9
+....................             Status.freezer_run_mins++; 
+012C:  INCF   xA5,F
+....................             if(Status.freezer_total_run_mins < 65535) Status.freezer_total_run_mins++; 
+012E:  INCFSZ xA6,W
+0130:  BRA    0138
+0132:  INCFSZ xA7,W
+0134:  BRA    0138
+0136:  BRA    013E
+0138:  INCF   xA6,F
+013A:  BTFSC  FD8.2
+013C:  INCF   xA7,F
+....................         } 
+....................         else 
+013E:  BRA    0144
+....................         { 
+....................             Status.freezer_stopped_mins++; 
+0140:  INCF   xA9,F
+....................             Status.freezer_run_mins = 0; 
+0142:  CLRF   xA5
+....................         }         
+....................  
+....................         ISR_counter0 = 0; 
+0144:  CLRF   1B
+0146:  CLRF   1A
+....................     } 
+....................      
+....................     if(++ISR_counter0_2 == 500)  
+0148:  INCF   1C,F
+014A:  BTFSC  FD8.2
+014C:  INCF   1D,F
+014E:  MOVF   1C,W
+0150:  SUBLW  F4
+0152:  BNZ   0168
+0154:  DECFSZ 1D,W
+0156:  BRA    0168
+....................     { 
+....................         blink_toggle_fast ^= 1;         
+0158:  MOVLW  00
+015A:  BTFSC  16.3
+015C:  MOVLW  01
+015E:  XORLW  01
+0160:  BCF    16.3
+0162:  BTFSC  FE8.0
+0164:  BSF    16.3
+....................     }     
+....................     else if(++ISR_counter0_2 == 1000)  
+0166:  BRA    01A2
+0168:  INCF   1C,F
+016A:  BTFSC  FD8.2
+016C:  INCF   1D,F
+016E:  MOVF   1C,W
+0170:  SUBLW  E8
+0172:  BNZ   01A2
+0174:  MOVF   1D,W
+0176:  SUBLW  03
+0178:  BNZ   01A2
+....................     { 
+....................         blink_toggle_fast ^= 1; 
+017A:  MOVLW  00
+017C:  BTFSC  16.3
+017E:  MOVLW  01
+0180:  XORLW  01
+0182:  BCF    16.3
+0184:  BTFSC  FE8.0
+0186:  BSF    16.3
+....................         blink_toggle ^= blink_toggle_fast; 
+0188:  MOVLW  00
+018A:  BTFSC  16.2
+018C:  MOVLW  01
+018E:  MOVWF  xCC
+0190:  MOVLW  00
+0192:  BTFSC  16.3
+0194:  MOVLW  01
+0196:  XORWF  xCC,W
+0198:  BCF    16.2
+019A:  BTFSC  FE8.0
+019C:  BSF    16.2
+....................         ISR_counter0_2 = 0; 
+019E:  CLRF   1D
+01A0:  CLRF   1C
+....................     } 
+....................      
+....................     if(!Status.sampling) 
+01A2:  BTFSC  xA0.7
+01A4:  BRA    0252
+....................     { 
+....................          
+....................         Status.sampling_switches = 1;         
+01A6:  BSF    xA1.0
+....................          
+....................         //delay_us(50); 
+....................          
+....................         set_tris_b(TRISB_SAMPLE_SWITCHES);  
+01A8:  MOVLW  77
+01AA:  MOVWF  F93
+....................          
+....................         delay_us(50); // Needed for tris to apply.... 2 hours troubleshooting... 
+01AC:  CLRWDT
+01AE:  MOVLW  10
+01B0:  MOVWF  00
+01B2:  DECFSZ 00,F
+01B4:  BRA    01B2
+....................         if(bit_test(PORTB, 5)) 
+01B6:  BTFSS  F81.5
+01B8:  BRA    01C0
+....................         {              
+....................             SW_fridge_time = 0; 
+01BA:  CLRF   1F
+01BC:  CLRF   1E
+....................         } 
+....................         else  
+01BE:  BRA    01FC
+....................         { 
+....................                      
+....................             SW_fridge_time++;  
+01C0:  INCF   1E,F
+01C2:  BTFSC  FD8.2
+01C4:  INCF   1F,F
+....................             if(SW_fridge_time > 4000) 
+01C6:  MOVF   1F,W
+01C8:  SUBLW  0E
+01CA:  BC    01DA
+01CC:  XORLW  FF
+01CE:  BNZ   01D6
+01D0:  MOVF   1E,W
+01D2:  SUBLW  A0
+01D4:  BC    01DA
+....................                 reset_cpu();             
+01D6:  RESET
+....................             else if(SW_fridge_time > 100 && SW_fridge_time < 500) 
+01D8:  BRA    01FC
+01DA:  MOVF   1F,F
+01DC:  BNZ   01E4
+01DE:  MOVF   1E,W
+01E0:  SUBLW  64
+01E2:  BC    01FC
+01E4:  MOVF   1F,W
+01E6:  SUBLW  01
+01E8:  BNC   01FC
+01EA:  BNZ   01F2
+01EC:  MOVF   1E,W
+01EE:  SUBLW  F3
+01F0:  BNC   01FC
+....................             { 
+....................                     if(!Alarms.reset_done)  
+01F2:  BTFSC  67.1
+01F4:  BRA    01FA
+....................                         Alarms.reset_done = YES; 
+01F6:  BSF    67.1
+....................                     else 
+01F8:  BRA    01FC
+....................                         Status.mode_supercool = !Status.mode_supercool;                                 
+01FA:  BTG    xA0.4
+....................             } 
+....................         } 
+....................                          
+....................         if(bit_test(PORTB, 2)) 
+01FC:  BTFSS  F81.2
+01FE:  BRA    0206
+....................         {              
+....................             SW_freezer_time = 0; 
+0200:  CLRF   21
+0202:  CLRF   20
+....................         } 
+....................         else  
+0204:  BRA    0242
+....................         { 
+....................                      
+....................             SW_freezer_time++;  
+0206:  INCF   20,F
+0208:  BTFSC  FD8.2
+020A:  INCF   21,F
+....................             if(SW_freezer_time > 4000) 
+020C:  MOVF   21,W
+020E:  SUBLW  0E
+0210:  BC    0220
+0212:  XORLW  FF
+0214:  BNZ   021C
+0216:  MOVF   20,W
+0218:  SUBLW  A0
+021A:  BC    0220
+....................                 reset_cpu();             
+021C:  RESET
+....................             else if(SW_freezer_time > 100 && SW_freezer_time < 500) 
+021E:  BRA    0242
+0220:  MOVF   21,F
+0222:  BNZ   022A
+0224:  MOVF   20,W
+0226:  SUBLW  64
+0228:  BC    0242
+022A:  MOVF   21,W
+022C:  SUBLW  01
+022E:  BNC   0242
+0230:  BNZ   0238
+0232:  MOVF   20,W
+0234:  SUBLW  F3
+0236:  BNC   0242
+....................             { 
+....................                     if(!Alarms.reset_done)  
+0238:  BTFSC  67.1
+023A:  BRA    0240
+....................                         Alarms.reset_done = YES; 
+023C:  BSF    67.1
+....................                     else 
+023E:  BRA    0242
+....................                         Status.mode_fastfreeze = !Status.mode_fastfreeze; 
+0240:  BTG    xA0.5
+....................             }     
+....................         } 
+....................          
+....................                  
+....................         set_tris_b(TRISB_NORMAL);  
+0242:  MOVLW  53
+0244:  MOVWF  F93
+....................         delay_us(50);         
+0246:  CLRWDT
+0248:  MOVLW  10
+024A:  MOVWF  00
+024C:  DECFSZ 00,F
+024E:  BRA    024C
+....................         Status.sampling_switches = 0; 
+0250:  BCF    xA1.0
+....................     }           
+....................      
+.................... } 
+....................  
+0252:  BCF    FF2.2
+0254:  GOTO   0078
+.................... #int_TIMER1 
+.................... void  TIMER1_isr(void) // OF 524ms 
+.................... { 
+....................          
+....................     if(++ISR_counter1>=255) ISR_counter1 = 0; 
+0258:  INCF   17,F
+025A:  INCFSZ 17,W
+025C:  BRA    0260
+025E:  CLRF   17
+....................      
+....................     if((ISR_counter1 % 2) == 0) // ~every 1 sec 
+0260:  MOVF   17,W
+0262:  ANDLW  01
+0264:  BNZ   0282
+....................     {    
+.................... 	    if(++debug_timer_sec == 3) { debug_timer_sec = 0; print_debug = 1; }	     
+0266:  INCF   19,F
+0268:  MOVF   19,W
+026A:  SUBLW  03
+026C:  BNZ   0272
+026E:  CLRF   19
+0270:  BSF    16.4
+....................          
+....................         do_read_temp = 1;         
+0272:  BSF    16.0
+....................         if(++sample_timer_sec == SAMPLE_INTERVAL_SECS) // last 6 samples need to be equal, before we call for actions , 10 sec between 
+0274:  INCF   18,F
+0276:  MOVF   18,W
+0278:  SUBLW  05
+027A:  BNZ   0282
+....................         { 
+....................             sample_timer_sec = 0;                   
+027C:  CLRF   18
+....................             SampleFridge.do_final_sample = 1; 
+027E:  BSF    77.1
+....................             SampleFreezer.do_final_sample = 1; 
+0280:  BSF    x92.1
+....................         }     
+....................     } 
+....................      
+.................... } 
+....................  
+.................... // This Timer ONLY deals with LEDs, because can be disabled/enabled frequently, for reading AD and switches 
+0282:  BCF    F9E.0
+0284:  GOTO   0078
+.................... #int_TIMER2 
+.................... void  TIMER2_isr(void)  // ISR 1ms 
+.................... { 
+....................          
+....................     if(!do_LED_updates || Status.sampling || Status.sampling_switches) return; 
+0288:  BTFSS  16.1
+028A:  BRA    0294
+028C:  BTFSC  xA0.7
+028E:  BRA    0294
+0290:  BTFSS  xA1.0
+0292:  BRA    0296
+0294:  BRA    0370
+....................      
+....................     if(LEDs.DL3 != LED_OFF) 
+0296:  MOVF   65,F
+0298:  BZ    029E
+....................     { 
+....................         LEDs.DL1_Color = LED_GREEN; //needed for the RED LED to work... 
+029A:  BCF    66.0
+....................         LEDs.DL2_Color = LED_GREEN; //needed for the RED LED to work... 
+029C:  BCF    66.1
+....................     } 
+....................             
+....................     if(LEDs.DL1_Color == LED_AMBER && LEDs.DL2_Color == LED_AMBER) 
+029E:  BTFSS  66.0
+02A0:  BRA    02E2
+02A2:  BTFSS  66.1
+02A4:  BRA    02E2
+....................     { 
+....................  
+....................         output_bit(LED_COM, LED_AMBER); // LED_AMBER = COM=HIGH         
+02A6:  BSF    F89.7
+....................         // OBS: DL3 can't be ON when COM is high 
+....................         //turn on/off LEDs as requested (inverted because of AMBER=COM=HIGH) 
+....................         if(LEDs.DL1 == LED_BLINK) output_bit(LED_DL1, blink_toggle); else output_bit(LED_DL1, !LEDs.DL1); 
+02A8:  MOVF   63,W
+02AA:  SUBLW  03
+02AC:  BNZ   02BA
+02AE:  BTFSC  16.2
+02B0:  BRA    02B6
+02B2:  BCF    F8A.3
+02B4:  BRA    02B8
+02B6:  BSF    F8A.3
+02B8:  BRA    02C4
+02BA:  MOVF   63,F
+02BC:  BZ    02C2
+02BE:  BCF    F8A.3
+02C0:  BRA    02C4
+02C2:  BSF    F8A.3
+....................         if(LEDs.DL2 == LED_BLINK) output_bit(LED_DL2, blink_toggle); else output_bit(LED_DL2, !LEDs.DL2);          
+02C4:  MOVF   64,W
+02C6:  SUBLW  03
+02C8:  BNZ   02D6
+02CA:  BTFSC  16.2
+02CC:  BRA    02D2
+02CE:  BCF    F8A.5
+02D0:  BRA    02D4
+02D2:  BSF    F8A.5
+02D4:  BRA    02E0
+02D6:  MOVF   64,F
+02D8:  BZ    02DE
+02DA:  BCF    F8A.5
+02DC:  BRA    02E0
+02DE:  BSF    F8A.5
+....................     }     
+.................... /* 
+....................     else if(LEDs.DL1_Color == LED_AMBER) 
+....................     {            
+....................         if(LEDs.COM_Last == LED_GREEN) output_bit(LED_DL1, LED_GREEN); //turn of DL1, so it don't turn green         
+....................         // take care of DL2 (green) first 
+....................          
+....................         output_bit(LED_COM, LED_GREEN); // LED_GREEN = COM=LOW 
+....................         //turn on/off DL2 as requested (green) 
+....................         if(LEDs.DL2 == LED_BLINK) output_bit(LED_DL2, blink_toggle); else output_bit(LED_DL2, LEDs.DL2);         
+....................         //turn on/off DL3 as requested (RED, needs COM=LOW, GREEN) 
+....................         if(LEDs.DL3 == LED_BLINK) output_bit(LED_DL3, blink_toggle); else output_bit(LED_DL3, LEDs.DL3);         
+....................         //delay_us(400); 
+....................          
+....................         output_bit(LED_COM, LED_AMBER); // LED_AMBER = COM=HIGH 
+....................         LEDs.COM_Last = LED_AMBER; 
+....................         //turn on/off DL1 as requested (inverted because of AMBER=COM=HIGH) 
+....................         if(LEDs.DL1 == LED_BLINK) output_bit(LED_DL1, blink_toggle); else output_bit(LED_DL1, !LEDs.DL1);  
+....................          
+....................     }     
+....................     else if(LEDs.DL2_Color == LED_AMBER) 
+....................     {         
+....................         if(LEDs.COM_Last == LED_GREEN) output_bit(LED_DL2, LED_GREEN); //turn of DL2, so it don't turn green         
+....................         // take care of DL1 (green) first 
+....................         output_bit(LED_COM, LED_GREEN); // LED_GREEN = COM=LOW         
+....................         //turn on/off DL1 as requested (green) 
+....................         if(LEDs.DL1 == LED_BLINK) output_bit(LED_DL1, blink_toggle); else output_bit(LED_DL1, LEDs.DL1);         
+....................         //turn on/off DL3 as requested (RED, needs COM=LOW, GREEN) 
+....................         if(LEDs.DL3 == LED_BLINK) output_bit(LED_DL3, blink_toggle); else output_bit(LED_DL3, LEDs.DL3); 
+....................         //delay_us(400); 
+....................         output_bit(LED_COM, LED_AMBER); // LED_AMBER = COM=HIGH 
+....................         LEDs.COM_Last = LED_AMBER; 
+....................         //turn on/off DL2 as requested (inverted because of AMBER=COM=HIGH) 
+....................         if(LEDs.DL2 == LED_BLINK) output_bit(LED_DL2, blink_toggle); else output_bit(LED_DL2, !LEDs.DL2);  
+....................          
+....................     }     
+....................     */ 
+....................     else // both GREEN 
+02E0:  BRA    0370
+....................     { 
+....................    
+....................         output_bit(LED_COM, LED_GREEN); // LED_GREEN = COM=LOW 
+02E2:  BCF    F89.7
+....................         LEDs.COM_Last = LED_GREEN; 
+02E4:  BCF    66.2
+....................  
+....................         if(LEDs.DL1 == LED_BLINK)  
+02E6:  MOVF   63,W
+02E8:  SUBLW  03
+02EA:  BNZ   02F8
+....................             output_bit(LED_DL1, blink_toggle);  
+02EC:  BTFSC  16.2
+02EE:  BRA    02F4
+02F0:  BCF    F8A.3
+02F2:  BRA    02F6
+02F4:  BSF    F8A.3
+....................         else if(LEDs.DL1 == LED_BLINK_FAST)  
+02F6:  BRA    0314
+02F8:  MOVF   63,W
+02FA:  SUBLW  04
+02FC:  BNZ   030A
+....................             output_bit(LED_DL1, blink_toggle_fast);  
+02FE:  BTFSC  16.3
+0300:  BRA    0306
+0302:  BCF    F8A.3
+0304:  BRA    0308
+0306:  BSF    F8A.3
+....................         else  
+0308:  BRA    0314
+....................             output_bit(LED_DL1, LEDs.DL1); 
+030A:  MOVF   63,F
+030C:  BNZ   0312
+030E:  BCF    F8A.3
+0310:  BRA    0314
+0312:  BSF    F8A.3
+....................  
+....................         if(LEDs.DL2 == LED_BLINK)  
+0314:  MOVF   64,W
+0316:  SUBLW  03
+0318:  BNZ   0326
+....................             output_bit(LED_DL2, blink_toggle);  
+031A:  BTFSC  16.2
+031C:  BRA    0322
+031E:  BCF    F8A.5
+0320:  BRA    0324
+0322:  BSF    F8A.5
+....................         else if(LEDs.DL2 == LED_BLINK_FAST)  
+0324:  BRA    0342
+0326:  MOVF   64,W
+0328:  SUBLW  04
+032A:  BNZ   0338
+....................             output_bit(LED_DL2, blink_toggle_fast);  
+032C:  BTFSC  16.3
+032E:  BRA    0334
+0330:  BCF    F8A.5
+0332:  BRA    0336
+0334:  BSF    F8A.5
+....................         else  
+0336:  BRA    0342
+....................             output_bit(LED_DL2, LEDs.DL2); 
+0338:  MOVF   64,F
+033A:  BNZ   0340
+033C:  BCF    F8A.5
+033E:  BRA    0342
+0340:  BSF    F8A.5
+....................              
+....................         if(LEDs.DL3 == LED_BLINK)  
+0342:  MOVF   65,W
+0344:  SUBLW  03
+0346:  BNZ   0354
+....................             output_bit(LED_DL3, blink_toggle);  
+0348:  BTFSC  16.2
+034A:  BRA    0350
+034C:  BCF    F8A.2
+034E:  BRA    0352
+0350:  BSF    F8A.2
+....................         else if(LEDs.DL3 == LED_BLINK_FAST)  
+0352:  BRA    0370
+0354:  MOVF   65,W
+0356:  SUBLW  04
+0358:  BNZ   0366
+....................             output_bit(LED_DL3, blink_toggle_fast);  
+035A:  BTFSC  16.3
+035C:  BRA    0362
+035E:  BCF    F8A.2
+0360:  BRA    0364
+0362:  BSF    F8A.2
+....................         else  
+0364:  BRA    0370
+....................             output_bit(LED_DL3, LEDs.DL3); 
+0366:  MOVF   65,F
+0368:  BNZ   036E
+036A:  BCF    F8A.2
+036C:  BRA    0370
+036E:  BSF    F8A.2
+....................                                      
+....................     } 
+....................      
+....................      
+....................     //clear_interrupt(INT_TIMER2); 
+....................     //enable_interrupts(INT_TIMER2); 
+.................... } 
+....................  
+0370:  BCF    F9E.1
+0372:  GOTO   0078
+.................... #int_TIMER3 
+.................... void  TIMER3_isr(void) // 131ms 
+.................... { 
+....................     setLEDs(); 
+*
+03F0:  BRA    0376
+.................... } 
+....................  
+.................... #include "common.h" 
+.................... #define IS_LEAP(year) (year%4 == 0) 
+03F2:  BCF    FA1.1
+03F4:  GOTO   0078
+.................... unsigned int16 getAvgADC(unsigned int8 channel, unsigned int8 samples); 
+.................... void fillEEPROM(unsigned int8 byte_start, unsigned int8 byte_end); 
+.................... void clearEEPROM(unsigned int8 byte_start, unsigned int8 byte_end); 
+.................... void eeprom_put(int *ptr,int num,int addr); 
+.................... void eeprom_get(int *ptr,int num,int addr); 
+....................  
+.................... #include "common.c" 
+.................... /** 
+.................... * Read X samples from ADC, average them and return result 
+.................... * If samples=1, just one reading is done (rearly used) 
+.................... **/ 
+.................... unsigned int16 getAvgADC(unsigned int8 channel, unsigned int8 samples) 
+.................... { 
+*
+08FC:  CLRF   xB4
+08FE:  CLRF   xB3
+....................    unsigned int16 temp_adc_value=0; 
+....................    unsigned int8 x; 
+....................     
+....................    if(samples == 0) samples = 20; 
+0900:  MOVF   xB2,F
+0902:  BNZ   0908
+0904:  MOVLW  14
+0906:  MOVWF  xB2
+....................     
+....................    for (x=0;x<samples;x++) 
+0908:  CLRF   xB5
+090A:  MOVF   xB2,W
+090C:  SUBWF  xB5,W
+090E:  BC    093E
+....................    { 
+....................       set_adc_channel ( channel ); 
+0910:  RLCF   xB1,W
+0912:  MOVWF  00
+0914:  RLCF   00,F
+0916:  MOVLW  FC
+0918:  ANDWF  00,F
+091A:  MOVF   FC2,W
+091C:  ANDLW  E3
+091E:  IORWF  00,W
+0920:  MOVWF  FC2
+....................       delay_us(50); 
+0922:  CLRWDT
+0924:  MOVLW  10
+0926:  MOVWF  00
+0928:  DECFSZ 00,F
+092A:  BRA    0928
+....................       temp_adc_value += read_adc(); 
+092C:  BSF    FC2.1
+092E:  BTFSC  FC2.1
+0930:  BRA    092E
+0932:  MOVF   FC3,W
+0934:  ADDWF  xB3,F
+0936:  MOVF   FC4,W
+0938:  ADDWFC xB4,F
+....................    } 
+093A:  INCF   xB5,F
+093C:  BRA    090A
+....................  
+....................    temp_adc_value /= samples; 
+093E:  MOVFF  B4,B7
+0942:  MOVFF  B3,B6
+0946:  CLRF   xB9
+0948:  MOVFF  B2,B8
+094C:  BRA    08B8
+094E:  MOVFF  02,B4
+0952:  MOVFF  01,B3
+....................  
+....................    if (temp_adc_value < 1) temp_adc_value=1; // never divide by zero: 
+0956:  MOVF   xB3,F
+0958:  BNZ   0964
+095A:  MOVF   xB4,F
+095C:  BNZ   0964
+095E:  CLRF   xB4
+0960:  MOVLW  01
+0962:  MOVWF  xB3
+....................  
+....................    return temp_adc_value; 
+0964:  MOVFF  B3,01
+0968:  MOVFF  B4,02
+.................... } 
+096C:  RETLW  00
+....................  
+.................... /** 
+.................... * Set all bits in given range in data EEPROM 
+.................... */ 
+.................... void fillEEPROM(unsigned int8 byte_start, unsigned int8 byte_end) 
+.................... { 
+....................     unsigned int8 x; 
+....................    for(x=byte_start;x<byte_end;x++) 
+....................       write_eeprom(x, 0xFF); 
+.................... } 
+....................  
+.................... /** 
+.................... * Clear all bits in given range in data EEPROM 
+.................... */ 
+.................... void clearEEPROM(unsigned int8 byte_start, unsigned int8 byte_end) 
+.................... { 
+....................    unsigned int8 x; 
+....................    for(x=byte_start;x<byte_end;x++) 
+....................       write_eeprom(x, 0x00); 
+.................... } 
+....................  
+.................... /* 
+.................... Generic EPROM save/retrieve routines, works good for hole structs etc 
+.................... Struct Example: 
+....................  
+.................... struct PID { 
+....................    int8 test; 
+.................... } pid_data; 
+.................... eeprom_put(&pid_data,sizeof(struct PID),0x00);  
+.................... eeprom_get(&pid_data,sizeof(struct PID),0x00);  
+.................... */ 
+....................  
+.................... /** 
+.................... * Write num bytes from array/stuct pointer to EEPROM, starting at addr 
+.................... */ 
+.................... void eeprom_put(int *ptr,int num,int addr) 
+.................... { 
+....................    unsigned int8 count; 
+....................    for (count=0;count<num;count++) { 
+....................       write_eeprom(addr+count,*ptr++); 
+....................    } 
+.................... }  
+....................  
+.................... /** 
+.................... * Read from EEPROM starting at addr, into data to array/stuct pointer  
+.................... */ 
+.................... void eeprom_get(int *ptr,int num,int addr) 
+.................... { 
+....................    unsigned int8 count; 
+....................    for (count=0;count<num;count++) { 
+....................       *ptr++=read_eeprom(addr+count); 
+....................    } 
+.................... } 
+....................  
+.................... #include "Sensors.h" 
+.................... #separate 
+.................... void readTempFreezer(void); 
+.................... #separate 
+.................... void readTempFridge(void); 
+.................... #separate 
+.................... void readPotFreezer(void); 
+.................... #separate 
+.................... void readPotFridge(void); 
+.................... #separate 
+.................... signed int8 SensorADToDegrees(int16 ad_val, int1 is_fridge); 
+....................  
+.................... #include "Sensors.c" 
+.................... /** 
+.................... *  
+.................... */ 
+.................... #separate 
+.................... void readTempFreezer(void) 
+.................... {     
+....................     signed int8 tmp; 
+....................                  
+....................     EnableSensors; 
+*
+0B36:  BCF    F8A.7
+0B38:  BSF    xA0.7
+....................     set_tris_a(TRISA_SAMPLE_SENSORS);  
+0B3A:  MOVLW  33
+0B3C:  MOVWF  F92
+....................     set_tris_b(TRISB_SAMPLE_SENSORS);  
+0B3E:  MOVLW  53
+0B40:  MOVWF  F93
+....................     delay_ms(10);                
+0B42:  MOVLW  0A
+0B44:  MOVWF  xB0
+0B46:  RCALL  0786
+....................     adc_val = getAvgADC(ADC_FREEZER, 100); 
+0B48:  MOVLW  04
+0B4A:  MOVWF  xB1
+0B4C:  MOVLW  64
+0B4E:  MOVWF  xB2
+0B50:  RCALL  08FC
+0B52:  MOVFF  02,27
+0B56:  MOVFF  01,26
+....................                   
+....................          
+....................     SampleFreezer.samples[SampleFreezer.index] = SensorADToDegrees(adc_val, NO); 
+0B5A:  CLRF   03
+0B5C:  MOVF   x85,W
+0B5E:  ADDLW  87
+0B60:  MOVWF  01
+0B62:  MOVLW  00
+0B64:  ADDWFC 03,F
+0B66:  MOVFF  01,B0
+0B6A:  MOVFF  03,B1
+0B6E:  MOVFF  27,B3
+0B72:  MOVFF  26,B2
+0B76:  CLRF   xB4
+0B78:  RCALL  0A3E
+0B7A:  MOVFF  B1,FEA
+0B7E:  MOVFF  B0,FE9
+0B82:  MOVFF  01,FEF
+....................     //printf(STREAM_DEBUG, "FRYS sample #%u:%d\r\n", SampleFreezer.index, SampleFreezer.samples[SampleFreezer.index]);          
+....................     SampleFreezer.index++; 
+0B86:  INCF   x85,F
+....................      
+....................     if(SampleFreezer.index == SAMPLE_COUNT)   
+0B88:  MOVF   x85,W
+0B8A:  SUBLW  03
+0B8C:  BTFSS  FD8.2
+0B8E:  BRA    0CF6
+....................     { 
+....................  
+....................         #ifdef DEBUG 
+....................         //printf(STREAM_DEBUG, "** FRYS START\r\n");      
+....................         #endif 
+....................          
+....................         SampleFreezer.avg_adc_value = adc_val; 
+0B90:  MOVFF  27,94
+0B94:  MOVFF  26,93
+....................          
+....................         max_val=-127; 
+0B98:  MOVLW  81
+0B9A:  MOVWF  29
+....................         min_val=127; 
+0B9C:  MOVLW  7F
+0B9E:  MOVWF  28
+....................         for(x=0; x<SampleFreezer.index; x++) 
+0BA0:  CLRF   25
+0BA2:  MOVF   x85,W
+0BA4:  SUBWF  25,W
+0BA6:  BC    0BE6
+....................         { 
+....................             tmp = (signed int8)SampleFreezer.samples[x]; 
+0BA8:  CLRF   03
+0BAA:  MOVF   25,W
+0BAC:  ADDLW  87
+0BAE:  MOVWF  FE9
+0BB0:  MOVLW  00
+0BB2:  ADDWFC 03,W
+0BB4:  MOVWF  FEA
+0BB6:  MOVFF  FEF,AF
+....................             if(min_val >= tmp) min_val = tmp; 
+0BBA:  MOVF   xAF,W
+0BBC:  XORLW  80
+0BBE:  MOVWF  00
+0BC0:  MOVF   28,W
+0BC2:  XORLW  80
+0BC4:  SUBWF  00,W
+0BC6:  BZ    0BCA
+0BC8:  BC    0BCE
+0BCA:  MOVFF  AF,28
+....................             if(max_val <= tmp) max_val = tmp; 
+0BCE:  MOVF   29,W
+0BD0:  XORLW  80
+0BD2:  MOVWF  00
+0BD4:  MOVF   xAF,W
+0BD6:  XORLW  80
+0BD8:  SUBWF  00,W
+0BDA:  BZ    0BDE
+0BDC:  BC    0BE2
+0BDE:  MOVFF  AF,29
+....................         }     
+0BE2:  INCF   25,F
+0BE4:  BRA    0BA2
+....................          
+....................         if(Temps.freezer_real != NOT_READY && min_val < max_val) 
+0BE6:  MOVF   5E,W
+0BE8:  SUBLW  9B
+0BEA:  BZ    0C14
+0BEC:  MOVF   28,W
+0BEE:  XORLW  80
+0BF0:  MOVWF  00
+0BF2:  MOVF   29,W
+0BF4:  XORLW  80
+0BF6:  SUBWF  00,W
+0BF8:  BC    0C14
+....................             if(max_val - min_val >=3 && SampleFreezer.tries < 3) // too big diff, but not too many tries, reject samples! 
+0BFA:  MOVF   28,W
+0BFC:  SUBWF  29,W
+0BFE:  MOVWF  00
+0C00:  BTFSC  FE8.7
+0C02:  BRA    0C14
+0C04:  MOVF   00,W
+0C06:  SUBLW  02
+0C08:  BC    0C14
+0C0A:  MOVF   x86,W
+0C0C:  SUBLW  02
+0C0E:  BNC   0C14
+....................             { 
+....................                 SampleFreezer.index = 0;             
+0C10:  CLRF   x85
+....................                 SampleFreezer.tries++; 
+0C12:  INCF   x86,F
+....................                 //printf(STREAM_DEBUG, "Big diff (%d-%d), skip\r\n", max_val, min_val);      
+....................             } 
+....................          
+....................         if(SampleFreezer.index == SAMPLE_COUNT) // We got a complete sample set, calc avg                         
+0C14:  MOVF   x85,W
+0C16:  SUBLW  03
+0C18:  BTFSS  FD8.2
+0C1A:  BRA    0CF6
+....................         {                 
+....................             Temps.freezer_real = 0; 
+0C1C:  CLRF   5E
+....................  
+....................             for(x=0; x<SampleFreezer.index; x++) 
+0C1E:  CLRF   25
+0C20:  MOVF   x85,W
+0C22:  SUBWF  25,W
+0C24:  BC    0C3C
+....................                 Temps.freezer_real += SampleFreezer.samples[x];                 
+0C26:  CLRF   03
+0C28:  MOVF   25,W
+0C2A:  ADDLW  87
+0C2C:  MOVWF  FE9
+0C2E:  MOVLW  00
+0C30:  ADDWFC 03,W
+0C32:  MOVWF  FEA
+0C34:  MOVF   FEF,W
+0C36:  ADDWF  5E,F
+0C38:  INCF   25,F
+0C3A:  BRA    0C20
+....................  
+....................             Temps.freezer_real /= (signed int8)(SAMPLE_COUNT); 
+0C3C:  MOVFF  5E,B0
+0C40:  MOVLW  03
+0C42:  MOVWF  xB1
+0C44:  RCALL  0AEE
+0C46:  MOVFF  01,5E
+....................  
+....................             SampleFreezer.index = 0; 
+0C4A:  CLRF   x85
+....................             SampleFreezer.tries = 0; 
+0C4C:  CLRF   x86
+....................  
+....................          
+....................             if(SampleFreezer.do_final_sample) 
+0C4E:  BTFSS  x92.1
+0C50:  BRA    0C68
+....................             {                 
+....................                 //printf(STREAM_DEBUG, "Added l_sample #%u:%d\r\n", SampleFreezer.last_index, Temps.freezer_real);              
+....................                 SampleFreezer.last_samples[SampleFreezer.last_index] = Temps.freezer_real; 
+0C52:  CLRF   03
+0C54:  MOVF   x8A,W
+0C56:  ADDLW  8C
+0C58:  MOVWF  FE9
+0C5A:  MOVLW  00
+0C5C:  ADDWFC 03,W
+0C5E:  MOVWF  FEA
+0C60:  MOVFF  5E,FEF
+....................                 SampleFreezer.last_index++; 
+0C64:  INCF   x8A,F
+....................                 SampleFreezer.do_final_sample = 0; 
+0C66:  BCF    x92.1
+....................             }     
+....................              
+....................              
+....................             // we need SAMPLE_INTERVAL_COUNT equal samples with 10 secs between, before we approve it and set do any actions 
+....................             if(SampleFreezer.last_index==SAMPLE_INTERVAL_COUNT) 
+0C68:  MOVF   x8A,W
+0C6A:  SUBLW  06
+0C6C:  BNZ   0CF6
+....................             { 
+....................                 max_val=-127; 
+0C6E:  MOVLW  81
+0C70:  MOVWF  29
+....................                 min_val=127; 
+0C72:  MOVLW  7F
+0C74:  MOVWF  28
+....................                 for(x=0; x<SampleFreezer.last_index; x++) 
+0C76:  CLRF   25
+0C78:  MOVF   x8A,W
+0C7A:  SUBWF  25,W
+0C7C:  BC    0CBC
+....................                 {                                 
+....................                     tmp = (signed int8)SampleFreezer.last_samples[x]; 
+0C7E:  CLRF   03
+0C80:  MOVF   25,W
+0C82:  ADDLW  8C
+0C84:  MOVWF  FE9
+0C86:  MOVLW  00
+0C88:  ADDWFC 03,W
+0C8A:  MOVWF  FEA
+0C8C:  MOVFF  FEF,AF
+....................                     if(min_val >= tmp) min_val = tmp; 
+0C90:  MOVF   xAF,W
+0C92:  XORLW  80
+0C94:  MOVWF  00
+0C96:  MOVF   28,W
+0C98:  XORLW  80
+0C9A:  SUBWF  00,W
+0C9C:  BZ    0CA0
+0C9E:  BC    0CA4
+0CA0:  MOVFF  AF,28
+....................                     if(max_val <= tmp) max_val = tmp;                     
+0CA4:  MOVF   29,W
+0CA6:  XORLW  80
+0CA8:  MOVWF  00
+0CAA:  MOVF   xAF,W
+0CAC:  XORLW  80
+0CAE:  SUBWF  00,W
+0CB0:  BZ    0CB4
+0CB2:  BC    0CB8
+0CB4:  MOVFF  AF,29
+....................                 }     
+0CB8:  INCF   25,F
+0CBA:  BRA    0C78
+....................                  
+....................                 if(min_val == max_val || SampleFreezer.last_tries > 2)  
+0CBC:  MOVF   29,W
+0CBE:  SUBWF  28,W
+0CC0:  BZ    0CC8
+0CC2:  MOVF   x8B,W
+0CC4:  SUBLW  02
+0CC6:  BC    0CF2
+....................                 { 
+....................                     SampleFreezer.do_actions = 1; // OKAY to to any actions, temp seems stable 
+0CC8:  BSF    x92.0
+....................                     SampleFreezer.last_tries = 0;                     
+0CCA:  CLRF   x8B
+....................                      
+....................                     if(Status.freezer_running)     
+0CCC:  BTFSS  xA0.3
+0CCE:  BRA    0CD8
+....................                         Temps.freezer_calc = Temps.freezer_real + config.freezer_run_temp_offset; 
+0CD0:  MOVF   56,W
+0CD2:  ADDWF  5E,W
+0CD4:  MOVWF  5F
+....................                     else if(!Status.freezer_running && Status.freezer_stopped_mins < 5)					// use "run" params for a few minutes after stop, while sensor "de-ices" 
+0CD6:  BRA    0CF0
+0CD8:  BTFSC  xA0.3
+0CDA:  BRA    0CEA
+0CDC:  MOVF   xA9,W
+0CDE:  SUBLW  04
+0CE0:  BNC   0CEA
+....................                     	Temps.freezer_calc = Temps.freezer_real + config.freezer_run_temp_offset; 
+0CE2:  MOVF   56,W
+0CE4:  ADDWF  5E,W
+0CE6:  MOVWF  5F
+....................                     else 
+0CE8:  BRA    0CF0
+....................                         Temps.freezer_calc = Temps.freezer_real + config.freezer_stop_temp_offset;                     
+0CEA:  MOVF   57,W
+0CEC:  ADDWF  5E,W
+0CEE:  MOVWF  5F
+....................                 }     
+....................                 else 
+0CF0:  BRA    0CF4
+....................                 { 
+....................                                  
+....................                     SampleFreezer.last_tries++; 
+0CF2:  INCF   x8B,F
+....................  
+....................                     //printf(STREAM_DEBUG, "DIFF last_samples: %d-%d\r\n", min_val, max_val);  
+....................                 } 
+....................                 SampleFreezer.last_index = 0;     
+0CF4:  CLRF   x8A
+....................             } 
+....................          
+....................         } 
+....................     } 
+....................                   
+....................     set_tris_a(TRISA_NORMAL); 
+0CF6:  MOVLW  33
+0CF8:  MOVWF  F92
+....................     set_tris_b(TRISB_NORMAL);  
+0CFA:  MOVLW  53
+0CFC:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply     
+0CFE:  CLRWDT
+0D00:  MOVLW  10
+0D02:  MOVWF  00
+0D04:  DECFSZ 00,F
+0D06:  BRA    0D04
+....................     DisableSensors; 
+0D08:  BSF    F8A.7
+0D0A:  BCF    xA0.7
+....................      
+....................      
+....................      
+.................... } 
+0D0C:  GOTO   1BDA (RETURN)
+....................  
+....................  
+.................... #separate 
+.................... void readTempFridge(void) 
+.................... { 
+....................     signed int8 tmp; 
+....................                  
+....................      
+....................     set_tris_a(TRISA_SAMPLE_SENSORS);  
+0D10:  MOVLW  33
+0D12:  MOVWF  F92
+....................     set_tris_b(TRISB_SAMPLE_SENSORS);  
+0D14:  MOVLW  53
+0D16:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply.... 2 hours troubleshooting... 
+0D18:  CLRWDT
+0D1A:  MOVLW  10
+0D1C:  MOVWF  00
+0D1E:  DECFSZ 00,F
+0D20:  BRA    0D1E
+....................     EnableSensors; 
+0D22:  BCF    F8A.7
+0D24:  BSF    xA0.7
+....................     output_low(POT_FRIDGE_PULLDOWN); // and pull down voltage divider resistors 
+0D26:  BCF    F89.0
+....................     delay_ms(10); // Let LM335A stabilize    
+0D28:  MOVLW  0A
+0D2A:  MOVWF  xB0
+0D2C:  RCALL  0786
+....................     adc_val = getAvgADC(ADC_FRIDGE, 100); 
+0D2E:  MOVLW  05
+0D30:  MOVWF  xB1
+0D32:  MOVLW  64
+0D34:  MOVWF  xB2
+0D36:  RCALL  08FC
+0D38:  MOVFF  02,27
+0D3C:  MOVFF  01,26
+....................  
+....................  
+....................     SampleFridge.samples[SampleFridge.index] = SensorADToDegrees(adc_val, YES); 
+0D40:  CLRF   03
+0D42:  MOVF   6A,W
+0D44:  ADDLW  6C
+0D46:  MOVWF  01
+0D48:  MOVLW  00
+0D4A:  ADDWFC 03,F
+0D4C:  MOVFF  01,B0
+0D50:  MOVFF  03,B1
+0D54:  MOVFF  27,B3
+0D58:  MOVFF  26,B2
+0D5C:  MOVLW  01
+0D5E:  MOVWF  xB4
+0D60:  RCALL  0A3E
+0D62:  MOVFF  B1,FEA
+0D66:  MOVFF  B0,FE9
+0D6A:  MOVFF  01,FEF
+....................     //printf(STREAM_DEBUG, "KJØL sample #%u:%d\r\n", SampleFridge.index, SampleFridge.samples[SampleFridge.index]);          
+....................     SampleFridge.index++; 
+0D6E:  INCF   6A,F
+....................      
+....................      
+....................     if(SampleFridge.index == SAMPLE_COUNT)   
+0D70:  MOVF   6A,W
+0D72:  SUBLW  03
+0D74:  BTFSS  FD8.2
+0D76:  BRA    0ECA
+....................     { 
+....................         //printf(STREAM_DEBUG, "** KJØL START\r\n");      
+....................          
+....................         SampleFridge.avg_adc_value = adc_val; 
+0D78:  MOVFF  27,79
+0D7C:  MOVFF  26,78
+....................          
+....................         max_val=-127; 
+0D80:  MOVLW  81
+0D82:  MOVWF  29
+....................         min_val=127; 
+0D84:  MOVLW  7F
+0D86:  MOVWF  28
+....................         for(x=0; x<SampleFridge.index; x++) 
+0D88:  CLRF   25
+0D8A:  MOVF   6A,W
+0D8C:  SUBWF  25,W
+0D8E:  BC    0DCE
+....................         { 
+....................             tmp = (signed int8)SampleFridge.samples[x]; 
+0D90:  CLRF   03
+0D92:  MOVF   25,W
+0D94:  ADDLW  6C
+0D96:  MOVWF  FE9
+0D98:  MOVLW  00
+0D9A:  ADDWFC 03,W
+0D9C:  MOVWF  FEA
+0D9E:  MOVFF  FEF,AF
+....................             if(min_val >= tmp) min_val = tmp; 
+0DA2:  MOVF   xAF,W
+0DA4:  XORLW  80
+0DA6:  MOVWF  00
+0DA8:  MOVF   28,W
+0DAA:  XORLW  80
+0DAC:  SUBWF  00,W
+0DAE:  BZ    0DB2
+0DB0:  BC    0DB6
+0DB2:  MOVFF  AF,28
+....................             if(max_val <= tmp) max_val = tmp;             
+0DB6:  MOVF   29,W
+0DB8:  XORLW  80
+0DBA:  MOVWF  00
+0DBC:  MOVF   xAF,W
+0DBE:  XORLW  80
+0DC0:  SUBWF  00,W
+0DC2:  BZ    0DC6
+0DC4:  BC    0DCA
+0DC6:  MOVFF  AF,29
+....................         }     
+0DCA:  INCF   25,F
+0DCC:  BRA    0D8A
+....................          
+....................         if(Temps.fridge_real != NOT_READY && min_val < max_val) 
+0DCE:  MOVF   5A,W
+0DD0:  SUBLW  9B
+0DD2:  BZ    0DFC
+0DD4:  MOVF   28,W
+0DD6:  XORLW  80
+0DD8:  MOVWF  00
+0DDA:  MOVF   29,W
+0DDC:  XORLW  80
+0DDE:  SUBWF  00,W
+0DE0:  BC    0DFC
+....................             if(max_val - min_val >=3 && SampleFridge.tries < 3) // too big diff, but not too many tries, reject samples! 
+0DE2:  MOVF   28,W
+0DE4:  SUBWF  29,W
+0DE6:  MOVWF  00
+0DE8:  BTFSC  FE8.7
+0DEA:  BRA    0DFC
+0DEC:  MOVF   00,W
+0DEE:  SUBLW  02
+0DF0:  BC    0DFC
+0DF2:  MOVF   6B,W
+0DF4:  SUBLW  02
+0DF6:  BNC   0DFC
+....................             { 
+....................                 SampleFridge.index = 0;             
+0DF8:  CLRF   6A
+....................                 SampleFridge.tries++; 
+0DFA:  INCF   6B,F
+....................                 //printf(STREAM_DEBUG, "big diff (%d-%d), skip\r\n", max_val, min_val);          
+....................             } 
+....................          
+....................         if(SampleFridge.index == SAMPLE_COUNT) // We got a complete sample set, calc avg                         
+0DFC:  MOVF   6A,W
+0DFE:  SUBLW  03
+0E00:  BNZ   0ECA
+....................         {                 
+....................             Temps.fridge_real = 0; 
+0E02:  CLRF   5A
+....................                          
+....................             for(x=0; x<SampleFridge.index; x++) 
+0E04:  CLRF   25
+0E06:  MOVF   6A,W
+0E08:  SUBWF  25,W
+0E0A:  BC    0E22
+....................                 Temps.fridge_real += SampleFridge.samples[x];                 
+0E0C:  CLRF   03
+0E0E:  MOVF   25,W
+0E10:  ADDLW  6C
+0E12:  MOVWF  FE9
+0E14:  MOVLW  00
+0E16:  ADDWFC 03,W
+0E18:  MOVWF  FEA
+0E1A:  MOVF   FEF,W
+0E1C:  ADDWF  5A,F
+0E1E:  INCF   25,F
+0E20:  BRA    0E06
+....................                  
+....................             Temps.fridge_real /= (signed int8)(SAMPLE_COUNT);            
+0E22:  MOVFF  5A,B0
+0E26:  MOVLW  03
+0E28:  MOVWF  xB1
+0E2A:  RCALL  0AEE
+0E2C:  MOVFF  01,5A
+....................  
+....................             SampleFridge.index = 0; 
+0E30:  CLRF   6A
+....................             SampleFridge.tries = 0; 
+0E32:  CLRF   6B
+....................              
+....................             if(SampleFridge.do_final_sample) 
+0E34:  BTFSS  77.1
+0E36:  BRA    0E4E
+....................             {                 
+....................                 //printf(STREAM_DEBUG, "Added l_sample #%u:%d\r\n", SampleFridge.last_index, Temps.fridge);              
+....................                 SampleFridge.last_samples[SampleFridge.last_index] = Temps.fridge_real; 
+0E38:  CLRF   03
+0E3A:  MOVF   6F,W
+0E3C:  ADDLW  71
+0E3E:  MOVWF  FE9
+0E40:  MOVLW  00
+0E42:  ADDWFC 03,W
+0E44:  MOVWF  FEA
+0E46:  MOVFF  5A,FEF
+....................                 SampleFridge.last_index++; 
+0E4A:  INCF   6F,F
+....................                 SampleFridge.do_final_sample = 0; 
+0E4C:  BCF    77.1
+....................             }     
+....................              
+....................              
+....................             // we need SAMPLE_INTERVAL_COUNT equal samples with 10 secs between, before we approve it and set do any actions 
+....................             if(SampleFridge.last_index==SAMPLE_INTERVAL_COUNT) 
+0E4E:  MOVF   6F,W
+0E50:  SUBLW  06
+0E52:  BNZ   0ECA
+....................             { 
+....................                 max_val=-127; 
+0E54:  MOVLW  81
+0E56:  MOVWF  29
+....................                 min_val=127; 
+0E58:  MOVLW  7F
+0E5A:  MOVWF  28
+....................                 for(x=0; x<SampleFridge.last_index; x++) 
+0E5C:  CLRF   25
+0E5E:  MOVF   6F,W
+0E60:  SUBWF  25,W
+0E62:  BC    0EA2
+....................                 {                                 
+....................                     tmp = (signed int8)SampleFridge.last_samples[x]; 
+0E64:  CLRF   03
+0E66:  MOVF   25,W
+0E68:  ADDLW  71
+0E6A:  MOVWF  FE9
+0E6C:  MOVLW  00
+0E6E:  ADDWFC 03,W
+0E70:  MOVWF  FEA
+0E72:  MOVFF  FEF,AF
+....................                     if(min_val >= tmp) min_val = tmp; 
+0E76:  MOVF   xAF,W
+0E78:  XORLW  80
+0E7A:  MOVWF  00
+0E7C:  MOVF   28,W
+0E7E:  XORLW  80
+0E80:  SUBWF  00,W
+0E82:  BZ    0E86
+0E84:  BC    0E8A
+0E86:  MOVFF  AF,28
+....................                     if(max_val <= tmp) max_val = tmp;                     
+0E8A:  MOVF   29,W
+0E8C:  XORLW  80
+0E8E:  MOVWF  00
+0E90:  MOVF   xAF,W
+0E92:  XORLW  80
+0E94:  SUBWF  00,W
+0E96:  BZ    0E9A
+0E98:  BC    0E9E
+0E9A:  MOVFF  AF,29
+....................                 }     
+0E9E:  INCF   25,F
+0EA0:  BRA    0E5E
+....................                  
+....................                 if(min_val == max_val || SampleFridge.last_tries > 2)  
+0EA2:  MOVF   29,W
+0EA4:  SUBWF  28,W
+0EA6:  BZ    0EAE
+0EA8:  MOVF   70,W
+0EAA:  SUBLW  02
+0EAC:  BC    0EC6
+....................                 { 
+....................                     SampleFridge.do_actions = 1; // OKAY to to any actions, temp seems stable 
+0EAE:  BSF    77.0
+....................                     SampleFridge.last_tries = 0; 
+0EB0:  CLRF   70
+....................     
+....................                     if(Status.fridge_running) 
+0EB2:  BTFSS  xA0.2
+0EB4:  BRA    0EBE
+....................                         Temps.fridge_calc = Temps.fridge_real + config.fridge_run_temp_offset; 
+0EB6:  MOVF   58,W
+0EB8:  ADDWF  5A,W
+0EBA:  MOVWF  5B
+....................                     else 
+0EBC:  BRA    0EC4
+....................                         Temps.fridge_calc = Temps.fridge_real + config.fridge_stop_temp_offset;                                                          
+0EBE:  MOVF   59,W
+0EC0:  ADDWF  5A,W
+0EC2:  MOVWF  5B
+....................                 }     
+....................                 else 
+0EC4:  BRA    0EC8
+....................                 {                     
+....................                     SampleFridge.last_tries++; 
+0EC6:  INCF   70,F
+....................                     //printf(STREAM_DEBUG, "DIFF last_samples: %d-%d\r\n", min_val, max_val);  
+....................                 } 
+....................                 SampleFridge.last_index = 0;     
+0EC8:  CLRF   6F
+....................             } 
+....................                  
+....................              
+....................         } 
+....................     } 
+....................  
+....................     #ifdef DEBUG 
+....................     //printf(STREAM_DEBUG, "Fridge REAL Temp, Stop/Run-mins: %d, %u/%Lu\r\n", Temps.fridge, fridge_stopped_mins, fridge_run_mins);              
+....................     //printf(STREAM_DEBUG, "** KJØL STOPP\r\n");              
+....................     #endif 
+....................  
+....................     set_tris_a(TRISA_NORMAL); 
+0ECA:  MOVLW  33
+0ECC:  MOVWF  F92
+....................     set_tris_b(TRISB_NORMAL);  
+0ECE:  MOVLW  53
+0ED0:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply     
+0ED2:  CLRWDT
+0ED4:  MOVLW  10
+0ED6:  MOVWF  00
+0ED8:  DECFSZ 00,F
+0EDA:  BRA    0ED8
+....................     DisableSensors; 
+0EDC:  BSF    F8A.7
+0EDE:  BCF    xA0.7
+....................      
+.................... }     
+0EE0:  GOTO   1BDE (RETURN)
+....................  
+....................  
+.................... /** 
+.................... * Read the pot's value, this is used for alarm and turning on/off a motor at given temp 
+.................... *   
+.................... */ 
+.................... #separate 
+.................... void readPotFreezer(void) 
+.................... { 
+....................     // tris also set pulldown's to output 
+....................     set_tris_a(TRISA_SAMPLE_POTS);  
+*
+107C:  MOVLW  32
+107E:  MOVWF  F92
+....................     set_tris_b(TRISB_SAMPLE_POTS);  
+1080:  MOVLW  13
+1082:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply.... 2 hours troubleshooting... 
+1084:  CLRWDT
+1086:  MOVLW  10
+1088:  MOVWF  00
+108A:  DECFSZ 00,F
+108C:  BRA    108A
+....................              
+....................     EnableSensors; // we need to power the pots via transistor (and R6 1K) to read them, just like the sensors... 
+108E:  BCF    F8A.7
+1090:  BSF    xA0.7
+....................      
+....................     output_low(POT_FREEZER_PULLDOWN); // and pull down voltage divider resistors 
+1092:  BCF    F8A.6
+....................     delay_ms(10);  // Let LM335A stabilize 
+1094:  MOVLW  0A
+1096:  MOVWF  xB0
+1098:  CALL   0786
+....................      
+....................     /*********** v1.9: Average calc **************/     
+....................     SampleFreezerPot.samples[SampleFreezerPot.index] = getAvgADC(ADC_POT_FREEZER, 100); 
+109C:  BCF    FD8.0
+109E:  RLCF   x95,W
+10A0:  CLRF   03
+10A2:  ADDLW  96
+10A4:  MOVWF  01
+10A6:  MOVLW  00
+10A8:  ADDWFC 03,F
+10AA:  MOVFF  01,AF
+10AE:  MOVFF  03,B0
+10B2:  MOVLW  01
+10B4:  MOVWF  xB1
+10B6:  MOVLW  64
+10B8:  MOVWF  xB2
+10BA:  RCALL  08FC
+10BC:  MOVFF  B0,FEA
+10C0:  MOVFF  AF,FE9
+10C4:  MOVFF  02,FEC
+10C8:  MOVF   FED,F
+10CA:  MOVFF  01,FEF
+....................     output_float(POT_FREEZER_PULLDOWN); 
+10CE:  BSF    F93.6
+....................     //printf(STREAM_DEBUG, "FRYS POT sample #%u:%Lu\r\n", SampleFreezerPot.index, SampleFreezerPot.samples[SampleFreezerPot.index]);          
+....................     SampleFreezerPot.index++; 
+10D0:  INCF   x95,F
+....................      
+....................     if(SampleFreezerPot.index == SAMPLE_COUNT_POT) // We got a complete sample set, calc avg                         
+10D2:  MOVF   x95,W
+10D4:  SUBLW  04
+10D6:  BTFSS  FD8.2
+10D8:  BRA    1226
+....................     {                 
+....................         adc_val = 0; 
+10DA:  CLRF   27
+10DC:  CLRF   26
+....................                      
+....................         for(x=0; x<SampleFreezerPot.index; x++) 
+10DE:  CLRF   25
+10E0:  MOVF   x95,W
+10E2:  SUBWF  25,W
+10E4:  BC    1108
+....................             adc_val += SampleFreezerPot.samples[x];                 
+10E6:  BCF    FD8.0
+10E8:  RLCF   25,W
+10EA:  CLRF   03
+10EC:  ADDLW  96
+10EE:  MOVWF  FE9
+10F0:  MOVLW  00
+10F2:  ADDWFC 03,W
+10F4:  MOVWF  FEA
+10F6:  MOVFF  FEC,03
+10FA:  MOVF   FED,F
+10FC:  MOVF   FEF,W
+10FE:  ADDWF  26,F
+1100:  MOVF   03,W
+1102:  ADDWFC 27,F
+1104:  INCF   25,F
+1106:  BRA    10E0
+....................              
+....................         adc_val /= (unsigned int16)SAMPLE_COUNT_POT;            
+1108:  RRCF   27,F
+110A:  RRCF   26,F
+110C:  RRCF   27,F
+110E:  RRCF   26,F
+1110:  MOVLW  3F
+1112:  ANDWF  27,F
+....................  
+....................         adc_val += 40L; //30 compensate for adjusted VDD 
+1114:  MOVLW  28
+1116:  ADDWF  26,F
+1118:  MOVLW  00
+111A:  ADDWFC 27,F
+....................          
+....................         SampleFreezerPot.index = 0;         
+111C:  CLRF   x95
+....................  
+....................         SampleFreezerPot.avg_adc_value = adc_val; 
+111E:  MOVFF  27,9F
+1122:  MOVFF  26,9E
+....................              
+....................         //pot_freezer = FridgeLookup[1/ adc_val_freezer_pot / 8]; 
+....................         if(adc_val > 745) Temps.pot_freezer = POT_OFF; 
+1126:  MOVF   27,W
+1128:  SUBLW  01
+112A:  BC    113C
+112C:  XORLW  FF
+112E:  BNZ   1136
+1130:  MOVF   26,W
+1132:  SUBLW  E9
+1134:  BC    113C
+1136:  MOVLW  9C
+1138:  MOVWF  61
+....................         else if(adc_val > 675) Temps.pot_freezer = -18; 
+113A:  BRA    11DA
+113C:  MOVF   27,W
+113E:  SUBLW  01
+1140:  BC    1152
+1142:  XORLW  FF
+1144:  BNZ   114C
+1146:  MOVF   26,W
+1148:  SUBLW  A3
+114A:  BC    1152
+114C:  MOVLW  EE
+114E:  MOVWF  61
+....................         else if(adc_val > 625) Temps.pot_freezer = -19; 
+1150:  BRA    11DA
+1152:  MOVF   27,W
+1154:  SUBLW  01
+1156:  BC    1168
+1158:  XORLW  FF
+115A:  BNZ   1162
+115C:  MOVF   26,W
+115E:  SUBLW  71
+1160:  BC    1168
+1162:  MOVLW  ED
+1164:  MOVWF  61
+....................         else if(adc_val > 515) Temps.pot_freezer = -20; 
+1166:  BRA    11DA
+1168:  MOVF   27,W
+116A:  SUBLW  01
+116C:  BC    117E
+116E:  XORLW  FF
+1170:  BNZ   1178
+1172:  MOVF   26,W
+1174:  SUBLW  03
+1176:  BC    117E
+1178:  MOVLW  EC
+117A:  MOVWF  61
+....................         else if(adc_val > 400) Temps.pot_freezer = -21; 
+117C:  BRA    11DA
+117E:  MOVF   27,W
+1180:  SUBLW  00
+1182:  BC    1194
+1184:  XORLW  FF
+1186:  BNZ   118E
+1188:  MOVF   26,W
+118A:  SUBLW  90
+118C:  BC    1194
+118E:  MOVLW  EB
+1190:  MOVWF  61
+....................         else if(adc_val > 375) Temps.pot_freezer = -22; // 400 
+1192:  BRA    11DA
+1194:  MOVF   27,W
+1196:  SUBLW  00
+1198:  BC    11AA
+119A:  XORLW  FF
+119C:  BNZ   11A4
+119E:  MOVF   26,W
+11A0:  SUBLW  77
+11A2:  BC    11AA
+11A4:  MOVLW  EA
+11A6:  MOVWF  61
+....................         else if(adc_val > 315) Temps.pot_freezer = -23;    //340 
+11A8:  BRA    11DA
+11AA:  MOVF   27,W
+11AC:  SUBLW  00
+11AE:  BC    11C0
+11B0:  XORLW  FF
+11B2:  BNZ   11BA
+11B4:  MOVF   26,W
+11B6:  SUBLW  3B
+11B8:  BC    11C0
+11BA:  MOVLW  E9
+11BC:  MOVWF  61
+....................         else if(adc_val > 290) Temps.pot_freezer = -24; 
+11BE:  BRA    11DA
+11C0:  MOVF   27,W
+11C2:  SUBLW  00
+11C4:  BC    11D6
+11C6:  XORLW  FF
+11C8:  BNZ   11D0
+11CA:  MOVF   26,W
+11CC:  SUBLW  22
+11CE:  BC    11D6
+11D0:  MOVLW  E8
+11D2:  MOVWF  61
+....................         else Temps.pot_freezer = -25; 
+11D4:  BRA    11DA
+11D6:  MOVLW  E7
+11D8:  MOVWF  61
+....................  
+....................         if(adc_val <200) Temps.pot_freezer = POT_OFF;         
+11DA:  MOVF   27,F
+11DC:  BNZ   11E8
+11DE:  MOVF   26,W
+11E0:  SUBLW  C7
+11E2:  BNC   11E8
+11E4:  MOVLW  9C
+11E6:  MOVWF  61
+....................      
+....................         // not allow temp go under 1C, if so ignore FRIDGE_DEGREES_UNDER  
+....................         if((Temps.pot_freezer - FREEZER_DEGREES_UNDER) < 1) 
+11E8:  MOVLW  03
+11EA:  SUBWF  61,W
+11EC:  MOVWF  00
+11EE:  BTFSC  FE8.7
+11F0:  BRA    11F8
+11F2:  MOVF   00,W
+11F4:  SUBLW  00
+11F6:  BNC   1226
+....................         { 
+....................             switch(Temps.pot_freezer) 
+....................             {                 
+11F8:  MOVF   61,W
+11FA:  XORLW  EE
+11FC:  BZ    120C
+11FE:  XORLW  03
+1200:  BZ    1210
+1202:  XORLW  01
+1204:  BZ    1216
+1206:  XORLW  07
+1208:  BZ    121C
+120A:  BRA    1222
+....................                 case -18: config.freezer_degrees_under = 0; break; 
+120C:  CLRF   54
+120E:  BRA    1226
+....................                 case -19: config.freezer_degrees_under = 1; break; 
+1210:  MOVLW  01
+1212:  MOVWF  54
+1214:  BRA    1226
+....................                 case -20: config.freezer_degrees_under = 2; break; 
+1216:  MOVLW  02
+1218:  MOVWF  54
+121A:  BRA    1226
+....................                 case -21: config.freezer_degrees_under = 3; break; 
+121C:  MOVLW  03
+121E:  MOVWF  54
+1220:  BRA    1226
+....................                 default: config.freezer_degrees_under = FREEZER_DEGREES_UNDER;  
+1222:  MOVLW  03
+1224:  MOVWF  54
+....................             } 
+....................         } 
+....................         /* 
+....................         if(Status.mode_fastfreeze)               
+....................         { 
+....................             Temps.pot_freezer = M_FASTFREEZE_TEMP; 
+....................             config.freezer_degrees_under = 0; 
+....................         }     
+....................         */ 
+....................                
+....................     }     
+....................      
+....................          
+....................                                                              
+....................     // tris also set pulldown's to input, so we don't need to set them float. 
+....................     set_tris_a(TRISA_NORMAL); 
+1226:  MOVLW  33
+1228:  MOVWF  F92
+....................     set_tris_b(TRISB_NORMAL);      
+122A:  MOVLW  53
+122C:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply     
+122E:  CLRWDT
+1230:  MOVLW  10
+1232:  MOVWF  00
+1234:  DECFSZ 00,F
+1236:  BRA    1234
+....................     DisableSensors; 
+1238:  BSF    F8A.7
+123A:  BCF    xA0.7
+.................... } 
+123C:  GOTO   1BE6 (RETURN)
+....................  
+....................  
+.................... #separate 
+.................... void readPotFridge(void) 
+.................... { 
+....................     // tris also set pulldown's to output 
+....................     set_tris_a(TRISA_SAMPLE_POTS);  
+*
+0EE4:  MOVLW  32
+0EE6:  MOVWF  F92
+....................     set_tris_b(TRISB_SAMPLE_POTS);  
+0EE8:  MOVLW  13
+0EEA:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply.... 2 hours troubleshooting... 
+0EEC:  CLRWDT
+0EEE:  MOVLW  10
+0EF0:  MOVWF  00
+0EF2:  DECFSZ 00,F
+0EF4:  BRA    0EF2
+....................          
+....................     EnableSensors; // we need to power the pots via transistor (and R6 1K) to read them, just like the sensors... 
+0EF6:  BCF    F8A.7
+0EF8:  BSF    xA0.7
+....................      
+....................     output_low(POT_FRIDGE_PULLDOWN); // and pull down voltage divider resistors 
+0EFA:  BCF    F89.0
+....................     delay_ms(1); 
+0EFC:  MOVLW  01
+0EFE:  MOVWF  xB0
+0F00:  RCALL  0786
+....................  
+....................     /*********** v1.9: Average calc **************/ 
+....................     SampleFridgePot.samples[SampleFridgePot.index] = getAvgADC(ADC_POT_FRIDGE, 100); 
+0F02:  BCF    FD8.0
+0F04:  RLCF   7A,W
+0F06:  CLRF   03
+0F08:  ADDLW  7B
+0F0A:  MOVWF  01
+0F0C:  MOVLW  00
+0F0E:  ADDWFC 03,F
+0F10:  MOVFF  01,AF
+0F14:  MOVFF  03,B0
+0F18:  MOVLW  06
+0F1A:  MOVWF  xB1
+0F1C:  MOVLW  64
+0F1E:  MOVWF  xB2
+0F20:  RCALL  08FC
+0F22:  MOVFF  B0,FEA
+0F26:  MOVFF  AF,FE9
+0F2A:  MOVFF  02,FEC
+0F2E:  MOVF   FED,F
+0F30:  MOVFF  01,FEF
+....................     output_float(POT_FRIDGE_PULLDOWN); 
+0F34:  BSF    F92.0
+....................     delay_ms(1); 
+0F36:  MOVLW  01
+0F38:  MOVWF  xB0
+0F3A:  RCALL  0786
+....................     //printf(STREAM_DEBUG, "KJØL POT sample #%u:%Lu\r\n", SampleFridgePot.index, SampleFridgePot.samples[SampleFridgePot.index]);          
+....................     SampleFridgePot.index++; 
+0F3C:  INCF   7A,F
+....................              
+....................     if(SampleFridgePot.index == SAMPLE_COUNT_POT) // We got a complete sample set, calc avg                         
+0F3E:  MOVF   7A,W
+0F40:  SUBLW  04
+0F42:  BTFSS  FD8.2
+0F44:  BRA    1062
+....................     {                 
+....................         adc_val = 0; 
+0F46:  CLRF   27
+0F48:  CLRF   26
+....................                      
+....................         for(x=0; x<SampleFridgePot.index; x++) 
+0F4A:  CLRF   25
+0F4C:  MOVF   7A,W
+0F4E:  SUBWF  25,W
+0F50:  BC    0F74
+....................             adc_val += SampleFridgePot.samples[x];                 
+0F52:  BCF    FD8.0
+0F54:  RLCF   25,W
+0F56:  CLRF   03
+0F58:  ADDLW  7B
+0F5A:  MOVWF  FE9
+0F5C:  MOVLW  00
+0F5E:  ADDWFC 03,W
+0F60:  MOVWF  FEA
+0F62:  MOVFF  FEC,03
+0F66:  MOVF   FED,F
+0F68:  MOVF   FEF,W
+0F6A:  ADDWF  26,F
+0F6C:  MOVF   03,W
+0F6E:  ADDWFC 27,F
+0F70:  INCF   25,F
+0F72:  BRA    0F4C
+....................              
+....................         adc_val /= (unsigned int16)SAMPLE_COUNT_POT;            
+0F74:  RRCF   27,F
+0F76:  RRCF   26,F
+0F78:  RRCF   27,F
+0F7A:  RRCF   26,F
+0F7C:  MOVLW  3F
+0F7E:  ANDWF  27,F
+....................          
+....................         adc_val -= 10L;  //adjusted for VDD 
+0F80:  MOVLW  0A
+0F82:  SUBWF  26,F
+0F84:  MOVLW  00
+0F86:  SUBWFB 27,F
+....................          
+....................         SampleFridgePot.index = 0; 
+0F88:  CLRF   7A
+....................          
+....................         SampleFridgePot.avg_adc_value = adc_val; 
+0F8A:  MOVFF  27,84
+0F8E:  MOVFF  26,83
+....................      
+....................         if(adc_val > 700)      Temps.pot_fridge = POT_OFF; 
+0F92:  MOVF   27,W
+0F94:  SUBLW  01
+0F96:  BC    0FA8
+0F98:  XORLW  FF
+0F9A:  BNZ   0FA2
+0F9C:  MOVF   26,W
+0F9E:  SUBLW  BC
+0FA0:  BC    0FA8
+0FA2:  MOVLW  9C
+0FA4:  MOVWF  5D
+....................         else if(adc_val > 600) Temps.pot_fridge = 6; 
+0FA6:  BRA    101A
+0FA8:  MOVF   27,W
+0FAA:  SUBLW  01
+0FAC:  BC    0FBE
+0FAE:  XORLW  FF
+0FB0:  BNZ   0FB8
+0FB2:  MOVF   26,W
+0FB4:  SUBLW  58
+0FB6:  BC    0FBE
+0FB8:  MOVLW  06
+0FBA:  MOVWF  5D
+....................         else if(adc_val > 505) Temps.pot_fridge = 5; 
+0FBC:  BRA    101A
+0FBE:  MOVF   27,W
+0FC0:  SUBLW  00
+0FC2:  BC    0FD4
+0FC4:  XORLW  FF
+0FC6:  BNZ   0FCE
+0FC8:  MOVF   26,W
+0FCA:  SUBLW  F9
+0FCC:  BC    0FD4
+0FCE:  MOVLW  05
+0FD0:  MOVWF  5D
+....................         else if(adc_val > 390) Temps.pot_fridge = 4; 
+0FD2:  BRA    101A
+0FD4:  MOVF   27,W
+0FD6:  SUBLW  00
+0FD8:  BC    0FEA
+0FDA:  XORLW  FF
+0FDC:  BNZ   0FE4
+0FDE:  MOVF   26,W
+0FE0:  SUBLW  86
+0FE2:  BC    0FEA
+0FE4:  MOVLW  04
+0FE6:  MOVWF  5D
+....................         else if(adc_val > 350) Temps.pot_fridge = 3;         
+0FE8:  BRA    101A
+0FEA:  MOVF   27,W
+0FEC:  SUBLW  00
+0FEE:  BC    1000
+0FF0:  XORLW  FF
+0FF2:  BNZ   0FFA
+0FF4:  MOVF   26,W
+0FF6:  SUBLW  5E
+0FF8:  BC    1000
+0FFA:  MOVLW  03
+0FFC:  MOVWF  5D
+....................         else if(adc_val > 315) Temps.pot_fridge = 2; 
+0FFE:  BRA    101A
+1000:  MOVF   27,W
+1002:  SUBLW  00
+1004:  BC    1016
+1006:  XORLW  FF
+1008:  BNZ   1010
+100A:  MOVF   26,W
+100C:  SUBLW  3B
+100E:  BC    1016
+1010:  MOVLW  02
+1012:  MOVWF  5D
+....................         else 
+1014:  BRA    101A
+....................             Temps.pot_fridge = 1; 
+1016:  MOVLW  01
+1018:  MOVWF  5D
+....................      
+....................         if(adc_val < 200) Temps.pot_fridge = POT_OFF; // POT er litt knirkete... 
+101A:  MOVF   27,F
+101C:  BNZ   1028
+101E:  MOVF   26,W
+1020:  SUBLW  C7
+1022:  BNC   1028
+1024:  MOVLW  9C
+1026:  MOVWF  5D
+....................          
+....................         // not allow temp go under 1C, if so ignore FRIDGE_DEGREES_UNDER  
+....................         if(Temps.pot_fridge != POT_OFF && (Temps.pot_fridge - FRIDGE_DEGREES_UNDER) < 1) 
+1028:  MOVF   5D,W
+102A:  SUBLW  9C
+102C:  BZ    1062
+102E:  MOVLW  02
+1030:  SUBWF  5D,W
+1032:  MOVWF  00
+1034:  BTFSC  FE8.7
+1036:  BRA    103E
+1038:  MOVF   00,W
+103A:  SUBLW  00
+103C:  BNC   1062
+....................         {             
+....................             switch(Temps.pot_fridge) 
+....................             { 
+103E:  MOVF   5D,W
+1040:  XORLW  01
+1042:  BZ    104E
+1044:  XORLW  03
+1046:  BZ    1052
+1048:  XORLW  01
+104A:  BZ    1058
+104C:  BRA    105E
+....................                 case 1: config.fridge_degrees_under = 0; break;    
+104E:  CLRF   55
+1050:  BRA    1062
+....................                 case 2: config.fridge_degrees_under = 1; break; 
+1052:  MOVLW  01
+1054:  MOVWF  55
+1056:  BRA    1062
+....................                 case 3: config.fridge_degrees_under = 2; break; 
+1058:  MOVLW  02
+105A:  MOVWF  55
+105C:  BRA    1062
+....................                 default: config.fridge_degrees_under = FRIDGE_DEGREES_UNDER;  
+105E:  MOVLW  02
+1060:  MOVWF  55
+....................             } 
+....................         }         
+....................     } 
+....................      
+....................                                                              
+....................     // tris also set pulldown's to input, so we don't need to set them float. 
+....................     set_tris_a(TRISA_NORMAL); 
+1062:  MOVLW  33
+1064:  MOVWF  F92
+....................     set_tris_b(TRISB_NORMAL);  
+1066:  MOVLW  53
+1068:  MOVWF  F93
+....................     delay_us(50); // Needed for tris to apply             
+106A:  CLRWDT
+106C:  MOVLW  10
+106E:  MOVWF  00
+1070:  DECFSZ 00,F
+1072:  BRA    1070
+....................     DisableSensors; 
+1074:  BSF    F8A.7
+1076:  BCF    xA0.7
+....................      
+.................... } 
+1078:  GOTO   1BE2 (RETURN)
+....................  
+....................  
+....................  
+....................  
+.................... /** 
+.................... * Calc degrees Celcius from ADC, using "Scaled Integer" method instead of floating point math (HUGE ROM savings!)*  
+.................... * The reference in use is 5V so for the 10bit ADC each ADC bit is worth 5.0/1023 = 4.88mV 
+.................... */ 
+.................... #separate 
+.................... signed int8 SensorADToDegrees(int16 ad_val, int1 is_fridge) 
+.................... { 
+....................     signed int8 temp; 
+....................     unsigned int32 millivolts;	 
+....................  
+....................     // At this point, 1024 counts would equal 5v (you can never actually get 1024 counts, but this is the scaling from the ADC).  
+....................     // Now we want to display 5.000 for 1024. 
+....................     //millivolts=((int32)ad_val*VDD_SF)/1000; 
+....................     // Key here is that the multiplication _must_ occur first, so that the value is a large integer and little is lost. 
+....................     //printf(STREAM_DEBUG, "MV: %Lu - V: %5.3w\r\n",millivolts, millivolts); 
+....................     // Now you have a value of '5000' for 5v. If you wanted to 'scale' this by 10%, then again multiply first, so: 
+....................     //scaledvolts=(millivolts*11)/10; 
+....................     //printf(STREAM_DEBUG, "scaled %5.3w",scaledvolts); 
+....................     // will give 5.500 (for the impossible full scale value).  
+....................      
+....................     //printf(STREAM_DEBUG, "MV: %Lu - V: %5.3w\r\n",millivolts, millivolts); 
+....................  
+....................     millivolts=((int32)ad_val*VDD_SF)/1000; 
+*
+0A3E:  CLRF   xBD
+0A40:  CLRF   xBC
+0A42:  MOVFF  B3,BB
+0A46:  MOVFF  B2,BA
+0A4A:  MOVFF  BD,C1
+0A4E:  MOVFF  BC,C0
+0A52:  MOVFF  B3,BF
+0A56:  MOVFF  B2,BE
+0A5A:  CLRF   xC5
+0A5C:  CLRF   xC4
+0A5E:  MOVLW  12
+0A60:  MOVWF  xC3
+0A62:  MOVLW  B6
+0A64:  MOVWF  xC2
+0A66:  BRA    096E
+0A68:  MOVFF  03,BD
+0A6C:  MOVFF  02,BC
+0A70:  MOVFF  01,BB
+0A74:  MOVFF  00,BA
+0A78:  MOVFF  03,C1
+0A7C:  MOVFF  02,C0
+0A80:  MOVFF  01,BF
+0A84:  MOVFF  00,BE
+0A88:  CLRF   xC5
+0A8A:  CLRF   xC4
+0A8C:  MOVLW  03
+0A8E:  MOVWF  xC3
+0A90:  MOVLW  E8
+0A92:  MOVWF  xC2
+0A94:  RCALL  09C4
+0A96:  MOVFF  03,B9
+0A9A:  MOVFF  02,B8
+0A9E:  MOVFF  01,B7
+0AA2:  MOVFF  00,B6
+....................     temp = (signed int8) (millivolts/10L - 273); // scale down and convert Kelvin to Celcius (10mV=1K) 
+0AA6:  MOVFF  B9,C1
+0AAA:  MOVFF  B8,C0
+0AAE:  MOVFF  B7,BF
+0AB2:  MOVFF  B6,BE
+0AB6:  CLRF   xC5
+0AB8:  CLRF   xC4
+0ABA:  CLRF   xC3
+0ABC:  MOVLW  0A
+0ABE:  MOVWF  xC2
+0AC0:  RCALL  09C4
+0AC2:  MOVFF  03,BD
+0AC6:  MOVFF  02,BC
+0ACA:  MOVFF  01,BB
+0ACE:  MOVFF  00,BA
+0AD2:  MOVLW  11
+0AD4:  SUBWF  00,W
+0AD6:  MOVWF  00
+0AD8:  MOVLW  01
+0ADA:  SUBWFB 01,W
+0ADC:  MOVLW  00
+0ADE:  SUBWFB 02,W
+0AE0:  MOVLW  00
+0AE2:  SUBWFB 03,W
+0AE4:  MOVFF  00,B5
+....................      
+....................     return temp; 
+0AE8:  MOVFF  B5,01
+....................        
+.................... } 
+0AEC:  RETLW  00
+....................  
+....................  
+....................  
+....................  
+....................  
+....................  
+.................... #zero_ram 
+.................... void main() 
+.................... { 
+*
+1A88:  CLRF   FF8
+1A8A:  BCF    FD0.7
+1A8C:  BSF    07.7
+1A8E:  MOVLW  FE
+1A90:  MOVWF  00
+1A92:  MOVLW  01
+1A94:  MOVWF  01
+1A96:  MOVLW  02
+1A98:  MOVWF  FE9
+1A9A:  MOVLW  00
+1A9C:  MOVWF  FEA
+1A9E:  CLRF   FEE
+1AA0:  CLRWDT
+1AA2:  DECFSZ 00,F
+1AA4:  BRA    1A9E
+1AA6:  DECFSZ 01,F
+1AA8:  BRA    1A9E
+1AAA:  CLRF   FEA
+1AAC:  CLRF   FE9
+1AAE:  MOVLW  62
+1AB0:  MOVWF  FD3
+1AB2:  MOVF   FD3,W
+1AB4:  BCF    F92.6
+1AB6:  BCF    F89.6
+1AB8:  BCF    FC2.6
+1ABA:  BCF    FC2.7
+1ABC:  MOVF   FC1,W
+1ABE:  ANDLW  80
+1AC0:  IORLW  7F
+1AC2:  MOVWF  FC1
+1AC4:  CLRF   1E
+1AC6:  CLRF   1F
+1AC8:  CLRF   20
+1ACA:  CLRF   21
+1ACC:  CLRF   22
+1ACE:  CLRF   23
+1AD0:  CLRF   24
+1AD2:  CLRF   26
+1AD4:  CLRF   27
+1AD6:  CLRF   28
+1AD8:  CLRF   29
+1ADA:  CLRF   xAB
+1ADC:  CLRF   xAC
+1ADE:  CLRF   xAD
+1AE0:  CLRF   xAE
+....................      
+....................      
+....................     prev_restart_reason = read_eeprom (MEM_ADDR_RESTART); 
+1AE2:  MOVFF  FF2,AF
+1AE6:  BCF    FF2.7
+1AE8:  MOVLW  FF
+1AEA:  MOVWF  FA9
+1AEC:  BCF    FA6.6
+1AEE:  BCF    FA6.7
+1AF0:  BSF    FA6.0
+1AF2:  MOVF   FA8,W
+1AF4:  BTFSC  xAF.7
+1AF6:  BSF    FF2.7
+1AF8:  MOVWF  2A
+....................     write_eeprom (MEM_ADDR_RESTART, restart_cause());  
+1AFA:  MOVF   FD0,W
+1AFC:  ANDLW  0F
+1AFE:  BTFSS  FD0.4
+1B00:  MOVLW  00
+1B02:  BSF    FD0.0
+1B04:  BSF    FD0.1
+1B06:  BSF    FD0.4
+1B08:  BSF    FD8.3
+1B0A:  BSF    FD8.4
+1B0C:  MOVWF  xAF
+1B0E:  MOVLW  FF
+1B10:  MOVWF  FA9
+1B12:  MOVFF  AF,FA8
+1B16:  BCF    FA6.6
+1B18:  BCF    FA6.7
+1B1A:  BSF    FA6.2
+1B1C:  MOVF   FF2,W
+1B1E:  MOVWF  00
+1B20:  BCF    FF2.7
+1B22:  MOVLB  F
+1B24:  MOVLW  55
+1B26:  MOVWF  FA7
+1B28:  MOVLW  AA
+1B2A:  MOVWF  FA7
+1B2C:  BSF    FA6.1
+1B2E:  BTFSC  FA6.1
+1B30:  BRA    1B2E
+1B32:  BCF    FA6.2
+1B34:  MOVF   00,W
+1B36:  IORWF  FF2,F
+....................     curr_restart_reason = read_eeprom (MEM_ADDR_RESTART);         
+1B38:  MOVFF  FF2,AF
+1B3C:  BCF    FF2.7
+1B3E:  MOVLW  FF
+1B40:  MOVWF  FA9
+1B42:  BCF    FA6.6
+1B44:  BCF    FA6.7
+1B46:  BSF    FA6.0
+1B48:  MOVF   FA8,W
+1B4A:  MOVLB  0
+1B4C:  BTFSC  xAF.7
+1B4E:  BSF    FF2.7
+1B50:  MOVWF  2B
+....................      
+....................     //can be fex RESTART_WATCHDOG, RESTART_POWER_UP 
+....................            
+....................     initialize_hardware(); 
+1B52:  GOTO   06AE
+....................     initialize_software(); 
+1B56:  GOTO   073A
+....................      
+....................      
+....................     LEDs.DL1 = LED_ON; delay_ms(400); LEDs.DL2 = LED_ON; delay_ms(400); LEDs.DL3 = LED_ON; 
+1B5A:  MOVLW  01
+1B5C:  MOVWF  63
+1B5E:  MOVLW  02
+1B60:  MOVWF  xAF
+1B62:  MOVLW  C8
+1B64:  MOVWF  xB0
+1B66:  CALL   0786
+1B6A:  DECFSZ xAF,F
+1B6C:  BRA    1B62
+1B6E:  MOVLW  01
+1B70:  MOVWF  64
+1B72:  MOVLW  02
+1B74:  MOVWF  xAF
+1B76:  MOVLW  C8
+1B78:  MOVWF  xB0
+1B7A:  CALL   0786
+1B7E:  DECFSZ xAF,F
+1B80:  BRA    1B76
+1B82:  MOVLW  01
+1B84:  MOVWF  65
+....................     delay_ms(2000);       
+1B86:  MOVLW  08
+1B88:  MOVWF  xAF
+1B8A:  MOVLW  FA
+1B8C:  MOVWF  xB0
+1B8E:  CALL   0786
+1B92:  DECFSZ xAF,F
+1B94:  BRA    1B8A
+....................     LEDs.DL1 = LED_OFF; LEDs.DL2 = LED_OFF; LEDs.DL3 = LED_OFF; 
+1B96:  CLRF   63
+1B98:  CLRF   64
+1B9A:  CLRF   65
+....................      
+....................      
+....................   #ifdef DEBUG printf(STREAM_DEBUG, "** Startup, curr/prev reason: %u,%u", curr_restart_reason, prev_restart_reason);  #endif 
+1B9C:  MOVLW  F8
+1B9E:  MOVWF  FF6
+1BA0:  MOVLW  03
+1BA2:  MOVWF  FF7
+1BA4:  MOVLW  1E
+1BA6:  MOVWF  xB1
+1BA8:  CALL   080C
+1BAC:  MOVFF  2B,B1
+1BB0:  MOVLW  1B
+1BB2:  MOVWF  xB2
+1BB4:  CALL   0852
+1BB8:  MOVLW  2C
+1BBA:  MOVWF  xB8
+1BBC:  CALL   07F8
+1BC0:  MOVFF  2A,B1
+1BC4:  MOVLW  1B
+1BC6:  MOVWF  xB2
+1BC8:  CALL   0852
+....................    
+....................    
+....................         
+....................   while(TRUE) 
+....................   { 
+....................     restart_wdt(); 
+1BCC:  CLRWDT
+....................  
+....................      
+....................     //delay_ms(2000); 
+....................      
+....................     if(do_read_temp && !Status.sampling) 
+1BCE:  BTFSS  16.0
+1BD0:  BRA    1BEC
+1BD2:  BTFSC  xA0.7
+1BD4:  BRA    1BEC
+....................     { 
+....................         readTempFreezer(); 
+1BD6:  GOTO   0B36
+....................         readTempFridge();                  
+1BDA:  GOTO   0D10
+....................         readPotFridge(); 
+1BDE:  GOTO   0EE4
+....................         readPotFreezer();             
+1BE2:  GOTO   107C
+....................         do_read_temp = 0; 
+1BE6:  BCF    16.0
+....................         updateAlarms(); 
+1BE8:  GOTO   135A
+....................     }         
+....................      
+....................                   
+....................     doDecision_Freezer(); 
+1BEC:  BRA    1722
+....................     doDecision_Fridge(); 
+1BEE:  BRA    17E8
+....................      
+....................     if((SampleFridge.do_actions || SampleFreezer.do_actions) && poweredup_mins >= 1)  
+1BF0:  BTFSC  77.0
+1BF2:  BRA    1BF8
+1BF4:  BTFSS  x92.0
+1BF6:  BRA    1C00
+1BF8:  MOVF   24,W
+1BFA:  SUBLW  00
+1BFC:  BC    1C00
+....................         doActions(); 
+1BFE:  BRA    1896
+....................          
+....................     #ifdef DEBUG 
+....................  
+....................     if(print_debug) 
+1C00:  BTFSS  16.4
+1C02:  BRA    1F48
+....................     { 
+.................... 	    print_debug = NO;         
+1C04:  BCF    16.4
+.................... 	     
+.................... 	    printf(STREAM_DEBUG, "deepfreeze (status/reached-temp/run-min): %u/%u/%u\r\n", Status.mode_fastfreeze, Status.fastfreeze_reached_temp, Status.fastfreeze_run_mins);      
+1C06:  MOVLW  00
+1C08:  BTFSC  xA0.5
+1C0A:  MOVLW  01
+1C0C:  MOVWF  xAF
+1C0E:  MOVLW  00
+1C10:  BTFSC  xA0.6
+1C12:  MOVLW  01
+1C14:  MOVWF  xB0
+1C16:  MOVLW  1C
+1C18:  MOVWF  FF6
+1C1A:  MOVLW  04
+1C1C:  MOVWF  FF7
+1C1E:  MOVLW  2A
+1C20:  MOVWF  xB1
+1C22:  CALL   080C
+1C26:  MOVFF  AF,B1
+1C2A:  MOVLW  1B
+1C2C:  MOVWF  xB2
+1C2E:  CALL   0852
+1C32:  MOVLW  2F
+1C34:  MOVWF  xB8
+1C36:  CALL   07F8
+1C3A:  MOVFF  B0,B1
+1C3E:  MOVLW  1B
+1C40:  MOVWF  xB2
+1C42:  CALL   0852
+1C46:  MOVLW  2F
+1C48:  MOVWF  xB8
+1C4A:  CALL   07F8
+1C4E:  MOVFF  AA,B1
+1C52:  MOVLW  1B
+1C54:  MOVWF  xB2
+1C56:  CALL   0852
+1C5A:  MOVLW  0D
+1C5C:  MOVWF  xB8
+1C5E:  CALL   07F8
+1C62:  MOVLW  0A
+1C64:  MOVWF  xB8
+1C66:  CALL   07F8
+.................... 	    printf(STREAM_DEBUG, "supercool: %u\r\n", Status.mode_supercool);      
+1C6A:  MOVLW  00
+1C6C:  BTFSC  xA0.4
+1C6E:  MOVLW  01
+1C70:  MOVWF  xAF
+1C72:  MOVLW  52
+1C74:  MOVWF  FF6
+1C76:  MOVLW  04
+1C78:  MOVWF  FF7
+1C7A:  MOVLW  0B
+1C7C:  MOVWF  xB1
+1C7E:  CALL   080C
+1C82:  MOVFF  AF,B1
+1C86:  MOVLW  1B
+1C88:  MOVWF  xB2
+1C8A:  CALL   0852
+1C8E:  MOVLW  0D
+1C90:  MOVWF  xB8
+1C92:  CALL   07F8
+1C96:  MOVLW  0A
+1C98:  MOVWF  xB8
+1C9A:  CALL   07F8
+.................... 	    	     
+.................... 	    if(Temps.fridge_calc != NOT_READY || Temps.freezer_calc != NOT_READY) 
+1C9E:  MOVF   5B,W
+1CA0:  SUBLW  9B
+1CA2:  BNZ   1CAA
+1CA4:  MOVF   5F,W
+1CA6:  SUBLW  9B
+1CA8:  BZ    1D84
+.................... 	    { 
+....................     	    printf(STREAM_DEBUG, "Fridge FAKE/REAL Temp, Stop/Run-mins: %d/%d, %u/%u\r\n", Temps.fridge_calc, Temps.fridge_real, Status.fridge_stopped_mins, Status.fridge_run_mins); 
+1CAA:  MOVLW  62
+1CAC:  MOVWF  FF6
+1CAE:  MOVLW  04
+1CB0:  MOVWF  FF7
+1CB2:  MOVLW  26
+1CB4:  MOVWF  xB1
+1CB6:  CALL   080C
+1CBA:  MOVFF  5B,B0
+1CBE:  MOVLW  1F
+1CC0:  MOVWF  xB1
+1CC2:  RCALL  18DE
+1CC4:  MOVLW  2F
+1CC6:  MOVWF  xB8
+1CC8:  CALL   07F8
+1CCC:  MOVFF  5A,B0
+1CD0:  MOVLW  1F
+1CD2:  MOVWF  xB1
+1CD4:  RCALL  18DE
+1CD6:  MOVLW  2C
+1CD8:  MOVWF  xB8
+1CDA:  CALL   07F8
+1CDE:  MOVLW  20
+1CE0:  MOVWF  xB8
+1CE2:  CALL   07F8
+1CE6:  MOVFF  A8,B1
+1CEA:  MOVLW  1B
+1CEC:  MOVWF  xB2
+1CEE:  CALL   0852
+1CF2:  MOVLW  2F
+1CF4:  MOVWF  xB8
+1CF6:  CALL   07F8
+1CFA:  MOVFF  A2,B1
+1CFE:  MOVLW  1B
+1D00:  MOVWF  xB2
+1D02:  CALL   0852
+1D06:  MOVLW  0D
+1D08:  MOVWF  xB8
+1D0A:  CALL   07F8
+1D0E:  MOVLW  0A
+1D10:  MOVWF  xB8
+1D12:  CALL   07F8
+....................     	    printf(STREAM_DEBUG, "Freezer FAKE/REAL Temp, Stop/Run-mins: %d/%d, %u/%u\r\n", Temps.freezer_calc, Temps.freezer_real, Status.freezer_stopped_mins, Status.freezer_run_mins);         
+1D16:  MOVLW  98
+1D18:  MOVWF  FF6
+1D1A:  MOVLW  04
+1D1C:  MOVWF  FF7
+1D1E:  MOVLW  27
+1D20:  MOVWF  xB1
+1D22:  CALL   080C
+1D26:  MOVFF  5F,B0
+1D2A:  MOVLW  1F
+1D2C:  MOVWF  xB1
+1D2E:  RCALL  18DE
+1D30:  MOVLW  2F
+1D32:  MOVWF  xB8
+1D34:  CALL   07F8
+1D38:  MOVFF  5E,B0
+1D3C:  MOVLW  1F
+1D3E:  MOVWF  xB1
+1D40:  RCALL  18DE
+1D42:  MOVLW  2C
+1D44:  MOVWF  xB8
+1D46:  CALL   07F8
+1D4A:  MOVLW  20
+1D4C:  MOVWF  xB8
+1D4E:  CALL   07F8
+1D52:  MOVFF  A9,B1
+1D56:  MOVLW  1B
+1D58:  MOVWF  xB2
+1D5A:  CALL   0852
+1D5E:  MOVLW  2F
+1D60:  MOVWF  xB8
+1D62:  CALL   07F8
+1D66:  MOVFF  A5,B1
+1D6A:  MOVLW  1B
+1D6C:  MOVWF  xB2
+1D6E:  CALL   0852
+1D72:  MOVLW  0D
+1D74:  MOVWF  xB8
+1D76:  CALL   07F8
+1D7A:  MOVLW  0A
+1D7C:  MOVWF  xB8
+1D7E:  CALL   07F8
+....................     	    //printf(STREAM_DEBUG, "Fridge/Freezer O/U %u/%d %u/%d\r\n\r\n", FRIDGE_DEGREES_OVER, config.fridge_degrees_under, FREEZER_DEGREES_OVER, config.freezer_degrees_under);  
+....................     	} 
+....................     	else 
+1D82:  BRA    1D8E
+....................     	{     
+....................             printf(STREAM_DEBUG, "\r\n** Please wait for temp avg calcs....\r\n\r\n");     
+1D84:  MOVLW  CE
+1D86:  MOVWF  FF6
+1D88:  MOVLW  04
+1D8A:  MOVWF  FF7
+1D8C:  RCALL  19B2
+....................         }   	 
+.................... 	     
+.................... 	     
+.................... 	    printf(STREAM_DEBUG, "POT Fridge %d/%Lu\r\n", Temps.pot_fridge, SampleFridgePot.avg_adc_value);     
+1D8E:  MOVLW  FA
+1D90:  MOVWF  FF6
+1D92:  MOVLW  04
+1D94:  MOVWF  FF7
+1D96:  MOVLW  0B
+1D98:  MOVWF  xB1
+1D9A:  CALL   080C
+1D9E:  MOVFF  5D,B0
+1DA2:  MOVLW  1F
+1DA4:  MOVWF  xB1
+1DA6:  RCALL  18DE
+1DA8:  MOVLW  2F
+1DAA:  MOVWF  xB8
+1DAC:  CALL   07F8
+1DB0:  MOVLW  10
+1DB2:  MOVWF  FE9
+1DB4:  MOVFF  84,B0
+1DB8:  MOVFF  83,AF
+1DBC:  RCALL  19D4
+1DBE:  MOVLW  0D
+1DC0:  MOVWF  xB8
+1DC2:  CALL   07F8
+1DC6:  MOVLW  0A
+1DC8:  MOVWF  xB8
+1DCA:  CALL   07F8
+.................... 	    printf(STREAM_DEBUG, "POT Freezer %d/%Lu\r\n\r\n", Temps.pot_freezer, SampleFreezerPot.avg_adc_value); 
+1DCE:  MOVLW  0E
+1DD0:  MOVWF  FF6
+1DD2:  MOVLW  05
+1DD4:  MOVWF  FF7
+1DD6:  MOVLW  0C
+1DD8:  MOVWF  xB1
+1DDA:  CALL   080C
+1DDE:  MOVFF  61,B0
+1DE2:  MOVLW  1F
+1DE4:  MOVWF  xB1
+1DE6:  RCALL  18DE
+1DE8:  MOVLW  2F
+1DEA:  MOVWF  xB8
+1DEC:  CALL   07F8
+1DF0:  MOVLW  10
+1DF2:  MOVWF  FE9
+1DF4:  MOVFF  9F,B0
+1DF8:  MOVFF  9E,AF
+1DFC:  RCALL  19D4
+1DFE:  MOVLW  20
+1E00:  MOVWF  FF6
+1E02:  MOVLW  05
+1E04:  MOVWF  FF7
+1E06:  MOVLW  04
+1E08:  MOVWF  xB1
+1E0A:  CALL   080C
+.................... 	     
+.................... 	    printf(STREAM_DEBUG, "Fridge/Freezer Starts: %u/%u\r\n", started2, started1);          
+1E0E:  MOVLW  26
+1E10:  MOVWF  FF6
+1E12:  MOVLW  05
+1E14:  MOVWF  FF7
+1E16:  MOVLW  17
+1E18:  MOVWF  xB1
+1E1A:  CALL   080C
+1E1E:  MOVFF  23,B1
+1E22:  MOVLW  1B
+1E24:  MOVWF  xB2
+1E26:  CALL   0852
+1E2A:  MOVLW  2F
+1E2C:  MOVWF  xB8
+1E2E:  CALL   07F8
+1E32:  MOVFF  22,B1
+1E36:  MOVLW  1B
+1E38:  MOVWF  xB2
+1E3A:  CALL   0852
+1E3E:  MOVLW  0D
+1E40:  MOVWF  xB8
+1E42:  CALL   07F8
+1E46:  MOVLW  0A
+1E48:  MOVWF  xB8
+1E4A:  CALL   07F8
+.................... 	    printf(STREAM_DEBUG, "Fridge/Freezer running: %u/%u\r\n", Status.fridge_running, Status.freezer_running); 
+1E4E:  MOVLW  00
+1E50:  BTFSC  xA0.2
+1E52:  MOVLW  01
+1E54:  MOVWF  xAF
+1E56:  MOVLW  00
+1E58:  BTFSC  xA0.3
+1E5A:  MOVLW  01
+1E5C:  MOVWF  xB0
+1E5E:  MOVLW  46
+1E60:  MOVWF  FF6
+1E62:  MOVLW  05
+1E64:  MOVWF  FF7
+1E66:  MOVLW  18
+1E68:  MOVWF  xB1
+1E6A:  CALL   080C
+1E6E:  MOVFF  AF,B1
+1E72:  MOVLW  1B
+1E74:  MOVWF  xB2
+1E76:  CALL   0852
+1E7A:  MOVLW  2F
+1E7C:  MOVWF  xB8
+1E7E:  CALL   07F8
+1E82:  MOVFF  B0,B1
+1E86:  MOVLW  1B
+1E88:  MOVWF  xB2
+1E8A:  CALL   0852
+1E8E:  MOVLW  0D
+1E90:  MOVWF  xB8
+1E92:  CALL   07F8
+1E96:  MOVLW  0A
+1E98:  MOVWF  xB8
+1E9A:  CALL   07F8
+.................... 	 
+.................... 	    printf(STREAM_DEBUG, "Q5: %d\r\n", input(TRANSISTOR_Q5C));          
+1E9E:  MOVLW  00
+1EA0:  BTFSC  F80.5
+1EA2:  MOVLW  01
+1EA4:  MOVWF  xAF
+1EA6:  MOVLW  66
+1EA8:  MOVWF  FF6
+1EAA:  MOVLW  05
+1EAC:  MOVWF  FF7
+1EAE:  MOVLW  04
+1EB0:  MOVWF  xB1
+1EB2:  CALL   080C
+1EB6:  MOVFF  AF,B0
+1EBA:  MOVLW  1F
+1EBC:  MOVWF  xB1
+1EBE:  RCALL  18DE
+1EC0:  MOVLW  0D
+1EC2:  MOVWF  xB8
+1EC4:  CALL   07F8
+1EC8:  MOVLW  0A
+1ECA:  MOVWF  xB8
+1ECC:  CALL   07F8
+.................... 	 
+.................... 	    printf(STREAM_DEBUG, "Fridge/Freezer total run: %Lu/%Lu\r\n", Status.fridge_total_run_mins, Status.freezer_total_run_mins); 
+1ED0:  MOVLW  70
+1ED2:  MOVWF  FF6
+1ED4:  MOVLW  05
+1ED6:  MOVWF  FF7
+1ED8:  MOVLW  1A
+1EDA:  MOVWF  xB1
+1EDC:  CALL   080C
+1EE0:  MOVLW  10
+1EE2:  MOVWF  FE9
+1EE4:  MOVFF  A4,B0
+1EE8:  MOVFF  A3,AF
+1EEC:  RCALL  19D4
+1EEE:  MOVLW  2F
+1EF0:  MOVWF  xB8
+1EF2:  CALL   07F8
+1EF6:  MOVLW  10
+1EF8:  MOVWF  FE9
+1EFA:  MOVFF  A7,B0
+1EFE:  MOVFF  A6,AF
+1F02:  RCALL  19D4
+1F04:  MOVLW  0D
+1F06:  MOVWF  xB8
+1F08:  CALL   07F8
+1F0C:  MOVLW  0A
+1F0E:  MOVWF  xB8
+1F10:  CALL   07F8
+.................... 	     
+.................... 	    printf(STREAM_DEBUG, "Last error: %s\r\n", last_error); 
+1F14:  MOVLW  94
+1F16:  MOVWF  FF6
+1F18:  MOVLW  05
+1F1A:  MOVWF  FF7
+1F1C:  MOVLW  0C
+1F1E:  MOVWF  xB1
+1F20:  CALL   080C
+1F24:  CLRF   FEA
+1F26:  MOVLW  2C
+1F28:  MOVWF  FE9
+1F2A:  CALL   1334
+1F2E:  MOVLW  0D
+1F30:  MOVWF  xB8
+1F32:  CALL   07F8
+1F36:  MOVLW  0A
+1F38:  MOVWF  xB8
+1F3A:  CALL   07F8
+.................... 	    //printf(STREAM_DEBUG, "Alarm First: %s\r\n", Alarms.first_alarm); 
+.................... 	    //printf(STREAM_DEBUG, "Alarm Last: %s\r\n", Alarms.last_alarm); 
+.................... 	     
+.................... 	    printf(STREAM_DEBUG, "**END CYCLE**\r\n\r\n"); 
+1F3E:  MOVLW  A6
+1F40:  MOVWF  FF6
+1F42:  MOVLW  05
+1F44:  MOVWF  FF7
+1F46:  RCALL  19B2
+.................... 	}  
+....................     #endif 
+....................      
+....................      
+....................                      
+....................              
+....................          
+....................   } 
+1F48:  BRA    1BCC
+....................  
+.................... } 
+....................  
+.................... #separate 
+.................... void initialize_hardware(void) 
+1F4A:  SLEEP 
+.................... { 
+....................     setup_wdt(WDT_ON); // settings/Postscaler set in fuses 
+*
+06AE:  BSF    FD1.0
+....................      
+....................     setup_timer_0(RTCC_INTERNAL|RTCC_DIV_4|RTCC_8_BIT); // ISR 1ms 
+06B0:  MOVLW  C1
+06B2:  MOVWF  FD5
+....................     setup_timer_1(T1_INTERNAL|T1_DIV_BY_8); // ISR 524ms 
+06B4:  MOVLW  B5
+06B6:  MOVWF  FCD
+....................     //setup_timer_2(T2_DIV_BY_1,255,16); // OF 256us, ISR 4ms 
+....................     setup_timer_2(T2_DIV_BY_4,255,1); // OF 1ms, ISR 1ms 
+06B8:  MOVLW  00
+06BA:  IORLW  05
+06BC:  MOVWF  FCA
+06BE:  MOVLW  FF
+06C0:  MOVWF  FCB
+....................     //setup_timer_2(T2_DIV_BY_1,9,10); // OF 10uS, ISR 100Us 
+....................     //setup_timer_2(T2_DIV_BY_4,100,8);  
+....................      
+....................     setup_timer_3(T3_INTERNAL|T3_DIV_BY_1); // ISR 65,5ms 
+06C2:  MOVLW  85
+06C4:  MOVWF  FB1
+....................     //setup_timer_3(T3_INTERNAL|T3_DIV_BY_8); // ISR 524ms 
+....................     // setup_timer_3(T3_INTERNAL|T3_DIV_BY_2); // ISR 131ms 
+....................      
+....................     setup_adc_ports(sAN1|sAN4|sAN5|sAN6|VSS_VDD); // Inc the POTs    
+06C6:  BCF    FC2.6
+06C8:  BCF    FC2.7
+06CA:  MOVF   FC1,W
+06CC:  ANDLW  80
+06CE:  IORLW  0D
+06D0:  MOVWF  FC1
+....................     setup_adc(ADC_CLOCK_DIV_64|ADC_TAD_MUL_20); 
+06D2:  MOVF   FC0,W
+06D4:  ANDLW  C0
+06D6:  IORLW  3E
+06D8:  MOVWF  FC0
+06DA:  BSF    FC0.7
+06DC:  BSF    FC2.0
+....................      
+....................     setup_ccp1(CCP_OFF); 
+06DE:  CLRF   FBD
+06E0:  CLRF   FB7
+06E2:  CLRF   FB6
+....................     port_b_pullups(FALSE);    
+06E4:  BSF    FF1.7
+....................      
+....................     enable_interrupts(INT_TIMER0); 
+06E6:  BSF    FF2.5
+....................     enable_interrupts(INT_TIMER1); 
+06E8:  BSF    F9D.0
+....................     enable_interrupts(INT_TIMER2); 
+06EA:  BSF    F9D.1
+....................     enable_interrupts(INT_TIMER3);    
+06EC:  BSF    FA0.1
+....................     enable_interrupts(GLOBAL); 
+06EE:  MOVLW  C0
+06F0:  IORWF  FF2,F
+....................  
+....................     set_tris_a(TRISA_NORMAL);  
+06F2:  MOVLW  33
+06F4:  MOVWF  F92
+....................     set_tris_b(TRISB_NORMAL);  
+06F6:  MOVLW  53
+06F8:  MOVWF  F93
+....................      
+.................... } 
+06FA:  GOTO   1B56 (RETURN)
+....................  
+.................... #separate     
+.................... void initialize_software(void) 
+.................... {     
+....................      
+....................     Stop_Fridge_Motor; 
+*
+073A:  BSF    F89.3
+073C:  BCF    xA0.2
+....................     Stop_Freezer_Motor; 
+073E:  BSF    F89.2
+0740:  BCF    xA0.3
+....................     /* 
+....................     Temps.freezer_real = NOT_READY; 
+....................     Temps.fridge_real = NOT_READY; 
+....................     Temps.pot_freezer = NOT_READY; 
+....................     Temps.pot_fridge = NOT_READY; 
+....................     */ 
+....................     sprintf(last_error,"NONE"); 
+0742:  CLRF   xAE
+0744:  MOVLW  2C
+0746:  MOVWF  xAD
+0748:  MOVLW  B8
+074A:  MOVWF  FF6
+074C:  MOVLW  05
+074E:  MOVWF  FF7
+0750:  RCALL  071A
+....................     Temps.fridge_calc = NOT_READY; 
+0752:  MOVLW  9B
+0754:  MOVWF  5B
+....................     Temps.freezer_calc = NOT_READY; 
+0756:  MOVWF  5F
+....................      
+....................     Alarms.reset_done = YES; 
+0758:  BSF    67.1
+....................      
+....................     LEDs.DL1 = LED_OFF; LEDs.DL2 = LED_OFF; LEDs.DL3 = LED_OFF; 
+075A:  CLRF   63
+075C:  CLRF   64
+075E:  CLRF   65
+....................     LEDs.DL1_Color = LED_GREEN; 
+0760:  BCF    66.0
+....................     LEDs.DL2_Color = LED_GREEN; 
+0762:  BCF    66.1
+....................     do_LED_updates = YES; 
+0764:  BSF    16.1
+....................      
+....................     Status.fridge_stopped_mins = FRIDGE_MIN_STOP_MIN; // instant turn-on at power on 
+0766:  MOVLW  0A
+0768:  MOVWF  xA8
+....................     Status.freezer_stopped_mins = FREEZER_MIN_STOP_MIN; // instant turn-on at power on 
+076A:  MOVWF  xA9
+....................     config.freezer_degrees_under = FREEZER_DEGREES_UNDER; 
+076C:  MOVLW  03
+076E:  MOVWF  54
+....................     config.fridge_degrees_under = FRIDGE_DEGREES_UNDER; 
+0770:  MOVLW  02
+0772:  MOVWF  55
+....................  
+....................     config.freezer_run_temp_offset = FREEZER_RUN_TEMP_OFFSET;  
+0774:  CLRF   56
+....................     config.freezer_stop_temp_offset = FREEZER_STOP_TEMP_OFFSET;  
+0776:  CLRF   57
+....................      
+....................     config.fridge_run_temp_offset = FRIDGE_RUN_TEMP_OFFSET;  
+0778:  CLRF   58
+....................     config.fridge_stop_temp_offset = FRIDGE_STOP_TEMP_OFFSET;  
+077A:  MOVLW  FF
+077C:  MOVWF  59
+....................      
+....................     DisableSensors;  
+077E:  BSF    F8A.7
+0780:  BCF    xA0.7
+....................      
+.................... }     
+0782:  GOTO   1B5A (RETURN)
+....................  
+.................... #separate 
+.................... void setLEDs(void) 
+.................... { 
+....................  
+....................     do_LED_updates = NO; 
+*
+0376:  BCF    16.1
+....................     //delay_ms(1); 
+....................      
+....................     /*********** FRIDGE LEDs ***********/         
+....................     if(Status.fridge_running) 
+0378:  BTFSS  xA0.2
+037A:  BRA    0384
+....................     { 
+....................         LEDs.DL2=LED_ON; 
+037C:  MOVLW  01
+037E:  MOVWF  64
+....................         LEDs.DL2_Color = LED_GREEN; 
+0380:  BCF    66.1
+....................     } 
+....................     else 
+0382:  BRA    0386
+....................         LEDs.DL2=LED_OFF; 
+0384:  CLRF   64
+....................          
+....................     if(Status.fridge_running && Status.mode_supercool) 
+0386:  BTFSS  xA0.2
+0388:  BRA    0396
+038A:  BTFSS  xA0.4
+038C:  BRA    0396
+....................     {  
+....................         LEDs.DL2=LED_BLINK;      
+038E:  MOVLW  03
+0390:  MOVWF  64
+....................         LEDs.DL2_Color = LED_AMBER; 
+0392:  BSF    66.1
+....................         LEDs.DL1_Color = LED_AMBER; // if on is amber, both needs to be....HW bug 
+0394:  BSF    66.0
+....................     } 
+....................      
+....................  
+....................     /*********** FREEZER LEDs ***********/         
+....................  
+....................     if(Status.freezer_running) 
+0396:  BTFSS  xA0.3
+0398:  BRA    03A2
+....................     { 
+....................         LEDs.DL1=LED_ON; 
+039A:  MOVLW  01
+039C:  MOVWF  63
+....................         LEDs.DL1_Color = LED_GREEN; 
+039E:  BCF    66.0
+....................     } 
+....................     else 
+03A0:  BRA    03A4
+....................         LEDs.DL1=LED_OFF; 
+03A2:  CLRF   63
+....................              
+....................     if(Status.freezer_running && Status.mode_fastfreeze) 
+03A4:  BTFSS  xA0.3
+03A6:  BRA    03B4
+03A8:  BTFSS  xA0.5
+03AA:  BRA    03B4
+....................     {  
+....................         LEDs.DL1=LED_BLINK;      
+03AC:  MOVLW  03
+03AE:  MOVWF  63
+....................         LEDs.DL1_Color = LED_AMBER; 
+03B0:  BSF    66.0
+....................         LEDs.DL2_Color = LED_AMBER; // if on is amber, both needs to be....HW bug 
+03B2:  BSF    66.1
+....................     } 
+....................  
+....................     // when there currently is an active alarm, light red LED. If alarms goes away, blink red LED until user reset by pressing a button 
+....................     if(Alarms.alarm_active) 
+03B4:  BTFSS  67.0
+03B6:  BRA    03DE
+....................     { 
+....................          
+....................         //*********** ALARM LEDs *********** 
+....................         if(Alarms.freezer_run_to_long || Alarms.freezer_sensor_fault || Alarms.freezer_temp) 
+03B8:  BTFSC  67.7
+03BA:  BRA    03C4
+03BC:  BTFSC  67.5
+03BE:  BRA    03C4
+03C0:  BTFSS  67.3
+03C2:  BRA    03C8
+....................             LEDs.DL1=LED_BLINK_FAST;         
+03C4:  MOVLW  04
+03C6:  MOVWF  63
+....................      
+....................         if(Alarms.fridge_run_to_long || Alarms.fridge_sensor_fault || Alarms.fridge_temp) 
+03C8:  BTFSC  67.6
+03CA:  BRA    03D4
+03CC:  BTFSC  67.4
+03CE:  BRA    03D4
+03D0:  BTFSS  67.2
+03D2:  BRA    03D8
+....................             LEDs.DL2=LED_BLINK_FAST; 
+03D4:  MOVLW  04
+03D6:  MOVWF  64
+....................          
+....................         LEDs.DL3 = LED_ON; 
+03D8:  MOVLW  01
+03DA:  MOVWF  65
+....................          
+....................     }     
+....................     else  
+03DC:  BRA    03EA
+....................     { 
+....................         if(Alarms.reset_done) 
+03DE:  BTFSS  67.1
+03E0:  BRA    03E6
+....................             LEDs.DL3 = LED_OFF; 
+03E2:  CLRF   65
+....................         else 
+03E4:  BRA    03EA
+....................             LEDs.DL3 = LED_BLINK;             
+03E6:  MOVLW  03
+03E8:  MOVWF  65
+....................     }         
+....................      
+....................     do_LED_updates = YES; 
+03EA:  BSF    16.1
+.................... } 
+03EC:  GOTO   03F2 (RETURN)
+....................      
+.................... /**************** Logic/Decisions *************************/             
+....................  
+.................... /** 
+.................... * Logic for start/stop/keep running the FREEZER 
+.................... */ 
+.................... #separate 
+.................... void doDecision_Freezer(void) 
+.................... {     
+....................     if(Temps.freezer_calc == NOT_READY) 
+*
+1722:  MOVF   5F,W
+1724:  SUBLW  9B
+1726:  BNZ   172A
+....................         return; // not fully initialized yet 
+1728:  BRA    17E4
+....................     
+....................     Status.run_freezer = YES; //default 
+172A:  BSF    xA0.1
+.................... 		 
+....................  
+....................     // it happened that it ran for 90 min, it was -25 but calc value showed -18...prevent this "hickup" from happening again 
+....................     // we just "add some cold", instead of stop running, in case of run after de-iceing or whatnot...this way it resume running normally 
+....................     if(Status.freezer_run_mins > 80 && Temps.freezer_calc >= -20) 
+172C:  MOVF   xA5,W
+172E:  SUBLW  50
+1730:  BC    173E
+1732:  MOVF   5F,W
+1734:  XORLW  80
+1736:  SUBLW  6B
+1738:  BC    173E
+....................         Temps.freezer_calc -= 4; 
+173A:  MOVLW  04
+173C:  SUBWF  5F,F
+....................                     
+....................     if(Status.freezer_run_mins >= FREEZER_MAX_RUN_MIN) // run too long 
+173E:  MOVF   xA5,W
+1740:  SUBLW  EF
+1742:  BC    174C
+....................     {         
+....................         Status.run_freezer = NO;         
+1744:  BCF    xA0.1
+....................         Alarms.freezer_run_to_long = YES; 
+1746:  BSF    67.7
+....................         Status.mode_fastfreeze = OFF;         
+1748:  BCF    xA0.5
+....................     }     
+....................     else 
+174A:  BRA    174E
+....................         Alarms.freezer_run_to_long = NO; 
+174C:  BCF    67.7
+....................          
+....................     if(Alarms.freezer_sensor_fault) 
+174E:  BTFSS  67.5
+1750:  BRA    1754
+....................     { 
+....................         Status.run_freezer = NO;         
+1752:  BCF    xA0.1
+....................     }     
+....................      
+....................     if(Temps.freezer_real < FREEZER_MIN_TEMP && !Status.mode_fastfreeze) // safety: never run below -27/-28 if not fastfreeze... 
+1754:  MOVF   5E,W
+1756:  XORLW  80
+1758:  SUBLW  63
+175A:  BNC   1762
+175C:  BTFSC  xA0.5
+175E:  BRA    1762
+....................     { 
+....................         Status.run_freezer = NO; 
+1760:  BCF    xA0.1
+....................     } 
+....................          
+....................     if(Status.run_freezer) // None of the above checks changed the default YES, let's do the temp checks  
+1762:  BTFSS  xA0.1
+1764:  BRA    1792
+....................     { 
+....................         if(Status.freezer_running) 
+1766:  BTFSS  xA0.3
+1768:  BRA    177E
+....................         {             
+....................             if(Temps.freezer_calc <= (Temps.pot_freezer - config.freezer_degrees_under)) // shall we stop? 
+176A:  MOVF   54,W
+176C:  SUBWF  61,W
+176E:  XORLW  80
+1770:  MOVWF  00
+1772:  MOVF   5F,W
+1774:  XORLW  80
+1776:  SUBWF  00,W
+1778:  BNC   177C
+....................             { 
+....................                 Status.run_freezer = NO;                 
+177A:  BCF    xA0.1
+....................             } 
+....................         } 
+....................         else 
+177C:  BRA    1792
+....................         { 
+....................             if(Temps.freezer_calc < (Temps.pot_freezer + FREEZER_DEGREES_OVER)) // shall we ignore start? 
+177E:  MOVLW  02
+1780:  ADDWF  61,W
+1782:  XORLW  80
+1784:  MOVWF  00
+1786:  MOVF   5F,W
+1788:  XORLW  80
+178A:  SUBWF  00,W
+178C:  BZ    1792
+178E:  BNC   1792
+....................             { 
+....................                 Status.run_freezer = NO;                 
+1790:  BCF    xA0.1
+....................             } 
+....................         }         
+....................     } 
+....................          
+....................     if(Temps.freezer_to_warm && Temps.pot_freezer != POT_OFF) Status.run_freezer = YES;             
+1792:  BTFSS  62.2
+1794:  BRA    179E
+1796:  MOVF   61,W
+1798:  SUBLW  9C
+179A:  BTFSS  FD8.2
+179C:  BSF    xA0.1
+....................     if(Temps.freezer_to_cold) Status.run_freezer = NO; 
+179E:  BTFSC  62.3
+17A0:  BCF    xA0.1
+....................          
+....................     if(Status.freezer_running && !Status.run_freezer)  
+17A2:  BTFSS  xA0.3
+17A4:  BRA    17B2
+17A6:  BTFSC  xA0.1
+17A8:  BRA    17B2
+....................         if(Status.freezer_run_mins < FREEZER_MIN_RUN_MIN) 
+17AA:  MOVF   xA5,W
+17AC:  SUBLW  0E
+17AE:  BNC   17B2
+....................             Status.run_freezer = YES; // abort stop if not run minimum time 
+17B0:  BSF    xA0.1
+....................          
+....................      
+....................     if(!Status.freezer_running && Status.run_freezer) // we are supposed to start 
+17B2:  BTFSC  xA0.3
+17B4:  BRA    17C2
+17B6:  BTFSS  xA0.1
+17B8:  BRA    17C2
+....................         if(Status.freezer_stopped_mins < FREEZER_MIN_STOP_MIN) // minimum XX secs between stop and start of motor, no hysteresis... 
+17BA:  MOVF   xA9,W
+17BC:  SUBLW  09
+17BE:  BNC   17C2
+....................             Status.run_freezer = NO; // abort start             
+17C0:  BCF    xA0.1
+....................      
+....................          
+....................     /******************** Fastfreeze might override *******************************/ 
+....................  
+....................     if(Status.mode_fastfreeze) // ISR turn it off 
+17C2:  BTFSS  xA0.5
+17C4:  BRA    17D6
+....................     { 
+....................         // check if ISR can start the timeout counting... 
+....................         if(!Status.fastfreeze_reached_temp && Temps.freezer_calc <= M_FASTFREEZE_TEMP) 
+17C6:  BTFSC  xA0.6
+17C8:  BRA    17D4
+17CA:  MOVF   5F,W
+17CC:  XORLW  80
+17CE:  SUBLW  66
+17D0:  BNC   17D4
+....................             Status.fastfreeze_reached_temp = YES;         
+17D2:  BSF    xA0.6
+....................          
+....................         Status.run_freezer = YES;             
+17D4:  BSF    xA0.1
+....................     }     
+....................      
+....................     /****** final checks, nothing can override this! *************/ 
+....................     if(Alarms.freezer_run_to_long)  
+17D6:  BTFSS  67.7
+17D8:  BRA    17DC
+....................         Status.run_freezer = NO; 
+17DA:  BCF    xA0.1
+....................  
+....................     if(Temps.pot_freezer == POT_OFF) // pot turned all off 
+17DC:  MOVF   61,W
+17DE:  SUBLW  9C
+17E0:  BNZ   17E4
+....................         Status.run_freezer = NO; 
+17E2:  BCF    xA0.1
+.................... }     
+17E4:  GOTO   1BEE (RETURN)
+....................  
+.................... /** 
+.................... * Logic for start/stop/keep running the FRIDGE 
+.................... */ 
+.................... #separate 
+.................... void doDecision_Fridge(void) 
+.................... {    
+....................     if(Temps.fridge_calc == NOT_READY) 
+17E8:  MOVF   5B,W
+17EA:  SUBLW  9B
+17EC:  BNZ   17F0
+....................         return; // not fully initialized yet 
+17EE:  BRA    1892
+....................  
+....................     Status.run_fridge = YES; // Default 
+17F0:  BSF    xA0.0
+....................     	    
+....................     if(Status.fridge_run_mins >= FRIDGE_MAX_RUN_MIN) // run too long 
+17F2:  MOVF   xA2,W
+17F4:  SUBLW  EF
+17F6:  BC    17FE
+....................     { 
+....................         Status.run_fridge = NO;         
+17F8:  BCF    xA0.0
+....................         Alarms.freezer_run_to_long = YES; 
+17FA:  BSF    67.7
+....................         Status.mode_supercool = OFF;         
+17FC:  BCF    xA0.4
+....................     }     
+....................      
+....................     if(Alarms.fridge_sensor_fault) 
+17FE:  BTFSS  67.4
+1800:  BRA    1804
+....................     { 
+....................         Status.run_fridge = NO;         
+1802:  BCF    xA0.0
+....................     }         
+....................      
+....................     if(Temps.fridge_real < FRIDGE_MIN_TEMP) // safety: never run under 0 degrees.  
+1804:  BTFSC  5A.7
+1806:  BRA    180A
+1808:  BRA    180C
+....................     { 
+....................         Status.run_fridge = NO;         
+180A:  BCF    xA0.0
+....................     } 
+....................          
+....................     if(Status.run_fridge) // None of the above checks changed the default YES, let's do the temp checks 
+180C:  BTFSS  xA0.0
+180E:  BRA    183C
+....................     { 
+....................          
+....................         if(Status.fridge_running)  
+1810:  BTFSS  xA0.2
+1812:  BRA    1828
+....................         { 
+....................             if(Temps.fridge_calc <= (Temps.pot_fridge - config.fridge_degrees_under)) // shall we stop? 
+1814:  MOVF   55,W
+1816:  SUBWF  5D,W
+1818:  XORLW  80
+181A:  MOVWF  00
+181C:  MOVF   5B,W
+181E:  XORLW  80
+1820:  SUBWF  00,W
+1822:  BNC   1826
+....................             { 
+....................                 Status.run_fridge = NO; 
+1824:  BCF    xA0.0
+....................             }     
+....................         } 
+....................         else 
+1826:  BRA    183C
+....................         { 
+....................             if(Temps.fridge_calc < (Temps.pot_fridge + FRIDGE_DEGREES_OVER)) // shall we ignore start? 
+1828:  MOVLW  01
+182A:  ADDWF  5D,W
+182C:  XORLW  80
+182E:  MOVWF  00
+1830:  MOVF   5B,W
+1832:  XORLW  80
+1834:  SUBWF  00,W
+1836:  BZ    183C
+1838:  BNC   183C
+....................             { 
+....................                 Status.run_fridge = NO;                 
+183A:  BCF    xA0.0
+....................             } 
+....................         }         
+....................     } 
+....................      
+....................     if(Temps.fridge_to_warm && Temps.pot_fridge != POT_OFF) Status.run_fridge = YES;         
+183C:  BTFSS  62.0
+183E:  BRA    1848
+1840:  MOVF   5D,W
+1842:  SUBLW  9C
+1844:  BTFSS  FD8.2
+1846:  BSF    xA0.0
+....................     if(Temps.fridge_to_cold) Status.run_fridge = NO; 
+1848:  BTFSC  62.1
+184A:  BCF    xA0.0
+....................  
+....................     if(Status.fridge_running && !Status.run_fridge)  
+184C:  BTFSS  xA0.2
+184E:  BRA    185C
+1850:  BTFSC  xA0.0
+1852:  BRA    185C
+....................         if(Status.fridge_run_mins < FRIDGE_MIN_RUN_MIN)  
+1854:  MOVF   xA2,W
+1856:  SUBLW  0E
+1858:  BNC   185C
+....................             Status.run_fridge = YES; // abort stop if not run minimum time 
+185A:  BSF    xA0.0
+....................          
+....................   
+....................     if(!Status.fridge_running && Status.run_fridge) // we are supposed to start 
+185C:  BTFSC  xA0.2
+185E:  BRA    186C
+1860:  BTFSS  xA0.0
+1862:  BRA    186C
+....................         if(Status.fridge_stopped_mins < FRIDGE_MIN_STOP_MIN) // minimum XX secs between stop and start of motor, no hysteresis...             
+1864:  MOVF   xA8,W
+1866:  SUBLW  09
+1868:  BNC   186C
+....................             Status.run_fridge = NO; // abort start                         
+186A:  BCF    xA0.0
+....................          
+....................      
+....................          
+....................     /********* SuperCool might override ******************/ 
+....................     if(Status.run_fridge == NO && Status.mode_supercool) 
+186C:  BTFSC  xA0.0
+186E:  BRA    1884
+1870:  BTFSS  xA0.4
+1872:  BRA    1884
+....................     { 
+....................         if(Temps.fridge_calc <= M_SUPERCOOL_TEMP) // reached Supercool temp         
+1874:  BTFSC  5B.7
+1876:  BRA    187E
+1878:  MOVF   5B,W
+187A:  SUBLW  00
+187C:  BNC   1882
+....................             Status.mode_supercool = OFF; 
+187E:  BCF    xA0.4
+....................         else 
+1880:  BRA    1884
+....................             Status.run_fridge = YES; 
+1882:  BSF    xA0.0
+....................     } 
+....................      
+....................     /****** final checks, nothing can override this! *************/ 
+....................     if(Alarms.fridge_run_to_long)  
+1884:  BTFSS  67.6
+1886:  BRA    188A
+....................         Status.run_fridge = NO;      
+1888:  BCF    xA0.0
+....................  
+....................     if(Temps.pot_fridge == POT_OFF) // pot turned all off 
+188A:  MOVF   5D,W
+188C:  SUBLW  9C
+188E:  BNZ   1892
+....................         Status.run_fridge = NO;           
+1890:  BCF    xA0.0
+.................... } 
+1892:  GOTO   1BF0 (RETURN)
+....................  
+....................  
+.................... /** 
+.................... * Perform any actions with the motors 
+.................... */ 
+.................... void doActions(void) 
+.................... {        
+....................      
+....................     if(SampleFridge.do_actions) 
+1896:  BTFSS  77.0
+1898:  BRA    18B8
+....................     {    
+....................         SampleFridge.do_actions = NO; 
+189A:  BCF    77.0
+....................         if(Status.run_fridge && !Status.fridge_running)  
+189C:  BTFSS  xA0.0
+189E:  BRA    18AA
+18A0:  BTFSC  xA0.2
+18A2:  BRA    18AA
+....................         {            
+....................             Start_Fridge_Motor;             
+18A4:  BCF    F89.3
+18A6:  BSF    xA0.2
+18A8:  INCF   23,F
+....................         }     
+....................          
+....................         if(!Status.run_fridge && Status.fridge_running) 
+18AA:  BTFSC  xA0.0
+18AC:  BRA    18B8
+18AE:  BTFSS  xA0.2
+18B0:  BRA    18B8
+....................         { 
+....................             Stop_Fridge_Motor; 
+18B2:  BSF    F89.3
+18B4:  BCF    xA0.2
+....................             Status.fridge_stopped_mins = 0;                     
+18B6:  CLRF   xA8
+....................         }     
+....................     }    
+....................     if(SampleFreezer.do_actions) 
+18B8:  BTFSS  x92.0
+18BA:  BRA    18DA
+....................     { 
+....................         SampleFreezer.do_actions = NO; 
+18BC:  BCF    x92.0
+....................         if(Status.run_freezer && !Status.freezer_running)  
+18BE:  BTFSS  xA0.1
+18C0:  BRA    18CC
+18C2:  BTFSC  xA0.3
+18C4:  BRA    18CC
+....................         {            
+....................             Start_Freezer_Motor;             
+18C6:  BCF    F89.2
+18C8:  BSF    xA0.3
+18CA:  INCF   22,F
+....................         }     
+....................          
+....................         if(!Status.run_freezer && Status.freezer_running)  
+18CC:  BTFSC  xA0.1
+18CE:  BRA    18DA
+18D0:  BTFSS  xA0.3
+18D2:  BRA    18DA
+....................         { 
+....................             Stop_Freezer_Motor; 
+18D4:  BSF    F89.2
+18D6:  BCF    xA0.3
+....................             Status.freezer_stopped_mins = 0;             
+18D8:  CLRF   xA9
+....................         } 
+....................     }     
+.................... } 
+18DA:  GOTO   1C00 (RETURN)
+....................  
+....................  
+.................... void updateAlarms(void) 
+.................... {     
+....................     signed int8 tmp1, tmp2; 
+....................      
+....................     if(poweredup_mins < 2) return; 
+*
+135A:  MOVF   24,W
+135C:  SUBLW  01
+135E:  BNC   1362
+1360:  BRA    171E
+....................     if(Temps.fridge_calc == NOT_READY || Temps.freezer_calc == NOT_READY) return; 
+1362:  MOVF   5B,W
+1364:  SUBLW  9B
+1366:  BZ    136E
+1368:  MOVF   5F,W
+136A:  SUBLW  9B
+136C:  BNZ   1370
+136E:  BRA    171E
+....................      
+....................     // Update FRIDGE temp struct     
+....................     tmp1 = Temps.fridge_real + (config.fridge_stop_temp_offset-1); 
+1370:  MOVLW  01
+1372:  SUBWF  59,W
+1374:  ADDWF  5A,W
+1376:  MOVWF  xAF
+....................     tmp2 = Temps.pot_fridge + FRIDGE_DEGREES_OVER + 1; //+1 is out of allowed range 
+1378:  MOVLW  01
+137A:  ADDWF  5D,W
+137C:  ADDLW  01
+137E:  MOVWF  xB0
+....................     if(tmp1 > tmp2) Temps.fridge_to_warm = YES; else Temps.fridge_to_warm = NO;             
+1380:  MOVF   xB0,W
+1382:  XORLW  80
+1384:  MOVWF  00
+1386:  MOVF   xAF,W
+1388:  XORLW  80
+138A:  SUBWF  00,W
+138C:  BC    1392
+138E:  BSF    62.0
+1390:  BRA    1394
+1392:  BCF    62.0
+....................      
+....................     if(Temps.fridge_real < FRIDGE_MIN_TEMP) Temps.fridge_to_cold = YES; else Temps.fridge_to_cold = NO; 
+1394:  BTFSS  5A.7
+1396:  BRA    139C
+1398:  BSF    62.1
+139A:  BRA    139E
+139C:  BCF    62.1
+....................      
+....................     if(Temps.fridge_to_warm)  
+139E:  BTFSS  62.0
+13A0:  BRA    140E
+....................     {  
+....................         Alarms.fridge_temp = YES;         
+13A2:  BSF    67.2
+....................         sprintf(last_error,"Fridge to WARM: %d > %d", tmp1, tmp2); 
+13A4:  CLRF   xAE
+13A6:  MOVLW  2C
+13A8:  MOVWF  xAD
+13AA:  MOVLW  BE
+13AC:  MOVWF  FF6
+13AE:  MOVLW  05
+13B0:  MOVWF  FF7
+13B2:  MOVLW  10
+13B4:  MOVWF  xB1
+13B6:  RCALL  1240
+13B8:  MOVFF  AF,B1
+13BC:  MOVLW  1F
+13BE:  MOVWF  xB2
+13C0:  RCALL  1260
+13C2:  MOVLW  20
+13C4:  MOVWF  xB7
+13C6:  CALL   06FE
+13CA:  MOVLW  3E
+13CC:  MOVWF  xB7
+13CE:  CALL   06FE
+13D2:  MOVLW  20
+13D4:  MOVWF  xB7
+13D6:  CALL   06FE
+13DA:  MOVFF  B0,B1
+13DE:  MOVLW  1F
+13E0:  MOVWF  xB2
+13E2:  RCALL  1260
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+13E4:  MOVLW  D6
+13E6:  MOVWF  FF6
+13E8:  MOVLW  05
+13EA:  MOVWF  FF7
+13EC:  MOVLW  05
+13EE:  MOVWF  xB1
+13F0:  CALL   080C
+13F4:  CLRF   FEA
+13F6:  MOVLW  2C
+13F8:  MOVWF  FE9
+13FA:  RCALL  1334
+13FC:  MOVLW  0D
+13FE:  MOVWF  xB8
+1400:  CALL   07F8
+1404:  MOVLW  0A
+1406:  MOVWF  xB8
+1408:  CALL   07F8
+....................     } 
+....................     else 
+140C:  BRA    1410
+....................     { 
+....................         Alarms.fridge_temp = NO; 
+140E:  BCF    67.2
+....................     } 
+....................      
+....................     if(Temps.fridge_to_cold) 
+1410:  BTFSS  62.1
+1412:  BRA    147C
+....................     { 
+....................         Alarms.fridge_temp = YES;         
+1414:  BSF    67.2
+....................         sprintf(last_error,"Fridge COLD: %d < %d", Temps.fridge_real, FRIDGE_MIN_TEMP); 
+1416:  CLRF   xAE
+1418:  MOVLW  2C
+141A:  MOVWF  xAD
+141C:  MOVLW  E0
+141E:  MOVWF  FF6
+1420:  MOVLW  05
+1422:  MOVWF  FF7
+1424:  MOVLW  0D
+1426:  MOVWF  xB1
+1428:  RCALL  1240
+142A:  MOVFF  5A,B1
+142E:  MOVLW  1F
+1430:  MOVWF  xB2
+1432:  RCALL  1260
+1434:  MOVLW  20
+1436:  MOVWF  xB7
+1438:  CALL   06FE
+143C:  MOVLW  3C
+143E:  MOVWF  xB7
+1440:  CALL   06FE
+1444:  MOVLW  20
+1446:  MOVWF  xB7
+1448:  CALL   06FE
+144C:  CLRF   xB1
+144E:  MOVLW  1F
+1450:  MOVWF  xB2
+1452:  RCALL  1260
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+1454:  MOVLW  F6
+1456:  MOVWF  FF6
+1458:  MOVLW  05
+145A:  MOVWF  FF7
+145C:  MOVLW  05
+145E:  MOVWF  xB1
+1460:  CALL   080C
+1464:  CLRF   FEA
+1466:  MOVLW  2C
+1468:  MOVWF  FE9
+146A:  RCALL  1334
+146C:  MOVLW  0D
+146E:  MOVWF  xB8
+1470:  CALL   07F8
+1474:  MOVLW  0A
+1476:  MOVWF  xB8
+1478:  CALL   07F8
+....................     }         
+....................      
+....................      
+....................      
+....................     // Update FREEZER temp struct         
+....................     tmp1 = Temps.freezer_real + (config.freezer_stop_temp_offset-1); 
+147C:  MOVLW  01
+147E:  SUBWF  57,W
+1480:  ADDWF  5E,W
+1482:  MOVWF  xAF
+....................     tmp2 = Temps.pot_freezer + FREEZER_DEGREES_OVER + 2; //+2 is out of allowed range 
+1484:  MOVLW  02
+1486:  ADDWF  61,W
+1488:  ADDLW  02
+148A:  MOVWF  xB0
+....................     if(tmp1 > tmp2) Temps.freezer_to_warm = YES; else Temps.freezer_to_warm = NO; 
+148C:  MOVF   xB0,W
+148E:  XORLW  80
+1490:  MOVWF  00
+1492:  MOVF   xAF,W
+1494:  XORLW  80
+1496:  SUBWF  00,W
+1498:  BC    149E
+149A:  BSF    62.2
+149C:  BRA    14A0
+149E:  BCF    62.2
+....................  
+....................     if(Temps.freezer_calc < FREEZER_MIN_TEMP) Temps.freezer_to_cold = YES; else Temps.freezer_to_cold = NO; 
+14A0:  MOVF   5F,W
+14A2:  XORLW  80
+14A4:  SUBLW  63
+14A6:  BNC   14AC
+14A8:  BSF    62.3
+14AA:  BRA    14AE
+14AC:  BCF    62.3
+....................      
+....................     if(Temps.freezer_to_warm)  
+14AE:  BTFSS  62.2
+14B0:  BRA    151E
+....................     {  
+....................         Alarms.freezer_temp = YES;         
+14B2:  BSF    67.3
+....................         sprintf(last_error,"Freezer to WARM: %d > %d", tmp1, tmp2); 
+14B4:  CLRF   xAE
+14B6:  MOVLW  2C
+14B8:  MOVWF  xAD
+14BA:  MOVLW  00
+14BC:  MOVWF  FF6
+14BE:  MOVLW  06
+14C0:  MOVWF  FF7
+14C2:  MOVLW  11
+14C4:  MOVWF  xB1
+14C6:  RCALL  1240
+14C8:  MOVFF  AF,B1
+14CC:  MOVLW  1F
+14CE:  MOVWF  xB2
+14D0:  RCALL  1260
+14D2:  MOVLW  20
+14D4:  MOVWF  xB7
+14D6:  CALL   06FE
+14DA:  MOVLW  3E
+14DC:  MOVWF  xB7
+14DE:  CALL   06FE
+14E2:  MOVLW  20
+14E4:  MOVWF  xB7
+14E6:  CALL   06FE
+14EA:  MOVFF  B0,B1
+14EE:  MOVLW  1F
+14F0:  MOVWF  xB2
+14F2:  RCALL  1260
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+14F4:  MOVLW  1A
+14F6:  MOVWF  FF6
+14F8:  MOVLW  06
+14FA:  MOVWF  FF7
+14FC:  MOVLW  05
+14FE:  MOVWF  xB1
+1500:  CALL   080C
+1504:  CLRF   FEA
+1506:  MOVLW  2C
+1508:  MOVWF  FE9
+150A:  RCALL  1334
+150C:  MOVLW  0D
+150E:  MOVWF  xB8
+1510:  CALL   07F8
+1514:  MOVLW  0A
+1516:  MOVWF  xB8
+1518:  CALL   07F8
+....................     } 
+....................     else 
+151C:  BRA    1520
+....................     { 
+....................         Alarms.freezer_temp = NO; 
+151E:  BCF    67.3
+....................     } 
+....................          
+....................  
+....................     if(Temps.freezer_to_cold) 
+1520:  BTFSS  62.3
+1522:  BRA    158E
+....................     { 
+....................         Alarms.freezer_temp = YES; 
+1524:  BSF    67.3
+....................         sprintf(last_error,"Freezer to COLD: %d < %d", Temps.freezer_calc, FREEZER_MIN_TEMP);     
+1526:  CLRF   xAE
+1528:  MOVLW  2C
+152A:  MOVWF  xAD
+152C:  MOVLW  24
+152E:  MOVWF  FF6
+1530:  MOVLW  06
+1532:  MOVWF  FF7
+1534:  MOVLW  11
+1536:  MOVWF  xB1
+1538:  RCALL  1240
+153A:  MOVFF  5F,B1
+153E:  MOVLW  1F
+1540:  MOVWF  xB2
+1542:  RCALL  1260
+1544:  MOVLW  20
+1546:  MOVWF  xB7
+1548:  CALL   06FE
+154C:  MOVLW  3C
+154E:  MOVWF  xB7
+1550:  CALL   06FE
+1554:  MOVLW  20
+1556:  MOVWF  xB7
+1558:  CALL   06FE
+155C:  MOVLW  E4
+155E:  MOVWF  xB1
+1560:  MOVLW  1F
+1562:  MOVWF  xB2
+1564:  RCALL  1260
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+1566:  MOVLW  3E
+1568:  MOVWF  FF6
+156A:  MOVLW  06
+156C:  MOVWF  FF7
+156E:  MOVLW  05
+1570:  MOVWF  xB1
+1572:  CALL   080C
+1576:  CLRF   FEA
+1578:  MOVLW  2C
+157A:  MOVWF  FE9
+157C:  RCALL  1334
+157E:  MOVLW  0D
+1580:  MOVWF  xB8
+1582:  CALL   07F8
+1586:  MOVLW  0A
+1588:  MOVWF  xB8
+158A:  CALL   07F8
+....................     }     
+....................      
+....................     if(Alarms.fridge_run_to_long) 
+158E:  BTFSS  67.6
+1590:  BRA    15CC
+....................     {         
+....................         sprintf(last_error,"Fridge run to long"); 
+1592:  CLRF   xAE
+1594:  MOVLW  2C
+1596:  MOVWF  xAD
+1598:  MOVLW  48
+159A:  MOVWF  FF6
+159C:  MOVLW  06
+159E:  MOVWF  FF7
+15A0:  CALL   071A
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+15A4:  MOVLW  5C
+15A6:  MOVWF  FF6
+15A8:  MOVLW  06
+15AA:  MOVWF  FF7
+15AC:  MOVLW  05
+15AE:  MOVWF  xB1
+15B0:  CALL   080C
+15B4:  CLRF   FEA
+15B6:  MOVLW  2C
+15B8:  MOVWF  FE9
+15BA:  RCALL  1334
+15BC:  MOVLW  0D
+15BE:  MOVWF  xB8
+15C0:  CALL   07F8
+15C4:  MOVLW  0A
+15C6:  MOVWF  xB8
+15C8:  CALL   07F8
+....................     }     
+....................      
+....................     if(Alarms.freezer_run_to_long) 
+15CC:  BTFSS  67.7
+15CE:  BRA    160A
+....................     {         
+....................         sprintf(last_error,"Freezer run to long"); 
+15D0:  CLRF   xAE
+15D2:  MOVLW  2C
+15D4:  MOVWF  xAD
+15D6:  MOVLW  66
+15D8:  MOVWF  FF6
+15DA:  MOVLW  06
+15DC:  MOVWF  FF7
+15DE:  CALL   071A
+....................         #ifdef DEBUG printf(STREAM_DEBUG, "**A: %s\r\n", last_error);  #endif 
+15E2:  MOVLW  7A
+15E4:  MOVWF  FF6
+15E6:  MOVLW  06
+15E8:  MOVWF  FF7
+15EA:  MOVLW  05
+15EC:  MOVWF  xB1
+15EE:  CALL   080C
+15F2:  CLRF   FEA
+15F4:  MOVLW  2C
+15F6:  MOVWF  FE9
+15F8:  RCALL  1334
+15FA:  MOVLW  0D
+15FC:  MOVWF  xB8
+15FE:  CALL   07F8
+1602:  MOVLW  0A
+1604:  MOVWF  xB8
+1606:  CALL   07F8
+....................     }     
+....................          
+....................  
+....................     if(Alarms.fridge_run_to_long) 
+160A:  BTFSS  67.6
+160C:  BRA    1616
+....................         if(Status.fridge_stopped_mins >= WAIT_MIN_AFTER_LONG_RUN) 
+160E:  MOVF   xA8,W
+1610:  SUBLW  1D
+1612:  BC    1616
+....................             Alarms.fridge_run_to_long = NO; 
+1614:  BCF    67.6
+....................  
+....................     if(Alarms.freezer_run_to_long) 
+1616:  BTFSS  67.7
+1618:  BRA    1622
+....................         if(Status.freezer_stopped_mins >= WAIT_MIN_AFTER_LONG_RUN) 
+161A:  MOVF   xA9,W
+161C:  SUBLW  1D
+161E:  BC    1622
+....................             Alarms.freezer_run_to_long = NO; 
+1620:  BCF    67.7
+....................  
+....................      
+....................     if(SampleFridge.avg_adc_value < 400 || SampleFridge.avg_adc_value > 800)     
+1622:  MOVF   79,W
+1624:  SUBLW  01
+1626:  BNC   1630
+1628:  BNZ   1640
+162A:  MOVF   78,W
+162C:  SUBLW  8F
+162E:  BC    1640
+1630:  MOVF   79,W
+1632:  SUBLW  02
+1634:  BC    1644
+1636:  XORLW  FF
+1638:  BNZ   1640
+163A:  MOVF   78,W
+163C:  SUBLW  20
+163E:  BC    1644
+....................          Alarms.fridge_sensor_fault = YES;  
+1640:  BSF    67.4
+....................     else 
+1642:  BRA    1646
+....................         Alarms.fridge_sensor_fault = NO; 
+1644:  BCF    67.4
+....................  
+....................  
+....................     if(SampleFreezer.avg_adc_value < 400 || SampleFreezer.avg_adc_value > 800)  
+1646:  MOVF   x94,W
+1648:  SUBLW  01
+164A:  BNC   1654
+164C:  BNZ   1664
+164E:  MOVF   x93,W
+1650:  SUBLW  8F
+1652:  BC    1664
+1654:  MOVF   x94,W
+1656:  SUBLW  02
+1658:  BC    1668
+165A:  XORLW  FF
+165C:  BNZ   1664
+165E:  MOVF   x93,W
+1660:  SUBLW  20
+1662:  BC    1668
+....................         Alarms.freezer_sensor_fault = YES;  
+1664:  BSF    67.5
+....................     else  
+1666:  BRA    166A
+....................         Alarms.freezer_sensor_fault = NO; 
+1668:  BCF    67.5
+....................  
+....................      if(Alarms.fridge_run_to_long || Alarms.freezer_run_to_long || Alarms.fridge_sensor_fault || Alarms.freezer_sensor_fault || Alarms.fridge_temp || Alarms.freezer_temp) 
+166A:  BTFSC  67.6
+166C:  BRA    1682
+166E:  BTFSC  67.7
+1670:  BRA    1682
+1672:  BTFSC  67.4
+1674:  BRA    1682
+1676:  BTFSC  67.5
+1678:  BRA    1682
+167A:  BTFSC  67.2
+167C:  BRA    1682
+167E:  BTFSS  67.3
+1680:  BRA    1690
+....................      { 
+....................         Alarms.alarm_active = YES; 
+1682:  BSF    67.0
+....................          
+....................         if(!Temps.freezer_to_warm && !Temps.fridge_to_warm) // these alarms can happend if a door is open for a long time 
+1684:  BTFSC  62.2
+1686:  BRA    168E
+1688:  BTFSC  62.0
+168A:  BRA    168E
+....................             Alarms.reset_done = NO; // if any alarms but these, reset must be done by pressing a button 
+168C:  BCF    67.1
+....................      }    
+....................      else 
+168E:  BRA    1692
+....................         Alarms.alarm_active = NO; 
+1690:  BCF    67.0
+....................          
+....................      
+....................     #ifdef DEBUG_ALARMS 
+....................     if(Alarms.fridge_sensor_fault) { sprintf(last_error,"Fridge SENSOR_FAULT"); printf(STREAM_DEBUG, "A: %s\r\n",last_error);  } 
+1692:  BTFSS  67.4
+1694:  BRA    16D8
+1696:  CLRF   xAE
+1698:  MOVLW  2C
+169A:  MOVWF  xAD
+169C:  MOVLW  84
+169E:  MOVWF  FF6
+16A0:  MOVLW  06
+16A2:  MOVWF  FF7
+16A4:  CALL   071A
+16A8:  MOVLW  41
+16AA:  MOVWF  xB8
+16AC:  CALL   07F8
+16B0:  MOVLW  3A
+16B2:  MOVWF  xB8
+16B4:  CALL   07F8
+16B8:  MOVLW  20
+16BA:  MOVWF  xB8
+16BC:  CALL   07F8
+16C0:  CLRF   FEA
+16C2:  MOVLW  2C
+16C4:  MOVWF  FE9
+16C6:  RCALL  1334
+16C8:  MOVLW  0D
+16CA:  MOVWF  xB8
+16CC:  CALL   07F8
+16D0:  MOVLW  0A
+16D2:  MOVWF  xB8
+16D4:  CALL   07F8
+....................     if(Alarms.freezer_sensor_fault) { sprintf(last_error,"Freezer SENSOR_FAULT"); printf(STREAM_DEBUG, "A: %s\r\n",last_error);  } 
+16D8:  BTFSS  67.5
+16DA:  BRA    171E
+16DC:  CLRF   xAE
+16DE:  MOVLW  2C
+16E0:  MOVWF  xAD
+16E2:  MOVLW  98
+16E4:  MOVWF  FF6
+16E6:  MOVLW  06
+16E8:  MOVWF  FF7
+16EA:  CALL   071A
+16EE:  MOVLW  41
+16F0:  MOVWF  xB8
+16F2:  CALL   07F8
+16F6:  MOVLW  3A
+16F8:  MOVWF  xB8
+16FA:  CALL   07F8
+16FE:  MOVLW  20
+1700:  MOVWF  xB8
+1702:  CALL   07F8
+1706:  CLRF   FEA
+1708:  MOVLW  2C
+170A:  MOVWF  FE9
+170C:  RCALL  1334
+170E:  MOVLW  0D
+1710:  MOVWF  xB8
+1712:  CALL   07F8
+1716:  MOVLW  0A
+1718:  MOVWF  xB8
+171A:  CALL   07F8
+....................     #endif         
+....................          
+....................      
+.................... } 
+171E:  GOTO   1BEC (RETURN)
+....................  
+....................      
+....................  
+....................  
+.................... #separate             
+.................... void STREAM_DEBUG(unsigned int8 c) 
+.................... { 
+....................     disable_interrupts(GLOBAL); 
+*
+07F8:  BCF    FF2.6
+07FA:  BCF    FF2.7
+07FC:  BTFSC  FF2.7
+07FE:  BRA    07FA
+....................      
+....................     putc(c); 
+0800:  MOVFF  B8,B9
+0804:  BRA    07B4
+....................     //printf("C:%c,U:%u,H:%X", c, c, c); 
+....................     enable_interrupts(GLOBAL); 
+0806:  MOVLW  C0
+0808:  IORWF  FF2,F
+....................  
+.................... } 
+080A:  RETLW  00
+....................  
+.................... /* 
+.................... void debug(void) 
+.................... { 
+....................   //using SW UART we can't interrupt while writing... 
+....................   disable_interrupts(GLOBAL); 
+....................   printf("%s\r\n", STREAM_DEBUG); 
+....................   delay_ms(5); 
+....................   //strcpy(STREAM_DEBUG, '\0'); 
+....................   enable_interrupts(GLOBAL); 
+....................      
+.................... }  
+.................... */    
+
+Configuration Fuses:
+   Word  1: 0800   INTRC_IO NOFCMEN NOIESO
+   Word  2: 190B   BROWNOUT WDT BORV27 NOPUT WDT4096
+   Word  3: 0000   NOMCLR
+   Word  4: 0081   STVREN NODEBUG NOLVP
+   Word  5: C003   NOCPD NOPROTECT NOCPB
+   Word  6: E003   NOWRT NOWRTD NOWRTC NOWRTB
+   Word  7: 4003   NOEBTR NOEBTRB
+
+ROM data:
+F00000: 02 01 01 07 
+
+F00010: 00 
+
+F00020: 00 
+
+F00030: 00 
+
+F00040: FF 
+
+F00050: B6 12 

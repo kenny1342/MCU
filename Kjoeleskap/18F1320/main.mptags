@@ -1,0 +1,489 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.5.4	//
+!_TAG_REVISION_NAME	MCHPTags	//
+!_TAG_REVISION_VERSION	6.0.1	//
+ADC_CLOCK_DIV_16::0x05	C:\Program Files\PICC\Devices\18F1320.h	268;"	d	line:268
+ADC_CLOCK_DIV_2::0x100	C:\Program Files\PICC\Devices\18F1320.h	265;"	d	line:265
+ADC_CLOCK_DIV_32::0x02	C:\Program Files\PICC\Devices\18F1320.h	269;"	d	line:269
+ADC_CLOCK_DIV_4::0x04	C:\Program Files\PICC\Devices\18F1320.h	266;"	d	line:266
+ADC_CLOCK_DIV_64::0x06	C:\Program Files\PICC\Devices\18F1320.h	270;"	d	line:270
+ADC_CLOCK_DIV_8::0x01	C:\Program Files\PICC\Devices\18F1320.h	267;"	d	line:267
+ADC_CLOCK_INTERNAL::0x07	C:\Program Files\PICC\Devices\18F1320.h	271;"	d	line:271
+ADC_FREEZER::4	C:\kenny\PIC\Kjøleskap\18F1320\main.h	119;"	d	line:119
+ADC_FRIDGE::5	C:\kenny\PIC\Kjøleskap\18F1320\main.h	118;"	d	line:118
+ADC_OFF::0	C:\Program Files\PICC\Devices\18F1320.h	264;"	d	line:264
+ADC_POT_FREEZER::1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	121;"	d	line:121
+ADC_POT_FRIDGE::6	C:\kenny\PIC\Kjøleskap\18F1320\main.h	122;"	d	line:122
+ADC_READ_ONLY::6	C:\Program Files\PICC\Devices\18F1320.h	304;"	d	line:304
+ADC_START_AND_READ::7	C:\Program Files\PICC\Devices\18F1320.h	302;"	d	line:302
+ADC_START_ONLY::1	C:\Program Files\PICC\Devices\18F1320.h	303;"	d	line:303
+ADC_TAD_MUL_0::0x00	C:\Program Files\PICC\Devices\18F1320.h	273;"	d	line:273
+ADC_TAD_MUL_12::0x28	C:\Program Files\PICC\Devices\18F1320.h	278;"	d	line:278
+ADC_TAD_MUL_16::0x30	C:\Program Files\PICC\Devices\18F1320.h	279;"	d	line:279
+ADC_TAD_MUL_20::0x38	C:\Program Files\PICC\Devices\18F1320.h	280;"	d	line:280
+ADC_TAD_MUL_2::0x08	C:\Program Files\PICC\Devices\18F1320.h	274;"	d	line:274
+ADC_TAD_MUL_4::0x10	C:\Program Files\PICC\Devices\18F1320.h	275;"	d	line:275
+ADC_TAD_MUL_6::0x18	C:\Program Files\PICC\Devices\18F1320.h	276;"	d	line:276
+ADC_TAD_MUL_8::0x20	C:\Program Files\PICC\Devices\18F1320.h	277;"	d	line:277
+ALL_ANALOG::127	C:\Program Files\PICC\Devices\18F1320.h	291;"	d	line:291
+AlarmStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	210;"	t	line:210
+Alarms	C:\kenny\PIC\Kjøleskap\18F1320\main.h	322;"	v	line:322
+BOOLEAN::int1	C:\Program Files\PICC\Devices\18F1320.h	46;"	d	line:46
+BROWNOUT_RESTART::14	C:\Program Files\PICC\Devices\18F1320.h	64;"	d	line:64
+BYTE::int8	C:\Program Files\PICC\Devices\18F1320.h	45;"	d	line:45
+CCP_CAPTURE_DIV_16::7	C:\Program Files\PICC\Devices\18F1320.h	166;"	d	line:166
+CCP_CAPTURE_DIV_4::6	C:\Program Files\PICC\Devices\18F1320.h	165;"	d	line:165
+CCP_CAPTURE_FE::4	C:\Program Files\PICC\Devices\18F1320.h	163;"	d	line:163
+CCP_CAPTURE_RE::5	C:\Program Files\PICC\Devices\18F1320.h	164;"	d	line:164
+CCP_COMPARE_CLR_ON_MATCH::9	C:\Program Files\PICC\Devices\18F1320.h	168;"	d	line:168
+CCP_COMPARE_INT::0xA	C:\Program Files\PICC\Devices\18F1320.h	169;"	d	line:169
+CCP_COMPARE_INT_AND_TOGGLE::0x2	C:\Program Files\PICC\Devices\18F1320.h	170;"	d	line:170
+CCP_COMPARE_RESET_TIMER::0xB	C:\Program Files\PICC\Devices\18F1320.h	171;"	d	line:171
+CCP_COMPARE_SET_ON_MATCH::8	C:\Program Files\PICC\Devices\18F1320.h	167;"	d	line:167
+CCP_OFF::0	C:\Program Files\PICC\Devices\18F1320.h	162;"	d	line:162
+CCP_PWM::0xC	C:\Program Files\PICC\Devices\18F1320.h	172;"	d	line:172
+CCP_PWM_FULL_BRIDGE::0x40	C:\Program Files\PICC\Devices\18F1320.h	186;"	d	line:186
+CCP_PWM_FULL_BRIDGE_REV::0xC0	C:\Program Files\PICC\Devices\18F1320.h	187;"	d	line:187
+CCP_PWM_HALF_BRIDGE::0x80	C:\Program Files\PICC\Devices\18F1320.h	188;"	d	line:188
+CCP_PWM_H_H::0x0c	C:\Program Files\PICC\Devices\18F1320.h	181;"	d	line:181
+CCP_PWM_H_L::0x0d	C:\Program Files\PICC\Devices\18F1320.h	182;"	d	line:182
+CCP_PWM_L_H::0x0e	C:\Program Files\PICC\Devices\18F1320.h	183;"	d	line:183
+CCP_PWM_L_L::0x0f	C:\Program Files\PICC\Devices\18F1320.h	184;"	d	line:184
+CCP_PWM_PLUS_1::0x1c	C:\Program Files\PICC\Devices\18F1320.h	173;"	d	line:173
+CCP_PWM_PLUS_2::0x2c	C:\Program Files\PICC\Devices\18F1320.h	174;"	d	line:174
+CCP_PWM_PLUS_3::0x3c	C:\Program Files\PICC\Devices\18F1320.h	175;"	d	line:175
+CCP_SHUTDOWN_AC_F::0x080000	C:\Program Files\PICC\Devices\18F1320.h	200;"	d	line:200
+CCP_SHUTDOWN_AC_H::0x040000	C:\Program Files\PICC\Devices\18F1320.h	199;"	d	line:199
+CCP_SHUTDOWN_AC_L::0x000000	C:\Program Files\PICC\Devices\18F1320.h	198;"	d	line:198
+CCP_SHUTDOWN_BD_F::0x020000	C:\Program Files\PICC\Devices\18F1320.h	204;"	d	line:204
+CCP_SHUTDOWN_BD_H::0x010000	C:\Program Files\PICC\Devices\18F1320.h	203;"	d	line:203
+CCP_SHUTDOWN_BD_L::0x000000	C:\Program Files\PICC\Devices\18F1320.h	202;"	d	line:202
+CCP_SHUTDOWN_ON_COMP1::0x100000	C:\Program Files\PICC\Devices\18F1320.h	190;"	d	line:190
+CCP_SHUTDOWN_ON_COMP1_INT0::0x500000	C:\Program Files\PICC\Devices\18F1320.h	194;"	d	line:194
+CCP_SHUTDOWN_ON_COMP2::0x200000	C:\Program Files\PICC\Devices\18F1320.h	191;"	d	line:191
+CCP_SHUTDOWN_ON_COMP2_INT0::0x600000	C:\Program Files\PICC\Devices\18F1320.h	195;"	d	line:195
+CCP_SHUTDOWN_ON_COMP::0x300000	C:\Program Files\PICC\Devices\18F1320.h	192;"	d	line:192
+CCP_SHUTDOWN_ON_COMP_INT0::0x700000	C:\Program Files\PICC\Devices\18F1320.h	196;"	d	line:196
+CCP_SHUTDOWN_ON_INT0::0x400000	C:\Program Files\PICC\Devices\18F1320.h	193;"	d	line:193
+CCP_SHUTDOWN_RESTART::0x80000000	C:\Program Files\PICC\Devices\18F1320.h	206;"	d	line:206
+COM_Last	C:\kenny\PIC\Kjøleskap\18F1320\main.h	192;"	m	line:192
+ConfigStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	277;"	t	line:277
+DEBUG::	C:\kenny\PIC\Kjøleskap\18F1320\main.h	45;"	d	line:45
+DEBUG_ALARMS	C:\kenny\PIC\Kjøleskap\18F1320\main.h	46;"	d	line:46
+DL1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	187;"	m	line:187
+DL1_Color	C:\kenny\PIC\Kjøleskap\18F1320\main.h	190;"	m	line:190
+DL2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	188;"	m	line:188
+DL2_Color	C:\kenny\PIC\Kjøleskap\18F1320\main.h	191;"	m	line:191
+DL3	C:\kenny\PIC\Kjøleskap\18F1320\main.h	189;"	m	line:189
+DisableSensors::(output_high(SENSOR_COM),Statu	C:\kenny\PIC\Kjøleskap\18F1320\main.h	295;"	d	line:295
+EnableSensors::(output_low(SENSOR_COM),Status	C:\kenny\PIC\Kjøleskap\18F1320\main.h	294;"	d	line:294
+FALSE::0	C:\Program Files\PICC\Devices\18F1320.h	42;"	d	line:42
+FREEZER_DEGREES_OVER::2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	92;"	d	line:92
+FREEZER_DEGREES_UNDER::3	C:\kenny\PIC\Kjøleskap\18F1320\main.h	91;"	d	line:91
+FREEZER_MAX_RUN_MIN::240	C:\kenny\PIC\Kjøleskap\18F1320\main.h	103;"	d	line:103
+FREEZER_MIN_RUN_MIN::15	C:\kenny\PIC\Kjøleskap\18F1320\main.h	104;"	d	line:104
+FREEZER_MIN_STOP_MIN::10	C:\kenny\PIC\Kjøleskap\18F1320\main.h	105;"	d	line:105
+FREEZER_MIN_TEMP::-28	C:\kenny\PIC\Kjøleskap\18F1320\main.h	80;"	d	line:80
+FREEZER_RUN_TEMP_OFFSET::-5	C:\kenny\PIC\Kjøleskap\18F1320\main.h	93;"	d	line:93
+FREEZER_STOP_TEMP_OFFSET::-7	C:\kenny\PIC\Kjøleskap\18F1320\main.h	94;"	d	line:94
+FRIDGE_DEGREES_OVER::1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	98;"	d	line:98
+FRIDGE_DEGREES_UNDER::2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	97;"	d	line:97
+FRIDGE_MAX_RUN_MIN::240	C:\kenny\PIC\Kjøleskap\18F1320\main.h	107;"	d	line:107
+FRIDGE_MIN_RUN_MIN::15	C:\kenny\PIC\Kjøleskap\18F1320\main.h	108;"	d	line:108
+FRIDGE_MIN_STOP_MIN::10	C:\kenny\PIC\Kjøleskap\18F1320\main.h	109;"	d	line:109
+FRIDGE_MIN_TEMP::0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	81;"	d	line:81
+FRIDGE_RUN_TEMP_OFFSET::-14	C:\kenny\PIC\Kjøleskap\18F1320\main.h	99;"	d	line:99
+FRIDGE_STOP_TEMP_OFFSET::-8	C:\kenny\PIC\Kjøleskap\18F1320\main.h	100;"	d	line:100
+GLOBAL::0xF2C0	C:\Program Files\PICC\Devices\18F1320.h	319;"	d	line:319
+HW_MAJOR_V::(int8)01	C:\kenny\PIC\Kjøleskap\18F1320\main.h	53;"	d	line:53
+HW_MINOR_V::(int8)06	C:\kenny\PIC\Kjøleskap\18F1320\main.h	54;"	d	line:54
+H_TO_L::0	C:\Program Files\PICC\Devices\18F1320.h	317;"	d	line:317
+INT_AD::0x009D40	C:\Program Files\PICC\Devices\18F1320.h	335;"	d	line:335
+INT_CCP1::0x009D04	C:\Program Files\PICC\Devices\18F1320.h	338;"	d	line:338
+INT_EEPROM::0x00A010	C:\Program Files\PICC\Devices\18F1320.h	340;"	d	line:340
+INT_EXT1::0x00F008	C:\Program Files\PICC\Devices\18F1320.h	330;"	d	line:330
+INT_EXT1_H2L::0x6001F008	C:\Program Files\PICC\Devices\18F1320.h	329;"	d	line:329
+INT_EXT1_L2H::0x5001F008	C:\Program Files\PICC\Devices\18F1320.h	328;"	d	line:328
+INT_EXT2::0x00F010	C:\Program Files\PICC\Devices\18F1320.h	333;"	d	line:333
+INT_EXT2_H2L::0x6002F010	C:\Program Files\PICC\Devices\18F1320.h	332;"	d	line:332
+INT_EXT2_L2H::0x5002F010	C:\Program Files\PICC\Devices\18F1320.h	331;"	d	line:331
+INT_EXT::0x00F210	C:\Program Files\PICC\Devices\18F1320.h	327;"	d	line:327
+INT_EXT_H2L::0x6000F210	C:\Program Files\PICC\Devices\18F1320.h	326;"	d	line:326
+INT_EXT_L2H::0x5000F210	C:\Program Files\PICC\Devices\18F1320.h	325;"	d	line:325
+INT_LOWVOLT::0x00A004	C:\Program Files\PICC\Devices\18F1320.h	339;"	d	line:339
+INT_OSCF::0x00A080	C:\Program Files\PICC\Devices\18F1320.h	341;"	d	line:341
+INT_RB::0x00FFF208	C:\Program Files\PICC\Devices\18F1320.h	334;"	d	line:334
+INT_RDA::0x009D20	C:\Program Files\PICC\Devices\18F1320.h	336;"	d	line:336
+INT_RTCC::0x00F220	C:\Program Files\PICC\Devices\18F1320.h	320;"	d	line:320
+INT_TBE::0x009D10	C:\Program Files\PICC\Devices\18F1320.h	337;"	d	line:337
+INT_TIMER0::0x00F220	C:\Program Files\PICC\Devices\18F1320.h	321;"	d	line:321
+INT_TIMER1::0x009D01	C:\Program Files\PICC\Devices\18F1320.h	322;"	d	line:322
+INT_TIMER2::0x009D02	C:\Program Files\PICC\Devices\18F1320.h	323;"	d	line:323
+INT_TIMER3::0x00A002	C:\Program Files\PICC\Devices\18F1320.h	324;"	d	line:324
+ISR_counter0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	307;"	v	line:307
+ISR_counter0_2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	307;"	v	line:307
+ISR_counter1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	306;"	v	line:306
+LEDStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	194;"	t	line:194
+LED_AMBER	C:\kenny\PIC\Kjøleskap\18F1320\main.h	298;"	e	line:298	enum:LED_COLOR
+LED_BLINK	C:\kenny\PIC\Kjøleskap\18F1320\main.h	297;"	e	line:297	enum:LED_MODE
+LED_BLINK_FAST	C:\kenny\PIC\Kjøleskap\18F1320\main.h	297;"	e	line:297	enum:LED_MODE
+LED_COLOR	C:\kenny\PIC\Kjøleskap\18F1320\main.h	298;"	g	line:298
+LED_COM::PIN_A7	C:\kenny\PIC\Kjøleskap\18F1320\main.h	142;"	d	line:142
+LED_DL1::PIN_B3	C:\kenny\PIC\Kjøleskap\18F1320\main.h	144;"	d	line:144
+LED_DL2::PIN_B5	C:\kenny\PIC\Kjøleskap\18F1320\main.h	145;"	d	line:145
+LED_DL3::PIN_B2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	143;"	d	line:143
+LED_GREEN	C:\kenny\PIC\Kjøleskap\18F1320\main.h	298;"	e	line:298	enum:LED_COLOR
+LED_MODE	C:\kenny\PIC\Kjøleskap\18F1320\main.h	297;"	g	line:297
+LED_OFF	C:\kenny\PIC\Kjøleskap\18F1320\main.h	297;"	e	line:297	enum:LED_MODE
+LED_ON	C:\kenny\PIC\Kjøleskap\18F1320\main.h	297;"	e	line:297	enum:LED_MODE
+LEDs	C:\kenny\PIC\Kjøleskap\18F1320\main.h	321;"	v	line:321
+LVD_21::0x12	C:\Program Files\PICC\Devices\18F1320.h	234;"	d	line:234
+LVD_23::0x13	C:\Program Files\PICC\Devices\18F1320.h	233;"	d	line:233
+LVD_24::0x14	C:\Program Files\PICC\Devices\18F1320.h	232;"	d	line:232
+LVD_26::0x15	C:\Program Files\PICC\Devices\18F1320.h	231;"	d	line:231
+LVD_27::0x16	C:\Program Files\PICC\Devices\18F1320.h	230;"	d	line:230
+LVD_28::0x17	C:\Program Files\PICC\Devices\18F1320.h	229;"	d	line:229
+LVD_31::0x18	C:\Program Files\PICC\Devices\18F1320.h	228;"	d	line:228
+LVD_33::0x19	C:\Program Files\PICC\Devices\18F1320.h	227;"	d	line:227
+LVD_34::0x1A	C:\Program Files\PICC\Devices\18F1320.h	226;"	d	line:226
+LVD_36::0x1B	C:\Program Files\PICC\Devices\18F1320.h	225;"	d	line:225
+LVD_38::0x1C	C:\Program Files\PICC\Devices\18F1320.h	224;"	d	line:224
+LVD_39::0x1D	C:\Program Files\PICC\Devices\18F1320.h	223;"	d	line:223
+LVD_42::0x1E	C:\Program Files\PICC\Devices\18F1320.h	222;"	d	line:222
+LVD_LVDIN::0x1F	C:\Program Files\PICC\Devices\18F1320.h	221;"	d	line:221
+L_TO_H::0x40	C:\Program Files\PICC\Devices\18F1320.h	316;"	d	line:316
+MCLR_FROM_RUN::15	C:\Program Files\PICC\Devices\18F1320.h	62;"	d	line:62
+MCLR_FROM_SLEEP::11	C:\Program Files\PICC\Devices\18F1320.h	61;"	d	line:61
+MEM_ADDR_RESTART::0xFF	C:\kenny\PIC\Kjøleskap\18F1320\main.h	174;"	d	line:174
+M_FASTFREEZE_MIN::120	C:\kenny\PIC\Kjøleskap\18F1320\main.h	86;"	d	line:86
+M_FASTFREEZE_TEMP::-26	C:\kenny\PIC\Kjøleskap\18F1320\main.h	85;"	d	line:85
+M_SUPERCOOL_TEMP::0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	84;"	d	line:84
+NO::0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	166;"	d	line:166
+NORMAL_POWER_UP::12	C:\Program Files\PICC\Devices\18F1320.h	63;"	d	line:63
+NOT_READY::-101	C:\kenny\PIC\Kjøleskap\18F1320\main.h	168;"	d	line:168
+NO_ANALOGS::0	C:\Program Files\PICC\Devices\18F1320.h	290;"	d	line:290
+NULL::0	C:\Program Files\PICC\Drivers\STDDEF.H	23;"	d	line:23
+OFF::0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	164;"	d	line:164
+ON::1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	163;"	d	line:163
+OSC_125KHZ::0x10	C:\Program Files\PICC\Devices\18F1320.h	240;"	d	line:240
+OSC_1MHZ::0x40	C:\Program Files\PICC\Devices\18F1320.h	243;"	d	line:243
+OSC_250KHZ::0x20	C:\Program Files\PICC\Devices\18F1320.h	241;"	d	line:241
+OSC_2MHZ::0x50	C:\Program Files\PICC\Devices\18F1320.h	244;"	d	line:244
+OSC_31KHZ::0	C:\Program Files\PICC\Devices\18F1320.h	239;"	d	line:239
+OSC_4MHZ::0x60	C:\Program Files\PICC\Devices\18F1320.h	245;"	d	line:245
+OSC_500KHZ::0x30	C:\Program Files\PICC\Devices\18F1320.h	242;"	d	line:242
+OSC_8MHZ::0x70	C:\Program Files\PICC\Devices\18F1320.h	246;"	d	line:246
+OSC_IDLE_MODE::0x80	C:\Program Files\PICC\Devices\18F1320.h	252;"	d	line:252
+OSC_INTRC::2	C:\Program Files\PICC\Devices\18F1320.h	249;"	d	line:249
+OSC_NORMAL::0	C:\Program Files\PICC\Devices\18F1320.h	250;"	d	line:250
+OSC_STATE_EXT_RUNNING::8	C:\Program Files\PICC\Devices\18F1320.h	257;"	d	line:257
+OSC_STATE_STABLE::4	C:\Program Files\PICC\Devices\18F1320.h	256;"	d	line:256
+OSC_TIMER1::1	C:\Program Files\PICC\Devices\18F1320.h	248;"	d	line:248
+OUT_RL1::PIN_A3	C:\kenny\PIC\Kjøleskap\18F1320\main.h	148;"	d	line:148
+OUT_RL2::PIN_A2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	147;"	d	line:147
+PIN_A0::31744	C:\Program Files\PICC\Devices\18F1320.h	23;"	d	line:23
+PIN_A1::31745	C:\Program Files\PICC\Devices\18F1320.h	24;"	d	line:24
+PIN_A2::31746	C:\Program Files\PICC\Devices\18F1320.h	25;"	d	line:25
+PIN_A3::31747	C:\Program Files\PICC\Devices\18F1320.h	26;"	d	line:26
+PIN_A4::31748	C:\Program Files\PICC\Devices\18F1320.h	27;"	d	line:27
+PIN_A5::31749	C:\Program Files\PICC\Devices\18F1320.h	28;"	d	line:28
+PIN_A6::31750	C:\Program Files\PICC\Devices\18F1320.h	29;"	d	line:29
+PIN_A7::31751	C:\Program Files\PICC\Devices\18F1320.h	30;"	d	line:30
+PIN_B0::31752	C:\Program Files\PICC\Devices\18F1320.h	32;"	d	line:32
+PIN_B1::31753	C:\Program Files\PICC\Devices\18F1320.h	33;"	d	line:33
+PIN_B2::31754	C:\Program Files\PICC\Devices\18F1320.h	34;"	d	line:34
+PIN_B3::31755	C:\Program Files\PICC\Devices\18F1320.h	35;"	d	line:35
+PIN_B4::31756	C:\Program Files\PICC\Devices\18F1320.h	36;"	d	line:36
+PIN_B5::31757	C:\Program Files\PICC\Devices\18F1320.h	37;"	d	line:37
+PIN_B6::31758	C:\Program Files\PICC\Devices\18F1320.h	38;"	d	line:38
+PIN_B7::31759	C:\Program Files\PICC\Devices\18F1320.h	39;"	d	line:39
+POT_FREEZER_PULLDOWN::PIN_B6	C:\kenny\PIC\Kjøleskap\18F1320\main.h	126;"	d	line:126
+POT_FREEZE_R5::PIN_A1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	137;"	d	line:137
+POT_FRIDGE_PULLDOWN::PIN_A0	C:\kenny\PIC\Kjøleskap\18F1320\main.h	124;"	d	line:124
+POT_FRIDGE_R4::PIN_B4	C:\kenny\PIC\Kjøleskap\18F1320\main.h	136;"	d	line:136
+POT_MAX::-127	C:\kenny\PIC\Kjøleskap\18F1320\main.h	170;"	d	line:170
+POT_OFF::-100	C:\kenny\PIC\Kjøleskap\18F1320\main.h	169;"	d	line:169
+RESET_INSTRUCTION::0	C:\Program Files\PICC\Devices\18F1320.h	66;"	d	line:66
+RTCC_8_BIT::0x40	C:\Program Files\PICC\Devices\18F1320.h	103;"	d	line:103
+RTCC_DIV_128::6	C:\Program Files\PICC\Devices\18F1320.h	100;"	d	line:100
+RTCC_DIV_16::3	C:\Program Files\PICC\Devices\18F1320.h	97;"	d	line:97
+RTCC_DIV_1::8	C:\Program Files\PICC\Devices\18F1320.h	93;"	d	line:93
+RTCC_DIV_256::7	C:\Program Files\PICC\Devices\18F1320.h	101;"	d	line:101
+RTCC_DIV_2::0	C:\Program Files\PICC\Devices\18F1320.h	94;"	d	line:94
+RTCC_DIV_32::4	C:\Program Files\PICC\Devices\18F1320.h	98;"	d	line:98
+RTCC_DIV_4::1	C:\Program Files\PICC\Devices\18F1320.h	95;"	d	line:95
+RTCC_DIV_64::5	C:\Program Files\PICC\Devices\18F1320.h	99;"	d	line:99
+RTCC_DIV_8::2	C:\Program Files\PICC\Devices\18F1320.h	96;"	d	line:96
+RTCC_EXT_H_TO_L::48	C:\Program Files\PICC\Devices\18F1320.h	92;"	d	line:92
+RTCC_EXT_L_TO_H::32	C:\Program Files\PICC\Devices\18F1320.h	91;"	d	line:91
+RTCC_INTERNAL::0	C:\Program Files\PICC\Devices\18F1320.h	90;"	d	line:90
+RTCC_OFF::0x80	C:\Program Files\PICC\Devices\18F1320.h	102;"	d	line:102
+SAMPLE_COUNT::1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	73;"	d	line:73
+SAMPLE_COUNT_POT::4	C:\kenny\PIC\Kjøleskap\18F1320\main.h	74;"	d	line:74
+SAMPLE_INTERVAL_COUNT::3	C:\kenny\PIC\Kjøleskap\18F1320\main.h	75;"	d	line:75
+SAMPLE_INTERVAL_SECS::2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	76;"	d	line:76
+SENSOR_COM::PIN_B7	C:\kenny\PIC\Kjøleskap\18F1320\main.h	128;"	d	line:128
+SET_LED::(LED,STATUS)(output_bit(LED,!S	C:\kenny\PIC\Kjøleskap\18F1320\main.h	288;"	d	line:288
+SET_RELAY1::(STATUS)(output_bit(OUT_RL1,!S	C:\kenny\PIC\Kjøleskap\18F1320\main.h	284;"	d	line:284
+SET_RELAY1::(STATUS)(output_bit(OUT_RL1,1)	C:\kenny\PIC\Kjøleskap\18F1320\main.h	281;"	d	line:281
+SET_RELAY2::(STATUS)(output_bit(OUT_RL2,!S	C:\kenny\PIC\Kjøleskap\18F1320\main.h	285;"	d	line:285
+SET_RELAY2::(STATUS)(output_bit(OUT_RL2,1)	C:\kenny\PIC\Kjøleskap\18F1320\main.h	282;"	d	line:282
+STREAM_DEBUG	C:\kenny\PIC\Kjøleskap\18F1320\main.c	573;"	f	line:573	signature:(unsigned int8 c)
+STREAM_DEBUG	C:\kenny\PIC\Kjøleskap\18F1320\main.h	353;"	p	line:353	signature:(unsigned int8 c)
+SW_FREEZE::PIN_B2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	140;"	d	line:140
+SW_FRIDGE::PIN_B5	C:\kenny\PIC\Kjøleskap\18F1320\main.h	139;"	d	line:139
+SW_MAJOR_V::(int8)02	C:\kenny\PIC\Kjøleskap\18F1320\main.h	51;"	d	line:51
+SW_MINOR_V::(int8)00	C:\kenny\PIC\Kjøleskap\18F1320\main.h	52;"	d	line:52
+SW_freezer_time	C:\kenny\PIC\Kjøleskap\18F1320\main.h	309;"	v	line:309
+SW_fridge_time	C:\kenny\PIC\Kjøleskap\18F1320\main.h	309;"	v	line:309
+SampleFreezer	C:\kenny\PIC\Kjøleskap\18F1320\main.h	325;"	v	line:325
+SampleFreezerPot	C:\kenny\PIC\Kjøleskap\18F1320\main.h	326;"	v	line:326
+SampleFridge	C:\kenny\PIC\Kjøleskap\18F1320\main.h	323;"	v	line:323
+SampleFridgePot	C:\kenny\PIC\Kjøleskap\18F1320\main.h	324;"	v	line:324
+SampleStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	240;"	t	line:240
+SampleStructPot	C:\kenny\PIC\Kjøleskap\18F1320\main.h	247;"	t	line:247
+Start_Freezer_Motor::(SET_RELAY2(ON),Status.freezer	C:\kenny\PIC\Kjøleskap\18F1320\main.h	291;"	d	line:291
+Start_Fridge_Motor::(SET_RELAY1(ON),Status.fridge_	C:\kenny\PIC\Kjøleskap\18F1320\main.h	289;"	d	line:289
+Status	C:\kenny\PIC\Kjøleskap\18F1320\main.h	327;"	v	line:327
+StatusStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	267;"	t	line:267
+Stop_Freezer_Motor::(SET_RELAY2(OFF),Status.freeze	C:\kenny\PIC\Kjøleskap\18F1320\main.h	292;"	d	line:292
+Stop_Fridge_Motor::(SET_RELAY1(OFF),Status.fridge	C:\kenny\PIC\Kjøleskap\18F1320\main.h	290;"	d	line:290
+T0_8_BIT::0x40	C:\Program Files\PICC\Devices\18F1320.h	88;"	d	line:88
+T0_DIV_128::6	C:\Program Files\PICC\Devices\18F1320.h	83;"	d	line:83
+T0_DIV_16::3	C:\Program Files\PICC\Devices\18F1320.h	80;"	d	line:80
+T0_DIV_1::8	C:\Program Files\PICC\Devices\18F1320.h	76;"	d	line:76
+T0_DIV_256::7	C:\Program Files\PICC\Devices\18F1320.h	84;"	d	line:84
+T0_DIV_2::0	C:\Program Files\PICC\Devices\18F1320.h	77;"	d	line:77
+T0_DIV_32::4	C:\Program Files\PICC\Devices\18F1320.h	81;"	d	line:81
+T0_DIV_4::1	C:\Program Files\PICC\Devices\18F1320.h	78;"	d	line:78
+T0_DIV_64::5	C:\Program Files\PICC\Devices\18F1320.h	82;"	d	line:82
+T0_DIV_8::2	C:\Program Files\PICC\Devices\18F1320.h	79;"	d	line:79
+T0_EXT_H_TO_L::48	C:\Program Files\PICC\Devices\18F1320.h	74;"	d	line:74
+T0_EXT_L_TO_H::32	C:\Program Files\PICC\Devices\18F1320.h	73;"	d	line:73
+T0_INTERNAL::0	C:\Program Files\PICC\Devices\18F1320.h	72;"	d	line:72
+T0_OFF::0x80	C:\Program Files\PICC\Devices\18F1320.h	86;"	d	line:86
+T1_CLK_OUT::8	C:\Program Files\PICC\Devices\18F1320.h	126;"	d	line:126
+T1_DISABLED::0	C:\Program Files\PICC\Devices\18F1320.h	121;"	d	line:121
+T1_DIV_BY_1::0	C:\Program Files\PICC\Devices\18F1320.h	128;"	d	line:128
+T1_DIV_BY_2::0x10	C:\Program Files\PICC\Devices\18F1320.h	129;"	d	line:129
+T1_DIV_BY_4::0x20	C:\Program Files\PICC\Devices\18F1320.h	130;"	d	line:130
+T1_DIV_BY_8::0x30	C:\Program Files\PICC\Devices\18F1320.h	131;"	d	line:131
+T1_EXTERNAL::0x87	C:\Program Files\PICC\Devices\18F1320.h	123;"	d	line:123
+T1_EXTERNAL_SYNC::0x83	C:\Program Files\PICC\Devices\18F1320.h	124;"	d	line:124
+T1_INTERNAL::0x85	C:\Program Files\PICC\Devices\18F1320.h	122;"	d	line:122
+T2_DISABLED::0	C:\Program Files\PICC\Devices\18F1320.h	136;"	d	line:136
+T2_DIV_BY_16::6	C:\Program Files\PICC\Devices\18F1320.h	139;"	d	line:139
+T2_DIV_BY_1::4	C:\Program Files\PICC\Devices\18F1320.h	137;"	d	line:137
+T2_DIV_BY_4::5	C:\Program Files\PICC\Devices\18F1320.h	138;"	d	line:138
+T3_CCP2::0x8	C:\Program Files\PICC\Devices\18F1320.h	156;"	d	line:156
+T3_DISABLED::0	C:\Program Files\PICC\Devices\18F1320.h	145;"	d	line:145
+T3_DIV_BY_1::0	C:\Program Files\PICC\Devices\18F1320.h	150;"	d	line:150
+T3_DIV_BY_2::0x10	C:\Program Files\PICC\Devices\18F1320.h	151;"	d	line:151
+T3_DIV_BY_4::0x20	C:\Program Files\PICC\Devices\18F1320.h	152;"	d	line:152
+T3_DIV_BY_8::0x30	C:\Program Files\PICC\Devices\18F1320.h	153;"	d	line:153
+T3_EXTERNAL::0x87	C:\Program Files\PICC\Devices\18F1320.h	147;"	d	line:147
+T3_EXTERNAL_SYNC::0x83	C:\Program Files\PICC\Devices\18F1320.h	148;"	d	line:148
+T3_INTERNAL::0x85	C:\Program Files\PICC\Devices\18F1320.h	146;"	d	line:146
+TRANSISTOR_Q5C::PIN_A5	C:\kenny\PIC\Kjøleskap\18F1320\main.h	131;"	d	line:131
+TRISA_NORMAL::0b00110011	C:\kenny\PIC\Kjøleskap\18F1320\main.h	153;"	d	line:153
+TRISA_SAMPLE_POTS::0b00110010	C:\kenny\PIC\Kjøleskap\18F1320\main.h	155;"	d	line:155
+TRISA_SAMPLE_SENSORS::0b00110011	C:\kenny\PIC\Kjøleskap\18F1320\main.h	154;"	d	line:154
+TRISB_NORMAL::0b01010011	C:\kenny\PIC\Kjøleskap\18F1320\main.h	157;"	d	line:157
+TRISB_SAMPLE_POTS::0b00010011	C:\kenny\PIC\Kjøleskap\18F1320\main.h	160;"	d	line:160
+TRISB_SAMPLE_SENSORS::0b01010011	C:\kenny\PIC\Kjøleskap\18F1320\main.h	158;"	d	line:158
+TRISB_SAMPLE_SWITCHES::0b01110111	C:\kenny\PIC\Kjøleskap\18F1320\main.h	159;"	d	line:159
+TRUE::1	C:\Program Files\PICC\Devices\18F1320.h	43;"	d	line:43
+Temps	C:\kenny\PIC\Kjøleskap\18F1320\main.h	320;"	v	line:320
+TempsStruct	C:\kenny\PIC\Kjøleskap\18F1320\main.h	226;"	t	line:226
+UART_ADDRESS::2	C:\Program Files\PICC\Devices\18F1320.h	212;"	d	line:212
+UART_AUTODETECT::8	C:\Program Files\PICC\Devices\18F1320.h	214;"	d	line:214
+UART_AUTODETECT_NOWAIT::9	C:\Program Files\PICC\Devices\18F1320.h	215;"	d	line:215
+UART_DATA::4	C:\Program Files\PICC\Devices\18F1320.h	213;"	d	line:213
+UART_SEND_BREAK::13	C:\Program Files\PICC\Devices\18F1320.h	217;"	d	line:217
+UART_WAKEUP_ON_RDA::10	C:\Program Files\PICC\Devices\18F1320.h	216;"	d	line:216
+VDD_SF::4850	C:\kenny\PIC\Kjøleskap\18F1320\main.h	67;"	d	line:67
+VOLTAGE::PIN_A4	C:\kenny\PIC\Kjøleskap\18F1320\main.h	134;"	d	line:134
+VREF_VDD::0x8000	C:\Program Files\PICC\Devices\18F1320.h	297;"	d	line:297
+VREF_VREF::0xC000	C:\Program Files\PICC\Devices\18F1320.h	295;"	d	line:295
+VSS_VDD::0x0000	C:\Program Files\PICC\Devices\18F1320.h	294;"	d	line:294
+VSS_VREF::0x4000	C:\Program Files\PICC\Devices\18F1320.h	296;"	d	line:296
+WAIT_MIN_AFTER_LONG_RUN::30	C:\kenny\PIC\Kjøleskap\18F1320\main.h	89;"	d	line:89
+WDT_FROM_SLEEP::3	C:\Program Files\PICC\Devices\18F1320.h	65;"	d	line:65
+WDT_OFF::0	C:\Program Files\PICC\Devices\18F1320.h	115;"	d	line:115
+WDT_ON::0x100	C:\Program Files\PICC\Devices\18F1320.h	114;"	d	line:114
+WDT_TIMEOUT::7	C:\Program Files\PICC\Devices\18F1320.h	60;"	d	line:60
+YES::1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	165;"	d	line:165
+_CTYPE	C:\Program Files\PICC\Drivers\CTYPE.H	12;"	d	line:12
+_STDDEF	C:\Program Files\PICC\Drivers\STDDEF.H	13;"	d	line:13
+_STRING	C:\Program Files\PICC\Drivers\STRING.H	12;"	d	line:12
+adc_val	C:\kenny\PIC\Kjøleskap\18F1320\main.h	313;"	v	line:313
+alarm_active	C:\kenny\PIC\Kjøleskap\18F1320\main.h	198;"	m	line:198
+auto_reset_timeout_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	206;"	m	line:206
+avg_adc_value	C:\kenny\PIC\Kjøleskap\18F1320\main.h	239;"	m	line:239
+avg_adc_value	C:\kenny\PIC\Kjøleskap\18F1320\main.h	246;"	m	line:246
+beg	C:\Program Files\PICC\Drivers\STRING.H	322;"	l	line:322
+blink_toggle	C:\kenny\PIC\Kjøleskap\18F1320\main.h	304;"	v	line:304
+blink_toggle_fast	C:\kenny\PIC\Kjøleskap\18F1320\main.h	304;"	v	line:304
+config	C:\kenny\PIC\Kjøleskap\18F1320\main.h	319;"	v	line:319
+curr_restart_reason	C:\kenny\PIC\Kjøleskap\18F1320\main.h	315;"	v	line:315
+debug2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	351;"	p	line:351	signature:(unsigned int8 c)
+debug_timer_sec	C:\kenny\PIC\Kjøleskap\18F1320\main.h	306;"	v	line:306
+doActions	C:\kenny\PIC\Kjøleskap\18F1320\main.c	440;"	f	line:440	signature:(void)
+doActions	C:\kenny\PIC\Kjøleskap\18F1320\main.h	346;"	p	line:346	signature:(void)
+doDecision_Freezer	C:\kenny\PIC\Kjøleskap\18F1320\main.c	276;"	f	line:276	signature:(void)
+doDecision_Freezer	C:\kenny\PIC\Kjøleskap\18F1320\main.h	343;"	p	line:343	signature:(void)
+doDecision_Fridge	C:\kenny\PIC\Kjøleskap\18F1320\main.c	362;"	f	line:362	signature:(void)
+doDecision_Fridge	C:\kenny\PIC\Kjøleskap\18F1320\main.h	345;"	p	line:345	signature:(void)
+do_LED_updates	C:\kenny\PIC\Kjøleskap\18F1320\main.h	304;"	v	line:304
+do_actions	C:\kenny\PIC\Kjøleskap\18F1320\main.h	237;"	m	line:237
+do_final_sample	C:\kenny\PIC\Kjøleskap\18F1320\main.h	238;"	m	line:238
+do_read_temp	C:\kenny\PIC\Kjøleskap\18F1320\main.h	304;"	v	line:304
+end	C:\Program Files\PICC\Drivers\STRING.H	322;"	l	line:322
+fastfreeze_reached_temp	C:\kenny\PIC\Kjøleskap\18F1320\main.h	257;"	m	line:257
+fastfreeze_run_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	266;"	m	line:266
+fgetc::getch	C:\Program Files\PICC\Devices\18F1320.h	49;"	d	line:49
+fgets::gets	C:\Program Files\PICC\Devices\18F1320.h	53;"	d	line:53
+fputc::putchar	C:\Program Files\PICC\Devices\18F1320.h	52;"	d	line:52
+fputs::puts	C:\Program Files\PICC\Devices\18F1320.h	54;"	d	line:54
+freezer_calc	C:\kenny\PIC\Kjøleskap\18F1320\main.h	219;"	m	line:219
+freezer_degrees_under	C:\kenny\PIC\Kjøleskap\18F1320\main.h	271;"	m	line:271
+freezer_real	C:\kenny\PIC\Kjøleskap\18F1320\main.h	218;"	m	line:218
+freezer_run	C:\kenny\PIC\Kjøleskap\18F1320\main.h	220;"	m	line:220
+freezer_run_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	262;"	m	line:262
+freezer_run_temp_offset	C:\kenny\PIC\Kjøleskap\18F1320\main.h	273;"	m	line:273
+freezer_run_to_long	C:\kenny\PIC\Kjøleskap\18F1320\main.h	205;"	m	line:205
+freezer_running	C:\kenny\PIC\Kjøleskap\18F1320\main.h	254;"	m	line:254
+freezer_sensor_fault	C:\kenny\PIC\Kjøleskap\18F1320\main.h	203;"	m	line:203
+freezer_stop_temp_offset	C:\kenny\PIC\Kjøleskap\18F1320\main.h	274;"	m	line:274
+freezer_stopped_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	265;"	m	line:265
+freezer_temp	C:\kenny\PIC\Kjøleskap\18F1320\main.h	201;"	m	line:201
+freezer_to_cold	C:\kenny\PIC\Kjøleskap\18F1320\main.h	225;"	m	line:225
+freezer_to_warm	C:\kenny\PIC\Kjøleskap\18F1320\main.h	224;"	m	line:224
+freezer_total_run_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	263;"	m	line:263
+fridge_calc	C:\kenny\PIC\Kjøleskap\18F1320\main.h	215;"	m	line:215
+fridge_degrees_under	C:\kenny\PIC\Kjøleskap\18F1320\main.h	272;"	m	line:272
+fridge_real	C:\kenny\PIC\Kjøleskap\18F1320\main.h	214;"	m	line:214
+fridge_run	C:\kenny\PIC\Kjøleskap\18F1320\main.h	216;"	m	line:216
+fridge_run_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	260;"	m	line:260
+fridge_run_temp_offset	C:\kenny\PIC\Kjøleskap\18F1320\main.h	275;"	m	line:275
+fridge_run_to_long	C:\kenny\PIC\Kjøleskap\18F1320\main.h	204;"	m	line:204
+fridge_running	C:\kenny\PIC\Kjøleskap\18F1320\main.h	253;"	m	line:253
+fridge_sensor_fault	C:\kenny\PIC\Kjøleskap\18F1320\main.h	202;"	m	line:202
+fridge_stop_temp_offset	C:\kenny\PIC\Kjøleskap\18F1320\main.h	276;"	m	line:276
+fridge_stopped_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	264;"	m	line:264
+fridge_temp	C:\kenny\PIC\Kjøleskap\18F1320\main.h	200;"	m	line:200
+fridge_to_cold	C:\kenny\PIC\Kjøleskap\18F1320\main.h	223;"	m	line:223
+fridge_to_warm	C:\kenny\PIC\Kjøleskap\18F1320\main.h	222;"	m	line:222
+fridge_total_run_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	261;"	m	line:261
+getc::getch	C:\Program Files\PICC\Devices\18F1320.h	48;"	d	line:48
+getchar::getch	C:\Program Files\PICC\Devices\18F1320.h	50;"	d	line:50
+index	C:\kenny\PIC\Kjøleskap\18F1320\main.h	231;"	m	line:231
+index	C:\kenny\PIC\Kjøleskap\18F1320\main.h	244;"	m	line:244
+initialize_hardware	C:\kenny\PIC\Kjøleskap\18F1320\main.c	135;"	f	line:135	signature:(void)
+initialize_hardware	C:\kenny\PIC\Kjøleskap\18F1320\main.h	339;"	p	line:339	signature:(void)
+initialize_software	C:\kenny\PIC\Kjøleskap\18F1320\main.c	168;"	f	line:168	signature:(void)
+initialize_software	C:\kenny\PIC\Kjøleskap\18F1320\main.h	341;"	p	line:341	signature:(void)
+isalnum::(x)isamong(x,"0123456789ABCDEF	C:\Program Files\PICC\Drivers\CTYPE.H	16;"	d	line:16
+isalpha::(x)isamong(x,"ABCDEFGHIJKLMNOP	C:\Program Files\PICC\Drivers\CTYPE.H	17;"	d	line:17
+iscntrl::(x)((x)<'')	C:\Program Files\PICC\Drivers\CTYPE.H	21;"	d	line:21
+isdigit::(x)isamong(x,"0123456789")	C:\Program Files\PICC\Drivers\CTYPE.H	18;"	d	line:18
+isgraph::(x)((x)>'')	C:\Program Files\PICC\Drivers\CTYPE.H	23;"	d	line:23
+islower::(x)isamong(x,"abcdefghijklmnop	C:\Program Files\PICC\Drivers\CTYPE.H	14;"	d	line:14
+isprint::(x)((x)>='')	C:\Program Files\PICC\Drivers\CTYPE.H	22;"	d	line:22
+ispunct::(x)(((x)>'')&&!isalnum(x))	C:\Program Files\PICC\Drivers\CTYPE.H	24;"	d	line:24
+isspace::(x)((x)=='')	C:\Program Files\PICC\Drivers\CTYPE.H	19;"	d	line:19
+isupper::(x)isamong(x,"ABCDEFGHIJKLMNOP	C:\Program Files\PICC\Drivers\CTYPE.H	15;"	d	line:15
+isxdigit::(x)isamong(x,"0123456789ABCDEF	C:\Program Files\PICC\Drivers\CTYPE.H	20;"	d	line:20
+last_index	C:\kenny\PIC\Kjøleskap\18F1320\main.h	234;"	m	line:234
+last_samples	C:\kenny\PIC\Kjøleskap\18F1320\main.h	236;"	m	line:236
+last_tries	C:\kenny\PIC\Kjøleskap\18F1320\main.h	235;"	m	line:235
+main	C:\kenny\PIC\Kjøleskap\18F1320\main.c	41;"	f	line:41
+main	C:\kenny\PIC\Kjøleskap\18F1320\main.h	337;"	p	line:337	signature:(void)
+max_val	C:\kenny\PIC\Kjøleskap\18F1320\main.h	314;"	v	line:314
+memchr	C:\Program Files\PICC\Drivers\STRING.H	191;"	f	line:191	signature:(void *s,unsigned int8 c,size_t n)
+memcmp	C:\Program Files\PICC\Drivers\STRING.H	120;"	f	line:120	signature:(void * s1,char *s2,size_t n)
+memmove	C:\Program Files\PICC\Drivers\STRING.H	34;"	f	line:34	signature:(void *s1,char *s2,size_t n)
+min_val	C:\kenny\PIC\Kjøleskap\18F1320\main.h	314;"	v	line:314
+mode_fastfreeze	C:\kenny\PIC\Kjøleskap\18F1320\main.h	256;"	m	line:256
+mode_supercool	C:\kenny\PIC\Kjøleskap\18F1320\main.h	255;"	m	line:255
+n1	C:\Program Files\PICC\Drivers\STRING.H	172;"	l	line:172
+offsetof::(s,f)(offsetofbit(s,f)/8)	C:\Program Files\PICC\Drivers\STDDEF.H	25;"	d	line:25
+p	C:\Program Files\PICC\Drivers\STRING.H	249;"	l	line:249
+p	C:\Program Files\PICC\Drivers\STRING.H	396;"	l	line:396
+pot_freezer	C:\kenny\PIC\Kjøleskap\18F1320\main.h	221;"	m	line:221
+pot_fridge	C:\kenny\PIC\Kjøleskap\18F1320\main.h	217;"	m	line:217
+poweredup_mins	C:\kenny\PIC\Kjøleskap\18F1320\main.h	311;"	v	line:311
+prev_restart_reason	C:\kenny\PIC\Kjøleskap\18F1320\main.h	315;"	v	line:315
+print_debug	C:\kenny\PIC\Kjøleskap\18F1320\main.h	304;"	v	line:304
+ptrdiff_t::unsignedint16	C:\Program Files\PICC\Drivers\STDDEF.H	18;"	d	line:18
+ptrdiff_t::unsignedint8	C:\Program Files\PICC\Drivers\STDDEF.H	16;"	d	line:16
+putc::putchar	C:\Program Files\PICC\Devices\18F1320.h	51;"	d	line:51
+reset_done	C:\kenny\PIC\Kjøleskap\18F1320\main.h	199;"	m	line:199
+run_freezer	C:\kenny\PIC\Kjøleskap\18F1320\main.h	252;"	m	line:252
+run_fridge	C:\kenny\PIC\Kjøleskap\18F1320\main.h	251;"	m	line:251
+s	C:\Program Files\PICC\Drivers\STRING.H	171;"	l	line:171
+s	C:\Program Files\PICC\Drivers\STRING.H	283;"	l	line:283
+s	C:\Program Files\PICC\Drivers\STRING.H	351;"	l	line:351
+s	C:\Program Files\PICC\Drivers\STRING.H	63;"	l	line:63
+s	C:\Program Files\PICC\Drivers\STRING.H	80;"	l	line:80
+s	C:\Program Files\PICC\Drivers\STRING.H	98;"	l	line:98
+sAN0::1	C:\Program Files\PICC\Devices\18F1320.h	283;"	d	line:283
+sAN1::2	C:\Program Files\PICC\Devices\18F1320.h	284;"	d	line:284
+sAN2::4	C:\Program Files\PICC\Devices\18F1320.h	285;"	d	line:285
+sAN3::8	C:\Program Files\PICC\Devices\18F1320.h	286;"	d	line:286
+sAN4::16	C:\Program Files\PICC\Devices\18F1320.h	287;"	d	line:287
+sAN5::32	C:\Program Files\PICC\Devices\18F1320.h	288;"	d	line:288
+sAN6::64	C:\Program Files\PICC\Devices\18F1320.h	289;"	d	line:289
+sample_timer_sec	C:\kenny\PIC\Kjøleskap\18F1320\main.h	306;"	v	line:306
+samples	C:\kenny\PIC\Kjøleskap\18F1320\main.h	233;"	m	line:233
+samples	C:\kenny\PIC\Kjøleskap\18F1320\main.h	245;"	m	line:245
+sampling	C:\kenny\PIC\Kjøleskap\18F1320\main.h	258;"	m	line:258
+sampling_switches	C:\kenny\PIC\Kjøleskap\18F1320\main.h	259;"	m	line:259
+save	C:\Program Files\PICC\Drivers\STRING.H	323;"	l	line:323
+sc	C:\Program Files\PICC\Drivers\STRING.H	371;"	l	line:371
+sc1	C:\Program Files\PICC\Drivers\STRING.H	219;"	l	line:219
+sc1	C:\Program Files\PICC\Drivers\STRING.H	234;"	l	line:234
+sc1	C:\Program Files\PICC\Drivers\STRING.H	264;"	l	line:264
+sc1	C:\Program Files\PICC\Drivers\STRING.H	36;"	l	line:36
+sc2	C:\Program Files\PICC\Drivers\STRING.H	219;"	l	line:219
+sc2	C:\Program Files\PICC\Drivers\STRING.H	234;"	l	line:234
+sc2	C:\Program Files\PICC\Drivers\STRING.H	264;"	l	line:264
+sc2	C:\Program Files\PICC\Drivers\STRING.H	37;"	l	line:37
+setLEDs	C:\kenny\PIC\Kjøleskap\18F1320\main.c	205;"	f	line:205	signature:(void)
+setLEDs	C:\kenny\PIC\Kjøleskap\18F1320\main.h	348;"	p	line:348	signature:(void)
+size_t::unsignedint8	C:\Program Files\PICC\Drivers\STDDEF.H	21;"	d	line:21
+started1	C:\kenny\PIC\Kjøleskap\18F1320\main.h	310;"	v	line:310
+started2	C:\kenny\PIC\Kjøleskap\18F1320\main.h	310;"	v	line:310
+strcat	C:\Program Files\PICC\Drivers\STRING.H	78;"	f	line:78	signature:(char *s1, char *s2)
+strchr	C:\Program Files\PICC\Drivers\STRING.H	205;"	f	line:205	signature:(char *s, unsigned int8 c)
+strcmp	C:\Program Files\PICC\Drivers\STRING.H	134;"	f	line:134	signature:(char *s1, char *s2)
+strcoll	C:\Program Files\PICC\Drivers\STRING.H	144;"	f	line:144	signature:(char *s1, char *s2)
+strcopy::strcpy	C:\Program Files\PICC\Drivers\STRING.H	54;"	d	line:54
+strcspn	C:\Program Files\PICC\Drivers\STRING.H	217;"	f	line:217	signature:(char *s1, char *s2)
+strerror	C:\Program Files\PICC\Drivers\STRING.H	349;"	f	line:349	signature:(unsigned int8 errnum)
+stricmp	C:\Program Files\PICC\Drivers\STRING.H	380;"	f	line:380	signature:(char *s1, char *s2)
+strlen	C:\Program Files\PICC\Drivers\STRING.H	369;"	f	line:369	signature:(char *s)
+strlwr	C:\Program Files\PICC\Drivers\STRING.H	394;"	f	line:394	signature:(char *s)
+strncat	C:\Program Files\PICC\Drivers\STRING.H	96;"	f	line:96	signature:(char *s1, char *s2, size_t n)
+strncmp	C:\Program Files\PICC\Drivers\STRING.H	157;"	f	line:157	signature:(char *s1, char *s2, size_t n)
+strncpy	C:\Program Files\PICC\Drivers\STRING.H	61;"	f	line:61	signature:(char *s1, char *s2, size_t n)
+strpbrk	C:\Program Files\PICC\Drivers\STRING.H	232;"	f	line:232	signature:(char *s1, char *s2)
+strrchr	C:\Program Files\PICC\Drivers\STRING.H	247;"	f	line:247	signature:(char *s, unsigned int8 c)
+strspn	C:\Program Files\PICC\Drivers\STRING.H	262;"	f	line:262	signature:(char *s1, char *s2)
+strstr	C:\Program Files\PICC\Drivers\STRING.H	281;"	f	line:281	signature:(char *s1, char *s2)
+strtok	C:\Program Files\PICC\Drivers\STRING.H	320;"	f	line:320	signature:(char *s1, char *s2)
+strxfrm	C:\Program Files\PICC\Drivers\STRING.H	169;"	f	line:169	signature:(char *s1, char *s2, size_t n)
+su	C:\Program Files\PICC\Drivers\STRING.H	194;"	l	line:194
+su1	C:\Program Files\PICC\Drivers\STRING.H	122;"	l	line:122
+su2	C:\Program Files\PICC\Drivers\STRING.H	122;"	l	line:122
+t	C:\Program Files\PICC\Drivers\STRING.H	283;"	l	line:283
+tries	C:\kenny\PIC\Kjøleskap\18F1320\main.h	232;"	m	line:232
+uc	C:\Program Files\PICC\Drivers\STRING.H	193;"	l	line:193
+updateAlarms	C:\kenny\PIC\Kjøleskap\18F1320\main.c	474;"	f	line:474	signature:(void)
+updateAlarms	C:\kenny\PIC\Kjøleskap\18F1320\main.h	349;"	p	line:349	signature:(void)
+wchar_t::char	C:\Program Files\PICC\Drivers\STDDEF.H	22;"	d	line:22
+x	C:\kenny\PIC\Kjøleskap\18F1320\main.h	312;"	v	line:312

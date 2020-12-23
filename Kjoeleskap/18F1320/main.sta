@@ -1,0 +1,117 @@
+
+ROM used: 8008 (98%)
+          8008 (98%) including unused fragments
+
+          3 Average locations per line
+          10 Average locations per statement
+
+RAM used: 177 (69%) at main() level
+          206 (80%) worst case
+
+Stack used: 6 worst case (out of 31 total available)
+
+Lines Stmts  %   Files
+----- ----- ---  -----
+  614   311  38  main.c
+  344     0   0  ..\..\..\..\Program Files\PICC\Devices\18F1320.h
+  368     0   0  main.h
+  409   121  15  ..\..\..\..\Program Files\PICC\Drivers\string.h
+   28     0   0  ..\..\..\..\Program Files\PICC\Drivers\stddef.h
+   28     0   0  ..\..\..\..\Program Files\PICC\Drivers\ctype.h
+  243   124  15  ISR.c
+    7     0   0  common.h
+   78    21   3  common.c
+   11     0   0  Sensors.h
+  409   232  29  Sensors.c
+----- -----
+ 2539   809 Total
+
+Page ROM  %  RAM   Vol Diff  Functions:
+---- --- --- ---   --- ----  ----------
+0     46   0   1             @delay_ms1
+0     68   0   1             @PUTCHAR_1_
+0    414   3   1  2589  7.9  TIMER0_isr
+0     48   0   1   336  4.6  TIMER1_isr
+0    238   1   2  1537  6.9  TIMER2_isr
+0      8   0   0    17  0.8  TIMER3_isr
+0    114   1   5   384  7.1  getAvgADC
+0     68   0   5             @DIV1616
+0    474   3   3  3301 12.2  readTempFreezer
+0     72   0   4             @DIVS88
+0    468   3   3  3147 11.7  readTempFridge
+0    452   3   2  2444 10.8  readPotFreezer
+0    408   3   2  2164 12.3  readPotFridge
+0    176   1  12   201  4.7  SensorADToDegrees
+0     86   1  14             @MUL3232
+0    122   1  13             @DIV3232
+0   1220   8   2  2508  7.3  main
+0     36   0   0             @const336
+0     30   0   3             @PSTRINGCN_191
+0     40   0   3             @DIV88
+0    102   1   2             @PRINTF_U_191
+0     54   0   0             @const345
+0     16   0   0             @const346
+0     54   0   0             @const347
+0    212   1   6             @PRINTF_D_191
+0     54   0   0             @const351
+0     44   0   0             @const352
+0     34   0   2             @PSTRINGC_191
+0     20   0   0             @const354
+0    180   1   9             @PRINTF_LU_191
+0     24   0   0             @const357
+0     32   0   0             @const358
+0     32   0   0             @const359
+0     10   0   0             @const360
+0     36   0   0             @const361
+0     18   0   0             @const362
+0     38   0   2             @PSTRINGR_191
+0     18   0   0             @const364
+0     80   0   0   505  2.4  initialize_hardware
+0     76   0   0   973  3.8  initialize_software
+0      6   0   0             @const365
+0     28   0   1             @SPRINTF
+0     32   0   2             @PSTRINGC_367
+0    122   1   0  1229  4.4  setLEDs
+0    198   1   0  2069  9.3  doDecision_Freezer
+0    174   1   1  1799  8.3  doDecision_Fridge
+0     72   0   0   916  4.8  doActions
+0    968   6   3  4185  8.6  updateAlarms
+0     24   0   0             @const372
+0     32   0   3             @PSTRINGCN_367
+0    212   1   6             @PRINTF_D_367
+0     10   0   0             @const378
+0     22   0   0             @const379
+0     10   0   0             @const380
+0     26   0   0             @const381
+0     10   0   0             @const382
+0     26   0   0             @const383
+0     10   0   0             @const384
+0     20   0   0             @const385
+0     10   0   0             @const386
+0     20   0   0             @const387
+0     10   0   0             @const388
+0     20   0   0             @const389
+0     22   0   0             @const391
+0     20   0   1    65  1.2  STREAM_DEBUG
+
+Program metrics:
+    Functions               19
+    Statements              809
+    Comments                1304
+    Volume (V)              46898
+    Difficilty (D)          126.2
+    Effort to implement (E) 5918559
+    Time to implement (T)   91 hours, 20 minutes
+    Est Delivered Bugs (B)  11
+    Cyclomatic Complexity   178
+    Maintainability (MI)    81
+
+ Segment     Used  Free
+-----------  ----  ----
+00000-00002     4  0  
+00004-00006     0  4  
+00008-000B8   178  0  
+000BA-01FFE  7826  180  
+
+
+

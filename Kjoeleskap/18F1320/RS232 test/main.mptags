@@ -1,0 +1,92 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.5.4	//
+!_TAG_REVISION_NAME	MCHPTags	//
+!_TAG_REVISION_VERSION	6.0.1	//
+ADC_FREEZER::4	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	72;"	d	line:72	file:
+ADC_FRIDGE::5	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	73;"	d	line:73	file:
+ADC_POT_FREEZER::0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	75;"	d	line:75	file:
+ADC_POT_FRIDGE::6	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	76;"	d	line:76	file:
+AMBER::1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	45;"	d	line:45	file:
+AlarmStruct	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	69;"	t	line:69	file:
+Alarms	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	131;"	v	line:131
+BLINK::3	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	41;"	d	line:41	file:
+COM	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	58;"	m	line:58	file:
+DL1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	59;"	m	line:59	file:
+DL2	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	60;"	m	line:60	file:
+DL3	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	61;"	m	line:61	file:
+EnablePots::(output_low(SENSOR_COM_1K),out	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	116;"	d	line:116	file:
+EnableSensors::(output_high(SENSOR_COM_1K),ou	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	114;"	d	line:114	file:
+GREEN::0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	44;"	d	line:44	file:
+ISR_counter0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	126;"	v	line:126
+ISR_counter1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	125;"	v	line:125
+ISR_counter2	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	126;"	v	line:126
+LEDStruct	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	63;"	t	line:63	file:
+LED_COM::PIN_A1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	88;"	d	line:88	file:
+LED_DL1::PIN_B3	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	90;"	d	line:90	file:
+LED_DL2::PIN_B5	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	91;"	d	line:91	file:
+LED_DL3::PIN_B2	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	89;"	d	line:89	file:
+LEDs	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	130;"	v	line:130
+MINIMUM_STOP_TIME::20	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	36;"	d	line:36	file:
+NO::0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	43;"	d	line:43	file:
+OFF::0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	40;"	d	line:40	file:
+ON::1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	39;"	d	line:39	file:
+OUT_RL1::PIN_A2	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	95;"	d	line:95	file:
+OUT_RL2::PIN_A3	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	96;"	d	line:96	file:
+POT_FREEZE_R5::PIN_A0	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	83;"	d	line:83	file:
+POT_FRIDGE_R4::PIN_B4	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	82;"	d	line:82	file:
+SENSOR_COM_1K::PIN_B7	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	80;"	d	line:80	file:
+SENSOR_COM_7K::PIN_B6	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	79;"	d	line:79	file:
+SET_LED::(LED,STATUS)(output_bit(LED,!S	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	109;"	d	line:109	file:
+SET_RELAY1::(STATUS)(output_bit(OUT_RL1,!S	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	107;"	d	line:107	file:
+SET_RELAY2::(STATUS)(output_bit(OUT_RL2,!S	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	108;"	d	line:108	file:
+SW_FREEZE::PIN_B3	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	86;"	d	line:86	file:
+SW_FRIDGE::PIN_B2	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	85;"	d	line:85	file:
+SW_freeze_pressed	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	123;"	v	line:123
+SW_fridge_pressed	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	123;"	v	line:123
+Start_Freezer_Motor::(SET_RELAY2(ON),LEDs.DL1=ON)	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	112;"	d	line:112	file:
+Start_Fridge_Motor::(SET_RELAY1(ON),LEDs.DL2=ON)	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	110;"	d	line:110	file:
+Stop_Freezer_Motor::(SET_RELAY2(OFF),LEDs.DL1=OFF)	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	113;"	d	line:113	file:
+Stop_Fridge_Motor::(SET_RELAY1(OFF),LEDs.DL2=OFF)	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	111;"	d	line:111	file:
+TIMER0_isr	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	143;"	f	line:143	signature:(void)
+TIMER1_isr	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	165;"	f	line:165	signature:(void)
+TIMER2_isr	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	175;"	f	line:175	signature:(void)
+TIMER3_isr	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	193;"	f	line:193	signature:(void)
+TRISA_NORMAL::0b10000000	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	98;"	d	line:98	file:
+TRISA_SAMPLE::0b10000001	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	99;"	d	line:99	file:
+TRISB_LED::0b00010011	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	103;"	d	line:103	file:
+TRISB_SW::0b00011111	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	104;"	d	line:104	file:
+VDD::4.95	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	35;"	d	line:35	file:
+YES::1	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	42;"	d	line:42	file:
+adc_val	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	354;"	l	line:354
+adc_val_freezer_pot	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	391;"	l	line:391
+adc_val_fridge_pot	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	391;"	l	line:391
+blink_toggle	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	121;"	v	line:121
+do_read_temp	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	121;"	v	line:121
+freezer_running	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	122;"	v	line:122
+freezer_stopped_secs	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	127;"	v	line:127
+freezer_temp	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	68;"	m	line:68	file:
+fridge_running	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	122;"	v	line:122
+fridge_stopped_secs	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	127;"	v	line:127
+fridge_temp	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	67;"	m	line:67	file:
+getAvgADC	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	134;"	p	line:134	file:	signature:(unsigned int8 channel, unsigned int8 samples)
+getAvgADC	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	427;"	f	line:427	signature:(unsigned int8 channel, unsigned int8 samples)
+main	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	198;"	f	line:198
+readPots	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	136;"	p	line:136	file:	signature:(void)
+readPots	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	389;"	f	line:389	signature:(void)
+readTemp	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	135;"	p	line:135	file:	signature:(void)
+readTemp	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	351;"	f	line:351	signature:(void)
+run_freezer	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	122;"	v	line:122
+run_fridge	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	122;"	v	line:122
+temp_adc_value	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	429;"	l	line:429
+temp_freezer	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	128;"	v	line:128
+temp_fridge	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	128;"	v	line:128
+temp_pot_freezer	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	128;"	v	line:128
+temp_pot_fridge	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	128;"	v	line:128
+volt	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	355;"	l	line:355
+voltToDegrees	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	137;"	p	line:137	file:	signature:(int32 volt)
+voltToDegrees	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	416;"	f	line:416	signature:(int32 volt)
+x	C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main.c	430;"	l	line:430

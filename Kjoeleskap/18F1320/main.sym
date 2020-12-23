@@ -1,0 +1,275 @@
+000     @SCRATCH
+001     @SCRATCH
+001     _RETURN_
+002     @SCRATCH
+003     @SCRATCH
+004     @INTERRUPT_AREA
+005     @INTERRUPT_AREA
+006     @INTERRUPT_AREA
+007     @INTERRUPT_AREA
+008     @INTERRUPT_AREA
+009     @INTERRUPT_AREA
+00A     @INTERRUPT_AREA
+00B     @INTERRUPT_AREA
+00C     @INTERRUPT_AREA
+00D     @INTERRUPT_AREA
+00E     @INTERRUPT_AREA
+00F     @INTERRUPT_AREA
+010     @INTERRUPT_AREA
+011     @INTERRUPT_AREA
+012     @INTERRUPT_AREA
+013     @INTERRUPT_AREA
+014     @INTERRUPT_AREA
+015     @INTERRUPT_AREA
+016.0   do_read_temp
+016.1   do_LED_updates
+016.2   blink_toggle
+016.3   blink_toggle_fast
+016.4   print_debug
+017     ISR_counter1
+018     sample_timer_sec
+019     debug_timer_sec
+01A-01B ISR_counter0
+01C-01D ISR_counter0_2
+01E-01F SW_fridge_time
+020-021 SW_freezer_time
+022     started1
+023     started2
+024     poweredup_mins
+025     x
+026-027 adc_val
+028     min_val
+029     max_val
+02A     prev_restart_reason
+02B     curr_restart_reason
+02C-053 last_error
+054-059 config
+05A-062 Temps
+063-066 LEDs
+067-069 Alarms
+06A-079 SampleFridge
+07A-084 SampleFridgePot
+085-094 SampleFreezer
+095-09F SampleFreezerPot
+0A0-0AA Status
+0AB-0AC strtok.save
+0AD-0AE @sprintf_string
+0AF     readTempFridge.tmp
+0AF     updateAlarms.tmp1
+0AF     readTempFreezer.tmp
+0AF-0B0 @PRINTF_LU_191.P1
+0AF     readPotFreezer.@SCRATCH1
+0AF     readPotFridge.@SCRATCH1
+0AF     main.@SCRATCH1
+0AF     @PSTRINGC_191.@SCRATCH1
+0AF     doDecision_Fridge.@SCRATCH1
+0B0     @DIVS88.P1
+0B0     updateAlarms.tmp2
+0B0     @delay_ms1.P1
+0B0     @PRINTF_D_191.P2
+0B0     readTempFreezer.@SCRATCH1
+0B0     readTempFridge.@SCRATCH1
+0B0     readPotFreezer.@SCRATCH2
+0B0     readPotFridge.@SCRATCH2
+0B0     main.@SCRATCH2
+0B0     @PSTRINGC_191.@SCRATCH2
+0B1     @PRINTF_U_191.P1
+0B1     @PRINTF_D_367.P2
+0B1     @DIVS88.P3
+0B1     @PSTRINGCN_191.P4
+0B1     getAvgADC.channel
+0B1     @PSTRINGCN_367.P1
+0B1     @PRINTF_D_191.P2
+0B1     readTempFreezer.@SCRATCH2
+0B1     readTempFridge.@SCRATCH2
+0B1     @PRINTF_LU_191.@SCRATCH1
+0B1     @PSTRINGR_191.@SCRATCH1
+0B1     @PSTRINGC_367.@SCRATCH1
+0B1     updateAlarms.@SCRATCH1
+0B2     @PRINTF_U_191.P1
+0B2-0B3 SensorADToDegrees.ad_val
+0B2     @PRINTF_D_367.P1
+0B2     getAvgADC.samples
+0B2     @DIVS88.@SCRATCH1
+0B2     @PSTRINGCN_191.@SCRATCH1
+0B2     @PRINTF_D_191.@SCRATCH1
+0B2     @PRINTF_LU_191.@SCRATCH2
+0B2     @PSTRINGR_191.@SCRATCH2
+0B2     @PSTRINGC_367.@SCRATCH2
+0B2     @PSTRINGCN_367.@SCRATCH1
+0B3-0B4 getAvgADC.temp_adc_value
+0B3     @DIVS88.@SCRATCH2
+0B3     @PSTRINGCN_191.@SCRATCH2
+0B3     @PRINTF_D_191.@SCRATCH2
+0B3     @PRINTF_LU_191.@SCRATCH3
+0B3     @PSTRINGCN_367.@SCRATCH2
+0B3     @PRINTF_D_367.@SCRATCH1
+0B4     SensorADToDegrees.is_fridge
+0B4     @PRINTF_D_191.@SCRATCH3
+0B4     @PRINTF_LU_191.@SCRATCH4
+0B4     @PRINTF_D_367.@SCRATCH2
+0B5     SensorADToDegrees.temp
+0B5     getAvgADC.x
+0B5     @PRINTF_D_191.@SCRATCH4
+0B5     @PRINTF_LU_191.@SCRATCH5
+0B5     @PRINTF_D_367.@SCRATCH3
+0B6-0B7 @DIV1616.P1
+0B6-0B9 SensorADToDegrees.millivolts
+0B6     @PRINTF_LU_191.@SCRATCH6
+0B6     @PRINTF_D_367.@SCRATCH4
+0B7     @DIV88.P1
+0B7     @SPRINTF.P2
+0B7     @PRINTF_LU_191.@SCRATCH7
+0B8-0B9 @DIV1616.P1
+0B8     @DIV88.P2
+0B8     STREAM_DEBUG.c
+0B9     @PUTCHAR_1_.P1
+0B9     @DIV88.@SCRATCH1
+0BA     @DIV1616.@SCRATCH1
+0BA     SensorADToDegrees.@SCRATCH1
+0BB     SensorADToDegrees.@SCRATCH2
+0BC     SensorADToDegrees.@SCRATCH3
+0BD     SensorADToDegrees.@SCRATCH4
+0BE-0C1 @MUL3232.P1
+0BE-0C1 @DIV3232.P2
+0C2-0C5 @DIV3232.P1
+0C2-0C5 @MUL3232.P2
+0C6     @MUL3232.@SCRATCH1
+0C6     @DIV3232.@SCRATCH1
+0C7     @MUL3232.@SCRATCH2
+0C7     @DIV3232.@SCRATCH2
+0C8     @MUL3232.@SCRATCH3
+0C8     @DIV3232.@SCRATCH3
+0C9     @MUL3232.@SCRATCH4
+0C9     @DIV3232.@SCRATCH4
+0CA     @MUL3232.@SCRATCH5
+0CA     @DIV3232.@SCRATCH5
+0CB     @MUL3232.@SCRATCH6
+0CC     TIMER0_isr.@SCRATCH1
+0CC     TIMER1_isr.@SCRATCH1
+0CC     TIMER2_isr.@SCRATCH1
+0CD     TIMER2_isr.@SCRATCH2
+F81     PORTB
+FBE     CCP_1
+FBE     CCP_1_LOW
+FBF     CCP_1_HIGH
+FE1-FE2 @READ_PACKED_MEMORY.P1
+FE1-FE2 @WRITE_PACKED_MEMORY.P2
+FE9-FEA @READ_PACKED_MEMORY.P1
+FE9-FEA @WRITE_PACKED_MEMORY.P2
+FE9-FEA @READ_PROGRAM_MEMORY.P3
+FE9-FEA @WRITE_PROGRAM_MEMORY.P4
+FF6-FF8 @WRITE_PROGRAM_MEMORY.P1
+FF6-FF8 @READ_PROGRAM_MEMORY.P2
+
+ROM Allocation:
+0786  @delay_ms1
+07B4  @PUTCHAR_1_
+00BA  TIMER0_isr
+0258  TIMER1_isr
+0288  TIMER2_isr
+03F0  TIMER3_isr
+08FC  getAvgADC
+08B8  @DIV1616
+0B36  readTempFreezer
+0AEE  @DIVS88
+0D10  readTempFridge
+107C  readPotFreezer
+0EE4  readPotFridge
+0A3E  SensorADToDegrees
+096E  @MUL3232
+09C4  @DIV3232
+1A88  main
+03F8  @const336
+080C  @PSTRINGCN_191
+082A  @DIV88
+0852  @PRINTF_U_191
+041C  @const345
+0452  @const346
+0462  @const347
+18DE  @PRINTF_D_191
+0498  @const351
+04CE  @const352
+19B2  @PSTRINGC_191
+04FA  @const354
+19D4  @PRINTF_LU_191
+050E  @const357
+0526  @const358
+0546  @const359
+0566  @const360
+0570  @const361
+0594  @const362
+1334  @PSTRINGR_191
+05A6  @const364
+06AE  initialize_hardware
+073A  initialize_software
+05B8  @const365
+06FE  @SPRINTF
+071A  @PSTRINGC_367
+0376  setLEDs
+1722  doDecision_Freezer
+17E8  doDecision_Fridge
+1896  doActions
+135A  updateAlarms
+05BE  @const372
+1240  @PSTRINGCN_367
+1260  @PRINTF_D_367
+05D6  @const378
+05E0  @const379
+05F6  @const380
+0600  @const381
+061A  @const382
+0624  @const383
+063E  @const384
+0648  @const385
+065C  @const386
+0666  @const387
+067A  @const388
+0684  @const389
+0698  @const391
+07F8  STREAM_DEBUG
+1A88  @cinit
+
+
+User Memory space: 
+
+User Memory space: 
+
+Project Directory:
+    C:\kenny\PIC\Kjøleskap\18F1320\
+
+Project Files:
+    main.c
+    ..\..\..\..\Program Files\PICC\Devices\18F1320.h
+    main.h
+    ..\..\..\..\Program Files\PICC\Drivers\string.h
+    ..\..\..\..\Program Files\PICC\Drivers\stddef.h
+    ..\..\..\..\Program Files\PICC\Drivers\ctype.h
+    ISR.c
+    common.h
+    common.c
+    Sensors.h
+    Sensors.c
+
+Units:
+    C:\kenny\PIC\Kjøleskap\18F1320\main (main)
+
+Compiler Settings:
+    Processor:      PIC18F1320
+    Pointer Size:   16
+    ADC Range:      0-1023
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+    Case Sensitive: Yes
+
+Output Files:
+    Errors:      main.err
+    Ext Symbols: main.esym
+    INHX32:      main.hex
+    Symbols:     main.sym
+    List:        main.lst
+    Debug/COFF:  main.cof
+    Project:     main.PJT
+    Call Tree:   main.tre
+    Statistics:  main.sta

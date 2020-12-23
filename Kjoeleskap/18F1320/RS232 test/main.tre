@@ -1,0 +1,6 @@
+юдmain
+   юдmain  0/80  Ram=1
+      цд??0??
+      цд@PSTRINGC_59  0/34  Ram=2
+      Ё  юд@PUTCHAR_1_  0/66  Ram=1
+      юд@delay_ms1  0/42  Ram=1

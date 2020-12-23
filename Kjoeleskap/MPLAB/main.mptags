@@ -1,0 +1,14 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.5.4	//
+!_TAG_REVISION_NAME	MCHPTags	//
+!_TAG_REVISION_VERSION	6.0.1	//
+LED_COM::PIN_A3	C:\kenny\PIC\Kjøleskap\main.c	24;"	d	line:24	file:
+LED_DL1::PIN_A1	C:\kenny\PIC\Kjøleskap\main.c	21;"	d	line:21	file:
+LED_DL2::PIN_A2	C:\kenny\PIC\Kjøleskap\main.c	22;"	d	line:22	file:
+LED_DL3::PIN_A0	C:\kenny\PIC\Kjøleskap\main.c	20;"	d	line:20	file:
+ee	C:\kenny\PIC\Kjøleskap\main.c	16;"	d	line:16	file:
+main	C:\kenny\PIC\Kjøleskap\main.c	28;"	f	line:28

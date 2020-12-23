@@ -1,0 +1,63 @@
+000     @SCRATCH
+001     @SCRATCH
+001     _RETURN_
+002     @SCRATCH
+003     @SCRATCH
+005     main.@SCRATCH1
+005     @PSTRINGC_59.@SCRATCH1
+006     @delay_ms1.P1
+006     @PSTRINGC_59.@SCRATCH2
+007     @PUTCHAR_1_.P1
+FBE     CCP_1_LOW
+FBE     CCP_1
+FBF     CCP_1_HIGH
+FE1-FE2 @WRITE_PACKED_MEMORY.P1
+FE1-FE2 @READ_PACKED_MEMORY.P2
+FE9-FEA @READ_PACKED_MEMORY.P1
+FE9-FEA @WRITE_PROGRAM_MEMORY.P2
+FE9-FEA @WRITE_PACKED_MEMORY.P3
+FE9-FEA @READ_PROGRAM_MEMORY.P4
+FF6-FF8 @READ_PROGRAM_MEMORY.P1
+FF6-FF8 @WRITE_PROGRAM_MEMORY.P2
+
+ROM Allocation:
+007A  @delay_ms1
+0016  @PUTCHAR_1_
+00A4  main
+0004  @const68
+0058  @PSTRINGC_59
+00A4  @cinit
+
+
+User Memory space: 
+
+User Memory space: 
+
+Project Directory:
+    C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\
+
+Project Files:
+    main.c
+    ..\..\..\..\..\Program Files\PICC\Devices\18F1320.h
+
+Units:
+    C:\kenny\PIC\Kjøleskap\18F1320\RS232 test\main (main)
+
+Compiler Settings:
+    Processor:      PIC18F1320
+    Pointer Size:   16
+    ADC Range:      0-1023
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+
+Output Files:
+    Errors:      main.err
+    Ext Symbols: main.esym
+    INHX32:      main.hex
+    Symbols:     main.sym
+    List:        main.lst
+    Debug/COFF:  main.cof
+    Project:     main.PJT
+    Call Tree:   main.tre
+    Statistics:  main.sta

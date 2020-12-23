@@ -1,0 +1,8 @@
+D G "__PCH__" 0 0 ""4.104""
+D G "__DEVICE__" 0 0 ""
+D G "__DATE__" 0 0 ""24-okt-10""
+D G "__TIME__" 0 0 ""15:08:42"" "* Set all bits in given range in data EEPROM"
+F G "fillEEPROM" 0 4 "void()"
+V L "byte_start" 0 4 "int8"
+V L "byte_end" 0 4 "int8"
+V L "x" 0 6 "int8"

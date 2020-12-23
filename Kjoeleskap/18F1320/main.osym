@@ -1,0 +1,64 @@
+_RETURN_
+CCP_1
+CCP_1_LOW
+CCP_1_HIGH
+PORTB
+do_read_temp
+do_actions
+blink_toggle
+sampling
+ISR_counter1
+ISR_counter3
+ISR_counter0
+fridge_stopped_mins
+freezer_stopped_mins
+fridge_run_mins
+freezer_run_mins
+SW_fridge_time
+SW_freezer_time
+started1
+started2
+poweredup_secs
+adc_val
+min_val
+max_val
+min_val_fridge
+max_val_fridge
+config
+Temps
+LEDs
+Alarms
+SampleFridge
+SampleFreezer
+Status
+s_debug
+@sprintf_string
+
+Project Directory:
+    C:\kenny\PIC\Kjøleskap\18F1320\
+
+Project Files:
+    main.c
+    ..\..\..\..\Program Files\PICC\Devices\18F1320.h
+    main.h
+    common.h
+    common.c
+
+Units:
+    C:\kenny\PIC\Kjøleskap\18F1320\main (main)
+
+Compiler Settings:
+    Processor:      PIC18F1320
+    Pointer Size:   16
+    ADC Range:      0-1023
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+    Case Sensitive: Yes
+    Output file:    Relocatable
+
+Output Files:
+    Errors:      main.err
+    Ext Symbols: main.esym
+    Object:      main.o
+    Symbols:     main.osym
