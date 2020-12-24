@@ -13,10 +13,14 @@
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
+#include <ArduinoOTA.h>
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char* hostname = HOSTNAME;
+
+const char* updateHTML = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
 
 int blynk_button_V2 = 0;
 
@@ -102,11 +106,11 @@ void setup(void) {
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
-  if (MDNS.begin("esp8266")) {
+  ConnectBlynk();
+
+  if (MDNS.begin(hostname)) {
     Serial.println("MDNS responder started");
   }
-
-  ConnectBlynk();
 
   server.on("/", handleRoot);
   server.on("/json", handleJSON);
@@ -123,8 +127,89 @@ void setup(void) {
 
   server.onNotFound(handleNotFound);
 
+  // ************ HTTP OTA UPDATE *************  
+  server.on("/update", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", updateHTML);
+  });
+
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Serial.setDebugOutput(true);
+      WiFiUDP::stopAll();
+      Serial.printf("Update: %s\n", upload.filename.c_str());
+      uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+      if (!Update.begin(maxSketchSpace)) { //start with max available size
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) { //true to set the size to the current progress
+        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      } else {
+        Update.printError(Serial);
+      }
+      Serial.setDebugOutput(false);
+    }
+    yield();
+  });  
+
   server.begin();
-  Serial.println("HTTP server started");
+  MDNS.addService("http", "tcp", 80);
+
+  Serial.printf("HTTP server ready: http://%s.local (MDNS/Bonjour)\n", hostname);
+
+
+  // ************ ARDUINO OTA CONFIG *************'
+  // https://arduino-esp8266.readthedocs.io/en/latest/ota_updates/readme.html
+  Serial.println(F("Configuring OTA (port=8266)"));
+  // Port defaults to 8266
+  ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  // ArduinoOTA.setHostname("myesp8266");
+
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_FS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+      
 }
 
 void ConnectBlynk() {
@@ -189,6 +274,7 @@ void loop(void) {
   unsigned long currentMillis = millis();
   int wifitries = 0;
 
+  ArduinoOTA.handle();
   server.handleClient();
   MDNS.update();
   Blynk.run();

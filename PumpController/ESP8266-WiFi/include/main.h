@@ -7,6 +7,7 @@
 #define STR(x) XSTR(x)
 
 #define FIRMWARE_VERSION    "0.11"
+#define HOSTNAME            "esp8266-pumpctrl"
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
