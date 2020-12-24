@@ -6,8 +6,8 @@
 void handleRoot() {
   digitalWrite(PIN_LED_1, 1);
 
-  String message = "<html><head></head><body>\n";
-  message += "<h1>PumpHouseLogger</h1><br />";
+  String message = "<html><head><meta http-equiv=\"refresh\" content=\"10\"></head><body>\n";
+  message += "<h1>PumpController</h1><br />";
   message += "Using LM335 on ADC0<br /><br />\n";
   message += "Temperature: <b>";
   message += celsius;
@@ -15,7 +15,7 @@ void handleRoot() {
   message += "Pressure: <b>";
   message += pressure_bar;
   message += " Bar</b><br /><br />\n";
-  message += "Output as JSON: <a href='/json'>/json</a><br />\n";
+  message += "Result as JSON: <a href='/json'>/json</a><br />\n";
   message += "Reset WiFi settings (will reboot as AP): <a href='/reset'>/reset</a><br />\n";
   message += "Uptime (secs): ";
   message += millis()/1000;
