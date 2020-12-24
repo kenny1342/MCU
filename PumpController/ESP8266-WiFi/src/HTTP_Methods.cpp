@@ -1,8 +1,11 @@
+
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <main.h>
 
+
+/*
 void handleRoot() {
   digitalWrite(PIN_LED_1, 1);
 
@@ -25,12 +28,14 @@ void handleRoot() {
   server.send(200, "text/html", message);
   digitalWrite(PIN_LED_1, 0);
 }
-
+*/
+/*
 void handleJSON() {
   digitalWrite(PIN_LED_1, 1);
   server.send(200, "application/json", json_output);
   digitalWrite(PIN_LED_1, 0);
 }
+*/
 
 void handleNotFound() {
   digitalWrite(PIN_LED_1, 1);

@@ -1,0 +1,112 @@
+<html>
+<head>
+  <title>Water Pump Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <h1>Water Pump Controller</h1>
+
+  <!--<p>GPIO state<strong> %STATE%</strong></p>
+  <p>
+    <a href="/on"><button class="button">ON</button></a>
+    <a href="/off"><button class="button button2">OFF</button></a>
+  </p>
+-->
+  <p>
+    <span class="sensor-labels">Temperature</span>
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+  <p>
+    <span class="sensor-labels">Humidity</span>
+    <span id="humidity">%HUMIDITY%</span>
+    <sup class="units">&#37;</sup>
+  </p>
+  <p>
+    <span class="sensor-labels">Water Pressure</span>
+    <span id="waterpressure">%WATERPRESSURE%</span>
+    <sup class="units">bar</sup>
+  </p>
+
+  <hr />
+  <small>
+    <a href='/json'>JSON</a> result | <a href='/reset'>Reset</a> WiFi settings
+  </small>
+  <br />
+  <small>
+    Uptime: <span id="uptime">-</span><br />
+    <hr />Made by Ken-Roger Andersen, Dec 2020
+  </small>
+  
+</body>
+<script>
+  
+  
+
+  function formatSecs(secs=0) {
+    return new Date(secs * 1000).toISOString().substr(11, 8);
+  }
+
+
+  setInterval(function ( ) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById("uptime").innerHTML = formatSecs(this.responseText);
+      }
+    };
+    xhttp.open("GET", "/uptimesecs", true);
+    xhttp.send();
+  }, 10000 ) ;
+
+  setInterval(function ( ) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById("temperature").innerHTML = this.responseText;
+      }
+    };
+    xhttp.open("GET", "/temperature", true);
+    xhttp.send();
+  }, 10000 ) ;
+
+  setInterval(function ( ) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById("humidity").innerHTML = this.responseText;
+      }
+    };
+    xhttp.open("GET", "/humidity", true);
+    xhttp.send();
+  }, 10000 ) ;
+
+  setInterval(function ( ) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById("waterpressure").innerHTML = this.responseText;
+      }
+    };
+    xhttp.open("GET", "/waterpressure", true);
+    xhttp.send();
+  }, 10000 ) ;
+</script>
+</html>
+<!--
+<html>
+  <head>
+    <meta http-equiv="refresh" content="10">
+  </head>
+  <body>
+    <h1>PumpHouseLogger</h1><br />Using LM335 on ADC0<br /><br />
+    Temperature: <b>%TEMPERATURE% &deg;C</b><br />
+    Pressure: <b>%WATERPRESSURE% Bar</b><br /><br />
+    Output as JSON: <a href='/json'>/json</a><br />
+    Reset WiFi settings: (will reboot as AP)<a href='/reset'>/reset</a><br />
+    Uptime (secs): 221143<br /><hr />Made by Ken-Roger Andersen, Dec 2020
+  </body>
+</html>
+-->

@@ -26,7 +26,9 @@ extern uint16_t reconnects_wifi;
 void ConnectBlynk();
 void ReconnectWiFi();
 int readline(int readch, char *buffer, int len);
-void handleRoot();
-void handleJSON();
-void handleNotFound();
+String HTMLProcessor(const String& var);
+//extern void handleRoot();
+//extern void handleJSON();
+extern void handleNotFound();
+
 #endif

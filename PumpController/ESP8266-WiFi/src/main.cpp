@@ -6,14 +6,20 @@
  * 
  * Kenny Dec 19, 2020
  */
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
+#include <WiFiManager.h>
+
+#include <DNSServer.h>
+
+#include "LittleFS.h" // LittleFS is declared
+//#include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
+
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
 #include <ArduinoOTA.h>
+
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
@@ -48,6 +54,7 @@ BLYNK_WRITE(V2) {
 }
 
 ESP8266WebServer server(80);
+//AsyncWebServer server2(8080);
 
 void setup(void) {
   pinMode(PIN_LED_1, OUTPUT);
@@ -64,6 +71,47 @@ void setup(void) {
   Serial.println(F("To reset, press button for 5+ secs while powering on"));
   Serial.println("");
   delay(1000);
+
+      Serial.println(F("Inizializing FS (LittleFS)..."));
+    if (LittleFS.begin()){
+        Serial.println(F("done."));
+    }else{
+        Serial.println(F("fail."));
+    }
+ 
+    // To format all space in LittleFS
+    // LittleFS.format()
+ 
+    // Get all information of your LittleFS
+    FSInfo fs_info;
+    LittleFS.info(fs_info);
+ 
+    Serial.println("File sistem info.");
+ 
+    Serial.print("Total space:      ");
+    Serial.print(fs_info.totalBytes);
+    Serial.println("byte");
+ 
+    Serial.print("Total space used: ");
+    Serial.print(fs_info.usedBytes);
+    Serial.println("byte");
+ 
+    Serial.print("Block size:       ");
+    Serial.print(fs_info.blockSize);
+    Serial.println("byte");
+ 
+    Serial.print("Page size:        ");
+    Serial.print(fs_info.totalBytes);
+    Serial.println("byte");
+ 
+    Serial.print("Max open files:   ");
+    Serial.println(fs_info.maxOpenFiles);
+ 
+    Serial.print("Max path lenght:  ");
+    Serial.println(fs_info.maxPathLength);
+ 
+    Serial.println();
+
   Serial.println(F("Initializing WiFi..."));
 
   //Local intialization. Once its business is done, there is no need to keep it around
@@ -112,10 +160,65 @@ void setup(void) {
     Serial.println("MDNS responder started");
   }
 
-  server.on("/", handleRoot);
-  server.on("/json", handleJSON);
+  // ************** ASync server (new)
+/*
+  // Route for root / web page
+  server2.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/index.html", String(), false, HTMLProcessor);
+  });
+  
+  // Route to load style.css file
+  server2.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/style.css", "text/css");
+  });
 
-  server.on("/reset", []() {
+  server2.on("/json", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "application/json", json_output);
+  });
+  server2.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", celsius);
+  });
+  server2.on("/waterpressure", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", pressure_bar);
+  });
+  server2.on("/uptimesecs", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", String( millis() /1000) );
+  });
+
+  // Start server
+  server2.begin();
+  Serial.println("Started HTTP server2 on port 8080");
+*/
+
+  // ************* Old server (to be removed)
+  
+  //server.on("/", handleRoot);
+  // Route for root / web page
+  //server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+  server.on("/", HTTP_GET, []() {
+    //server.send(LittleFS, "text/plain", "/index.html");
+    server.serveStatic("/index.html", LittleFS, "/index.html");
+  });
+  server.on("/style.css", HTTP_GET, []() {
+    server.serveStatic("/style.css", LittleFS, "/style.css");
+  });
+
+  server.on("/temperature", HTTP_GET, []() {
+    server.send(200, "text/plain", celsius);
+  });
+  server.on("/waterpressure", HTTP_GET, []() {
+    server.send(200, "text/plain", pressure_bar);
+  });
+  server.on("/uptimesecs", HTTP_GET, []() {
+    server.send(200, "text/plain", String( millis() /1000));
+  });
+  //server.on("/json", handleJSON);
+  server.on("/json", HTTP_GET, []() {
+    server.send(200, "application/json", json_output);
+  });
+
+  server.on("/reset", HTTP_GET, []() {
     WiFiManager wifiManager;
     server.send(200, "text/plain", "resetting...");
     delay(3000);
@@ -123,6 +226,11 @@ void setup(void) {
     delay(100);
     ESP.reset();
     delay(5000);
+  });
+
+  // respond to GET requests on URL /heap
+  server.on("/heap", HTTP_GET, [] (){
+    server.send(200, "text/plain", String(ESP.getFreeHeap()));
   });
 
   server.onNotFound(handleNotFound);
@@ -209,7 +317,10 @@ void setup(void) {
     }
   });
   ArduinoOTA.begin();
-      
+
+    
+
+   // setup() COMPLETE  
 }
 
 void ConnectBlynk() {
@@ -269,6 +380,20 @@ int readline(int readch, char *buffer, int len) {
     return 0;
 }
 
+String HTMLProcessor(const String& var) {
+  Serial.println(var);
+  if (var == "TEMPERATURE"){
+    return String(celsius);
+  }
+  else if (var == "WATERPRESSURE"){
+    return String(pressure_bar);
+  }
+  else if (var == "UPTIMESECS"){
+    return String(millis() / 1000);
+  }
+
+  return String();
+}
 
 void loop(void) {
   unsigned long currentMillis = millis();
