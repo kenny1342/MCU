@@ -1,55 +1,28 @@
 
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
-#include <main.h>
+#include <HTTP_Methods.h>
 
-
-/*
-void handleRoot() {
-  digitalWrite(PIN_LED_1, 1);
-
-  String message = "<html><head><meta http-equiv=\"refresh\" content=\"10\"></head><body>\n";
-  message += "<h1>PumpController</h1><br />";
-  message += "Using LM335 on ADC0<br /><br />\n";
-  message += "Temperature: <b>";
-  message += celsius;
-  message += " &deg;C</b><br />\n";
-  message += "Pressure: <b>";
-  message += pressure_bar;
-  message += " Bar</b><br /><br />\n";
-  message += "Result as JSON: <a href='/json'>/json</a><br />\n";
-  message += "Reset WiFi settings (will reboot as AP): <a href='/reset'>/reset</a><br />\n";
-  message += "Uptime (secs): ";
-  message += millis()/1000;
-  message += "<br />WiFi reconnects: ";
-  message += reconnects_wifi;
-  message += "<br /><hr />Made by Ken-Roger Andersen, Dec 2020";
-  server.send(200, "text/html", message);
-  digitalWrite(PIN_LED_1, 0);
+void onRequest(AsyncWebServerRequest *request){
+  //Handle valid Request
+  Serial.printf("HTTP: %s\n", request->url().c_str());
 }
-*/
-/*
-void handleJSON() {
-  digitalWrite(PIN_LED_1, 1);
-  server.send(200, "application/json", json_output);
-  digitalWrite(PIN_LED_1, 0);
-}
-*/
 
-void handleNotFound() {
-  digitalWrite(PIN_LED_1, 1);
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
-  digitalWrite(PIN_LED_1, 0);
+void onNotFound(AsyncWebServerRequest *request){
+  //Handle Unknown Request
+  Serial.printf("onNotFound: HTTP/404 - %s\n", request->url().c_str());
+  request->send(404);
+}
+
+void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+  //Handle body
+  Serial.println(F("onBody"));
+}
+
+void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+  //Handle upload
+  Serial.println(F("onUpload"));
+}
+
+void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
+  //Handle WebSocket event
+  Serial.println(F("onEvent"));
 }

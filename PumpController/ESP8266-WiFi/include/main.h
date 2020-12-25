@@ -6,8 +6,9 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "0.11"
+#define FIRMWARE_VERSION    "1.22"
 #define HOSTNAME            "esp8266-pumpctrl"
+#define PORT                "80"
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
@@ -17,18 +18,11 @@
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
 
-extern ESP8266WebServer server;
-extern char json_output[200];
-extern char celsius[4];
-extern char pressure_bar[4];
-extern uint16_t reconnects_wifi;
-
-void ConnectBlynk();
+bool ConnectBlynk();
 void ReconnectWiFi();
 int readline(int readch, char *buffer, int len);
 String HTMLProcessor(const String& var);
-//extern void handleRoot();
-//extern void handleJSON();
-extern void handleNotFound();
+void saveConfigCallback ();
 
+extern Config config;
 #endif

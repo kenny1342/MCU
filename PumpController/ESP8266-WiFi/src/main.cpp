@@ -6,27 +6,39 @@
  * 
  * Kenny Dec 19, 2020
  */
-#include <WiFiManager.h>
-
-#include <DNSServer.h>
-
+#include <Arduino.h>
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "LittleFS.h" // LittleFS is declared
-//#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#else
+#include <WiFi.h>
+#endif
+
+#include <ESPAsyncWebServer.h>
+#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
+#include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp8266.h>
 #include <ArduinoOTA.h>
-
+#include <setup.h>
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
-const char* hostname = HOSTNAME;
 
-const char* updateHTML = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+const char* _def_hostname = HOSTNAME;
+const char* _def_port = PORT;
+
+
+
+//flag to use from web firmware update to reboot the ESP
+bool shouldReboot = false;
+//WifiManger callback flag for saving data
+bool shouldSaveConfig = false;
+
+//char param1[6]; // testing wifimanager config
 
 int blynk_button_V2 = 0;
 
@@ -34,12 +46,17 @@ int blynk_button_V2 = 0;
 char json_output[200];
 char data_string[200];
 
-char celsius[4];
-char pressure_bar[4];
+char celsius[5];
+char pressure_bar[5];
 StaticJsonDocument<200> data_json;
 uint32_t previousMillis = 0; 
 uint32_t previousMillis_200 = 0; 
 uint16_t reconnects_wifi = 0;
+
+DNSServer dns;
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
@@ -53,13 +70,14 @@ BLYNK_WRITE(V2) {
   digitalWrite(PIN_LED_1, blynk_button_V2);
 }
 
-ESP8266WebServer server(80);
-//AsyncWebServer server2(8080);
 
 void setup(void) {
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
   pinMode(PIN_SW_RST, INPUT); // reset button
+
+  strlcpy(celsius, "-0.0", sizeof(celsius));
+  strlcpy(pressure_bar, "0.00", sizeof(pressure_bar));
 
   Serial.begin(115200);
 
@@ -72,53 +90,28 @@ void setup(void) {
   Serial.println("");
   delay(1000);
 
-      Serial.println(F("Inizializing FS (LittleFS)..."));
-    if (LittleFS.begin()){
-        Serial.println(F("done."));
-    }else{
-        Serial.println(F("fail."));
-    }
- 
-    // To format all space in LittleFS
-    // LittleFS.format()
- 
-    // Get all information of your LittleFS
-    FSInfo fs_info;
-    LittleFS.info(fs_info);
- 
-    Serial.println("File sistem info.");
- 
-    Serial.print("Total space:      ");
-    Serial.print(fs_info.totalBytes);
-    Serial.println("byte");
- 
-    Serial.print("Total space used: ");
-    Serial.print(fs_info.usedBytes);
-    Serial.println("byte");
- 
-    Serial.print("Block size:       ");
-    Serial.print(fs_info.blockSize);
-    Serial.println("byte");
- 
-    Serial.print("Page size:        ");
-    Serial.print(fs_info.totalBytes);
-    Serial.println("byte");
- 
-    Serial.print("Max open files:   ");
-    Serial.println(fs_info.maxOpenFiles);
- 
-    Serial.print("Max path lenght:  ");
-    Serial.println(fs_info.maxPathLength);
- 
-    Serial.println();
+  
+  Serial.print(F("Starting FS (LittleFS)..."));
+  Setup::FileSystem();
 
-  Serial.println(F("Initializing WiFi..."));
+  Serial.print(F("Loading configuration from /config.json..."));
+  Setup::GetConfig();
 
-  //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
+  Serial.println(F("Starting WiFi..."));
 
-  //exit after config instead of connecting
-  wifiManager.setBreakAfterConfig(true);
+  // TODO: read config.json (see example from ESPAsyncWiFiManager)
+
+  //WiFiManager
+  // The extra parameters to be configured (can be either global or just in the setup)
+  // After connecting, parameter.getValue() will get you the configured value
+  // id/name placeholder/prompt default length
+  AsyncWiFiManagerParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
+  AsyncWiFiManagerParameter custom_port("port", "HTTP port", config.port, 6);
+
+  //Local intialization. Once setup() done, there is no need to keep it around
+  AsyncWiFiManager wifiManager(&server,&dns);
+
+  Serial.printf("SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 
   //reset settings if button pressed
   if(digitalRead(PIN_SW_RST) == LOW) {
@@ -130,15 +123,21 @@ void setup(void) {
       wifiManager.resetSettings();
 
     } else {
-      Serial.println(F("reset aborted! resuming normal bootup"));
+      Serial.println(F("reset aborted! resuming startup..."));
     }
     
   }
-  
-  Serial.print("SSID: ");
-  Serial.println(WiFi.SSID());
-  Serial.print("PW:");
-  Serial.println(WiFi.psk());
+
+  //set config save notify callback
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+  //set static ip
+  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
+
+  // our custom parameters
+  wifiManager.addParameter(&custom_hostname);
+  wifiManager.addParameter(&custom_port);
+
+  wifiManager.setBreakAfterConfig(true); // exit after config
 
   //fetches ssid and pass from eeprom and tries to connect
   //if it does not connect it starts an access point with the specified name
@@ -154,187 +153,63 @@ void setup(void) {
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
-  ConnectBlynk();
+  //save the custom parameters to FS
+  if (shouldSaveConfig) {
+    Serial.println(F("Saving config..."));
+    if(Setup::SaveConfig()) {
+      Serial.println("OK");
+      //Serial.println(F("Rebooting..."));
+      //ESP.restart();
+      //while(1){};
 
-  if (MDNS.begin(hostname)) {
-    Serial.println("MDNS responder started");
+      //read updated parameters
+      strcpy(config.hostname, custom_hostname.getValue());
+      strcpy(config.port, custom_port.getValue());
+    } 
+  }
+
+  Serial.print(F("Starting Blynk..."));
+  if(ConnectBlynk()) {
+    Serial.println(F("OK - Connected to Blynk server"));
+  } else {
+    Serial.println(F("FAILED to connect to Blynk server!"));
+  }
+
+  Serial.print(F("Starting MDNS..."));
+  if (MDNS.begin(config.hostname)) {
+    Serial.println(F("OK"));
+  } else {
+    Serial.println(F("FAILED"));
   }
 
   // ************** ASync server (new)
-/*
-  // Route for root / web page
-  server2.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/index.html", String(), false, HTMLProcessor);
-  });
+  Serial.print(F("Starting HTTP server..."));
+
+  if(Setup::WebServer()) {
+    Serial.println(F("OK"));
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("HTTP server ready: http://%s.local:%s (MDNS/Bonjour)\n", config.hostname, config.port);
+  } else {
+    Serial.println(F("FAILED"));
+  }
+  Serial.println(F("OK"));
   
-  // Route to load style.css file
-  server2.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/style.css", "text/css");
-  });
 
-  server2.on("/json", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "application/json", json_output);
-  });
-  server2.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", celsius);
-  });
-  server2.on("/waterpressure", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", pressure_bar);
-  });
-  server2.on("/uptimesecs", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", String( millis() /1000) );
-  });
-
-  // Start server
-  server2.begin();
-  Serial.println("Started HTTP server2 on port 8080");
-*/
-
-  // ************* Old server (to be removed)
-  
-  //server.on("/", handleRoot);
-  // Route for root / web page
-  //server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
-
-  server.on("/", HTTP_GET, []() {
-    //server.send(LittleFS, "text/plain", "/index.html");
-    server.serveStatic("/index.html", LittleFS, "/index.html");
-  });
-  server.on("/style.css", HTTP_GET, []() {
-    server.serveStatic("/style.css", LittleFS, "/style.css");
-  });
-
-  server.on("/temperature", HTTP_GET, []() {
-    server.send(200, "text/plain", celsius);
-  });
-  server.on("/waterpressure", HTTP_GET, []() {
-    server.send(200, "text/plain", pressure_bar);
-  });
-  server.on("/uptimesecs", HTTP_GET, []() {
-    server.send(200, "text/plain", String( millis() /1000));
-  });
-  //server.on("/json", handleJSON);
-  server.on("/json", HTTP_GET, []() {
-    server.send(200, "application/json", json_output);
-  });
-
-  server.on("/reset", HTTP_GET, []() {
-    WiFiManager wifiManager;
-    server.send(200, "text/plain", "resetting...");
-    delay(3000);
-    wifiManager.resetSettings();
-    delay(100);
-    ESP.reset();
-    delay(5000);
-  });
-
-  // respond to GET requests on URL /heap
-  server.on("/heap", HTTP_GET, [] (){
-    server.send(200, "text/plain", String(ESP.getFreeHeap()));
-  });
-
-  server.onNotFound(handleNotFound);
-
-  // ************ HTTP OTA UPDATE *************  
-  server.on("/update", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", updateHTML);
-  });
-
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.setDebugOutput(true);
-      WiFiUDP::stopAll();
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-      if (!Update.begin(maxSketchSpace)) { //start with max available size
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
-      }
-      Serial.setDebugOutput(false);
-    }
-    yield();
-  });  
-
-  server.begin();
-  MDNS.addService("http", "tcp", 80);
-
-  Serial.printf("HTTP server ready: http://%s.local (MDNS/Bonjour)\n", hostname);
-
-
-  // ************ ARDUINO OTA CONFIG *************'
-  // https://arduino-esp8266.readthedocs.io/en/latest/ota_updates/readme.html
-  Serial.println(F("Configuring OTA (port=8266)"));
-  // Port defaults to 8266
-  ArduinoOTA.setPort(8266);
-
-  // Hostname defaults to esp8266-[ChipID]
-  // ArduinoOTA.setHostname("myesp8266");
-
-  ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else { // U_FS
-      type = "filesystem";
-    }
-
-    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-    Serial.println("Start updating " + type);
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) {
-      Serial.println("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {
-      Serial.println("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {
-      Serial.println("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {
-      Serial.println("Receive Failed");
-    } else if (error == OTA_END_ERROR) {
-      Serial.println("End Failed");
-    }
-  });
-  ArduinoOTA.begin();
-
-    
-
-   // setup() COMPLETE  
+  Serial.println(F("Setup completed!"));
 }
 
-void ConnectBlynk() {
+bool ConnectBlynk() {
   Serial.print(F("Connecting to Blynk servers (timeout 10 sec), token="));
   Serial.println(STR(BLYNK_TOKEN));
   Blynk.config(STR(BLYNK_TOKEN));  // in place of Blynk.begin(auth, ssid, pass);
-  Blynk.connect(10000U);  // timeout set to 10 seconds and then continue without Blynk
+  Blynk.connect(500);  // timeout set to 10 seconds and then continue without Blynk
   while (Blynk.connect() == false) {
     // Wait until connected
   }
   if(Blynk.connected()) {
-    Serial.println(F("Connected to Blynk server"));
+    return true;
   } else {
-    Serial.println(F("FAILED to connect to Blynk server!"));
+    return false;
   }
 
 }
@@ -391,16 +266,33 @@ String HTMLProcessor(const String& var) {
   else if (var == "UPTIMESECS"){
     return String(millis() / 1000);
   }
-
+  else if (var == "FIRMWARE"){
+    return String(FIRMWARE_VERSION);
+  }
+  else if (var == "FIRMWARE_LONG"){
+    return String(FIRMWARE_VERSION_LONG);
+  }
   return String();
+}
+
+//WifiManager callback notifying us of the need to save config
+void saveConfigCallback () {
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
 }
 
 void loop(void) {
   unsigned long currentMillis = millis();
   int wifitries = 0;
 
+  if(shouldReboot){
+    Serial.println("Rebooting...");
+    delay(100);
+    ESP.restart();
+  }
+
   ArduinoOTA.handle();
-  server.handleClient();
+//  server.handleClient();
   MDNS.update();
   Blynk.run();
 
