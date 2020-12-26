@@ -1,16 +1,77 @@
-html {
-    font-family: Arial;
-    display: inline-block;
-    margin: 0px auto;
-    text-align: center;
-  }
-  h1 {
+@import "https://fonts.googleapis.com/css?family=Raleway:100,300";
+@import "https://fonts.googleapis.com/css?family=Open+Sans:300,400,700,800";
+@import "https://fonts.googleapis.com/css?family=Josefin+Sans|Pacifico";
+
+html,
+body,
+.container {
+  height: 100%;
+}
+
+body {
+  /*font-family: "Open Sans", sans-serif;*/
+  font-family: "Josefin Sans", "Raleway", "avenir next", avenir, helvetica,
+    "helvetica neue", arial;
+  font-size: 18px;
+  overflow-x: hidden !important;
+  perspective: 1px;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  background-color: rgb(218, 218, 218);
+  text-align: center;
+}
+
+a {
+  color: rgb(222, 68, 21);
+  text-decoration: none;
+}
+
+a:hover {
+  color: rgb(0, 116, 217);
+}
+
+table {
+width: 400px; 
+}
+
+th {
+  text-align: center;
+}
+
+h1 {
     color: #0F3376;
     padding: 2vh;
   }
+
   p {
-    font-size: 1.5rem;
+    font-size: 2.5rem;
+    color: rgb(51, 51, 51);
   }
+
+  #alarms {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: red;
+  }
+
+  
+  .container {
+    display: -webkit-box;
+    display: flex;
+    -webkit-box-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    align-items: center;
+    background-color: rgb(231, 231, 231);
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    flex-direction: column;
+  }
+
   .button {
     display: inline-block;
     background-color: #008CBA;
@@ -27,10 +88,10 @@ html {
     background-color: #f44336;
   }
   .units {
-    font-size: 1.2rem;
+    font-size: 2.2rem;
    }
   .sensor-labels {
-    font-size: 1.5rem;
+    font-size: 2.5rem;
     vertical-align:middle;
     padding-bottom: 15px;
   }

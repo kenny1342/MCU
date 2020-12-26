@@ -2,8 +2,19 @@
 #define Setup_h
 
 #include "Arduino.h"
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
+#include "LittleFS.h" // LittleFS is declared
+
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#else
+#include <WiFi.h>
+#endif
+
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
+#include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
 
 
 struct Config {
@@ -15,29 +26,14 @@ class Setup {
     private:
     bool error;
     
-
     public:
     static const char*  _configfile;// = "/config.json";
 
-    //Config config;
     Setup();
     static bool GetConfig();
     static bool SaveConfig();
     static bool FileSystem();
     static bool WebServer();
 };
-
-
-extern String HTMLProcessor(const String& var);
-extern DNSServer dns;
-extern AsyncWebSocket ws;
-extern AsyncEventSource events;
-extern AsyncWebServer server;
-extern bool shouldReboot;
-extern bool shouldSaveConfig;
-extern char json_output[200];
-extern char celsius[5];
-extern char pressure_bar[5];
-extern const char* _def_hostname;
 
 #endif

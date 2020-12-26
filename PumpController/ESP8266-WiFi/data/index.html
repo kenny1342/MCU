@@ -4,105 +4,163 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
+  <script src='jquery.min.js'></script>
 </head>
 <body>
   <h1>Water Pump Controller v%FIRMWARE%</h1>
 
-  <p>
-    <span class="sensor-labels">Temperature</span>
-    <span id="temperature">%TEMPERATURE%</span>
-    <sup class="units">&deg;C</sup>
-  </p>
-  <!--<p>
-    <span class="sensor-labels">Humidity</span>
-    <span id="humidity">%HUMIDITY%</span>
-    <sup class="units">&#37;</sup>
-  </p>-->
-  <p>
-    <span class="sensor-labels">Water Pressure</span>
-    <span id="waterpressure">%WATERPRESSURE%</span>
-    <sup class="units">bar</sup>
-  </p>
-
-  <hr /> 
-  <small>
-    <a href='/json'>JSON</a> result | <a href='/reset'>Reset</a> WiFi settings | <a href='/update'>Update</a> firmware 
-  </small>
+  JSON output: <a href='/json/sensors'>Sensor</a>, <a href='/json/system'>System</a>  | <a href='/reset'>Reset settings</a>  | <a href='/update'>System Update</a>
   <br />
-  <small>
-    Uptime: <span id="uptime">-</span> - Web Interface v2.3<br />
-    <hr />Made by Ken-Roger Andersen, Dec 2020
-  </small>
+
+<div class="container">
+
+  <div id="alarms"></div>
+
+    <p>
+      <span class="sensor-labels">Temperature</span>
+      <span id="temperature">%TEMPERATURE%</span>
+      <sup class="units">&deg;C</sup>
+    </p>
+    <p>
+      <span class="sensor-labels">Water Pressure</span>
+      <span id="waterpressure">%WATERPRESSURE%</span>
+      <sup class="units">bar</sup>
+    </p>
+
+    <table>
+      <tr>
+        <th colspan="2">Pump Parameters</th>
+      </tr>
+      <tr>
+        <td>Status</td>
+        <td> <span id="wp_is_running">-</span></td>
+      </tr>
+      <tr>
+        <td>Status duration</td>
+        <td> <span id="wp_t_state">-</span></td>
+      </tr>
+      <tr>
+        <td>Suspended</td>
+        <td> <span id="wp_is_suspended"></span> (<span id="wp_cnt_susp"></span> times)</td>
+      </tr>
+      <tr>
+        <td>Suspended duration</td>
+        <td> <span id="wp_t_susp"></span></td>
+      </tr>
+      <tr>
+        <td>Starts #</td>
+        <td> <span id="wp_cnt_starts">-</span></td>
+      </tr>
+      <tr>
+        <td>Total Runtime</td>
+        <td> <span id="wp_t_totruntime">-</span></td>
+      </tr>
+    </table>
+
+    <hr /> 
+
+    <small>
+      Uptime: <span id="uptime">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
+      <br /><br />
+      Web Interface v2.34<br />
+      <hr />Made by Ken-Roger Andersen, Dec 2020
+    </small>
+  </div>
+
   
 </body>
 <script>
   
-  
-
   function formatSecs(secs=0) {
-    return new Date(secs * 1000).toISOString().substr(11, 8);
+    
+    dateObj = new Date(secs * 1000); 
+    days = Math.round(secs/86400);
+    hours = dateObj.getUTCHours(); 
+    minutes = dateObj.getUTCMinutes(); 
+    seconds = dateObj.getSeconds(); 
+
+    timeString = days.toString() + ' days, ' +  
+    hours.toString().padStart(2, '0') 
+        + ':' + minutes.toString().padStart(2, '0') 
+        + ':' + seconds.toString().padStart(2, '0'); 
+        
+    return timeString;
   }
 
+  jQuery(document).ready(function () {
 
-  setInterval(function ( ) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("uptime").innerHTML = formatSecs(this.responseText);
-      }
-    };
-    xhttp.open("GET", "/uptimesecs", true);
-    xhttp.send();
-  }, 900 ) ;
+    // Get sensor data from JSON
+    setInterval(function ( ) {
 
-  setInterval(function ( ) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("temperature").innerHTML = this.responseText;
-      }
-    };
-    xhttp.open("GET", "/temperature", true);
-    xhttp.send();
-  }, 2000 ) ;
+      fetch('/json/sensors')
+      .then(response => response.json())
+      .then(data => {
+          console.log(data);
+          localStorage.setItem('json', JSON.stringify(data));
+          } // data =>
+      )
+      .catch(error => {
+          //console.error('Error:', error);
+          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.00","pressure_bar":[99.230469],"temp_c":[-40.70157],"alarms":["NOT READY","NO DATA"],"wp_t_state":1446,"wp_is_running":0,"wp_is_suspended":false,"wp_cnt_starts":1,"wp_cnt_susp":1,"wp_t_susp":0,"wp_t_totruntime":16}');
+          localStorage.setItem('json', JSON.stringify(json));
+        }
+      ); // fetch
 
-  /*
-  setInterval(function ( ) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("humidity").innerHTML = this.responseText;
-      }
-    };
-    xhttp.open("GET", "/humidity", true);
-    xhttp.send();
-  }, 10000 ) ;
-*/
 
-  setInterval(function ( ) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {
-      if (this.readyState == 4 && this.status == 200) {
-        document.getElementById("waterpressure").innerHTML = this.responseText;
+    }, 3000 ) ;
+
+    // Get system data from JSON
+    setInterval(function ( ) {
+
+      fetch('/json/system')
+      .then(response => response.json())
+      .then(data => {
+          console.log(data);
+          localStorage.setItem('jsonsystem', JSON.stringify(data));
+          } // data =>
+      )
+      .catch(error => {
+          //console.error('Error:', error);
+          json = JSON.parse('{"ESP":{"heap":0,"freq":0,"chipid":123456,"uptimesecs":0}}');
+          localStorage.setItem('jsonsystem', JSON.stringify(json));
+        }
+      ); // fetch
+
+
+    }, 900 ) ;
+
+    // Update the page
+    setInterval(function ( ) {
+
+      let json = JSON.parse(localStorage.getItem('json'));
+      let jsonsystem = JSON.parse(localStorage.getItem('jsonsystem'));
+
+      $("#temperature").empty().append(parseFloat(json.temp_c[0]).toFixed(1));
+      $("#waterpressure").empty().append(parseFloat(json.pressure_bar[0]).toFixed(2));
+      $("#wp_is_running").empty().append( json.wp_is_running ? "ON" : "OFF");
+      $("#wp_is_suspended").empty().append( json.wp_is_suspended ? "YES" : "NO");
+      $("#wp_t_state").empty().append( formatSecs(json.wp_t_state) );
+      $("#wp_cnt_starts").empty().append( json.wp_cnt_starts );
+      $("#wp_cnt_susp").empty().append( json.wp_cnt_susp );
+      $("#wp_t_totruntime").empty().append( formatSecs(json.wp_t_totruntime) );
+      $("#wp_t_susp").empty().append( formatSecs(json.wp_t_susp) );
+
+      $("#alarms").empty();
+      if(Object.keys(json.alarms).length > 0) {
+        $("#alarms").append("ALARMS: ");
+        for(var key in json.alarms) {
+          $("#alarms").append(json.alarms[key] + "&nbsp;");
+        }
       }
-    };
-    xhttp.open("GET", "/waterpressure", true);
-    xhttp.send();
-  }, 2000 ) ;
+
+      $("#uptime").empty().append( formatSecs(jsonsystem.ESP.uptimesecs) );
+      $("#heap").empty().append( jsonsystem.ESP.heap );
+      $("#freq").empty().append( jsonsystem.ESP.freq  + ' Mhz');
+      $("#chipid").empty().append( jsonsystem.ESP.chipid );
+
+    }, 500 ) ;
+
+  }); // page loaded
+
 </script>
 </html>
-<!--
-<html>
-  <head>
-    <meta http-equiv="refresh" content="10">
-  </head>
-  <body>
-    <h1>PumpHouseLogger</h1><br />Using LM335 on ADC0<br /><br />
-    Temperature: <b>%TEMPERATURE% &deg;C</b><br />
-    Pressure: <b>%WATERPRESSURE% Bar</b><br /><br />
-    Output as JSON: <a href='/json'>/json</a><br />
-    Reset WiFi settings: (will reboot as AP)<a href='/reset'>/reset</a><br />
-    Uptime (secs): 221143<br /><hr />Made by Ken-Roger Andersen, Dec 2020
-  </body>
-</html>
--->

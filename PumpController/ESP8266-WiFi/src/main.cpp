@@ -6,23 +6,6 @@
  * 
  * Kenny Dec 19, 2020
  */
-#include <Arduino.h>
-#include <FS.h>                   //this needs to be first, or it all crashes and burns...
-#include "LittleFS.h" // LittleFS is declared
-
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-#else
-#include <WiFi.h>
-#endif
-
-#include <ESPAsyncWebServer.h>
-#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
-#include <ESP8266mDNS.h>
-#include <ArduinoJson.h>
-#include <BlynkSimpleEsp8266.h>
-#include <ArduinoOTA.h>
-#include <setup.h>
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
@@ -31,24 +14,13 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) 
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
-
-
-//flag to use from web firmware update to reboot the ESP
-bool shouldReboot = false;
-//WifiManger callback flag for saving data
-bool shouldSaveConfig = false;
-
-//char param1[6]; // testing wifimanager config
+char data_string[250];
+bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
+bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
 
-//const char auth[] = BLYNK_TOKEN;
-char json_output[200];
-char data_string[200];
-
-char celsius[5];
-char pressure_bar[5];
-StaticJsonDocument<200> data_json;
+StaticJsonDocument<250> data_json;
 uint32_t previousMillis = 0; 
 uint32_t previousMillis_200 = 0; 
 uint16_t reconnects_wifi = 0;
@@ -76,9 +48,6 @@ void setup(void) {
   digitalWrite(PIN_LED_1, 0);
   pinMode(PIN_SW_RST, INPUT); // reset button
 
-  strlcpy(celsius, "-0.0", sizeof(celsius));
-  strlcpy(pressure_bar, "0.00", sizeof(pressure_bar));
-
   Serial.begin(115200);
 
   Serial.println("");
@@ -99,12 +68,7 @@ void setup(void) {
 
   Serial.println(F("Starting WiFi..."));
 
-  // TODO: read config.json (see example from ESPAsyncWiFiManager)
-
-  //WiFiManager
-  // The extra parameters to be configured (can be either global or just in the setup)
-  // After connecting, parameter.getValue() will get you the configured value
-  // id/name placeholder/prompt default length
+  //WiFiManager custom parameters/config
   AsyncWiFiManagerParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
   AsyncWiFiManagerParameter custom_port("port", "HTTP port", config.port, 6);
 
@@ -158,9 +122,6 @@ void setup(void) {
     Serial.println(F("Saving config..."));
     if(Setup::SaveConfig()) {
       Serial.println("OK");
-      //Serial.println(F("Rebooting..."));
-      //ESP.restart();
-      //while(1){};
 
       //read updated parameters
       strcpy(config.hostname, custom_hostname.getValue());
@@ -182,7 +143,6 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
 
-  // ************** ASync server (new)
   Serial.print(F("Starting HTTP server..."));
 
   if(Setup::WebServer()) {
@@ -258,10 +218,10 @@ int readline(int readch, char *buffer, int len) {
 String HTMLProcessor(const String& var) {
   Serial.println(var);
   if (var == "TEMPERATURE"){
-    return String(celsius);
+    return String(data_json["temp_c"][0].as<String>());
   }
   else if (var == "WATERPRESSURE"){
-    return String(pressure_bar);
+    return String(data_json["pressure_bar"][0].as<String>() );
   }
   else if (var == "UPTIMESECS"){
     return String(millis() / 1000);
@@ -284,7 +244,7 @@ void saveConfigCallback () {
 void loop(void) {
   unsigned long currentMillis = millis();
   int wifitries = 0;
-
+  
   if(shouldReboot){
     Serial.println("Rebooting...");
     delay(100);
@@ -324,28 +284,25 @@ void loop(void) {
 
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
-  if (readline(Serial.read(), data_string, 200) > 0) {
+  if (readline(Serial.read(), data_string, 250) > 0) {
     digitalWrite(PIN_LED_1, 1);
-    const char* json_input = data_string;  
+
+    Serial.print("rcvd: ");
+    Serial.println(data_string); 
+
     // Deserialize the JSON document (zero-copy method)
-    DeserializationError error = deserializeJson(data_json, json_input);
+    DeserializationError error = deserializeJson(data_json, data_string);
 
     // Test if parsing succeeds.
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
     } else {
-      memcpy(json_output, data_string, sizeof(data_string[0])*200);
-      Serial.print("JSON rcvd: ");
-      Serial.println(json_output);    
-
-      dtostrf(data_json["temp_c"][0].as<float>(), 3, 1, celsius);
-      dtostrf(data_json["pressure_bar"][0].as<float>(), 3, 1, pressure_bar);
+      // Push new values to Blynk server
+      Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
+      Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
     }
-    
-    // Push new values to Blynk server
-    Blynk.virtualWrite(V0, pressure_bar);
-    Blynk.virtualWrite(V1, celsius);
+
     digitalWrite(PIN_LED_1, 0);
   }
 
