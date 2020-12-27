@@ -22,6 +22,7 @@ body {
   transform-style: preserve-3d;
   background-color: rgb(218, 218, 218);
   text-align: center;
+  white-space: nowrap;
 }
 
 a {
@@ -33,13 +34,39 @@ a:hover {
   color: rgb(0, 116, 217);
 }
 
-table {
-width: 400px; 
+
+#table_emon td{
+  border-radius: 0.95em;
+  width: 50%; 
+  text-align: center;
+  white-space: nowrap;
+  border-spacing: 0px;
+  border-collapse: collapse;
+  padding: 10px;
+  border: 0px;
+  vertical-align: top;
+  position:static;
+}
+
+
+#table_emon_mains, #table_emon_circuits {
+  text-align: center;
+  white-space: nowrap;
+  border-spacing: 10px;
+  border-collapse: collapse;
+  
 }
 
 th {
   text-align: center;
 }
+
+#table_emon_mains td, #table_emon_circuits td {
+  border: 1px solid black;
+  padding: 5px;
+
+}
+
 
 h1 {
     color: #0F3376;
@@ -51,18 +78,6 @@ h1 {
     color: rgb(51, 51, 51);
   }
 
-  #table_emon {
-    text-align: center;
-    white-space: nowrap;
-    border-spacing: 0;
-    border-collapse: collapse;
-  }
-
-  #table_emon td {
-    border: 1px solid black;
-    padding: 10px;
-  
-  }
 
   #alarms {
     text-align: center;

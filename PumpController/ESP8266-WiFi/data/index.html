@@ -55,33 +55,62 @@
         <td>Total Runtime</td>
         <td> <span id="wp_t_totruntime">-</span></td>
       </tr>
-    </table>
+    </table>      
 
+    <hr />
     <h4>EMON</h4>
+
     <table id="table_emon">
       <tr>
-        <th>Circuit</th>
-        <th>Irms</th>
-        <th>Vrms</th>
-        <th>Power (App/Real)</th>
-        <th>PF</th>
+        <td>
+          <table id="table_emon_mains">
+            <tr>
+              <th>Phases</th>
+              <th>V(rms)</th>
+            </tr>
+            <tr>
+              <td>L - N</td>
+              <td><span id="emon_vrms_L_N">-</span> V</td>
+            </tr><tr>
+              <td>L - GND</td>
+              <td><span id="emon_vrms_L_GND">-</span> V</td>
+            </tr>
+            <tr>
+              <td>N - GND</td>
+              <td><span id="emon_vrms_N_GND">-</span> V</td>
+            </tr>
+          </table>
+        </td>
+
+        <td>          
+          <table id="table_emon_circuits">
+            <tr>
+              <th>Circuit</th>
+              <th>I(rms)</th>
+              <th>Power</th>
+              <th>PF</th>
+            </tr>
+            <tr class="tr_emon">
+              <td>K2</td>
+              <td> <span id="emon_k2_irms">-</span> A</td>
+              <td> <span id="emon_k2_p_app">-</span> W</td>
+              <td> <span id="emon_k2_pf">-</span></td>
+            </tr>
+            <tr class="tr_emon">
+              <td>K3</td>
+              <td> <span id="emon_k3_irms">-</span> A</td>
+              <td> <span id="emon_k3_p_app">-</span> W</td>
+              <td> <span id="emon_k3_pf">-</span></td>
+            </tr>      
+          </table>
+      
+        </td>
       </tr>
-      <tr class="tr_emon">
-        <td>K2</td>
-        <td> <span id="emon_k2_irms">-</span> A</td>
-        <td> <span id="emon_k2_vrms">-</span> V</td>
-        <td> <span id="emon_k2_p_app">-</span> W / <span id="emon_k2_p_real">-</span> W</td>
-        <td> <span id="emon_k2_pf">-</span></td>
-      </tr>
-      <tr class="tr_emon">
-        <td>K3</td>
-        <td> <span id="emon_k3_irms">-</span> A</td>
-        <td> <span id="emon_k3_vrms">-</span> V</td>
-        <td> <span id="emon_k3_p_app">-</span> W / <span id="emon_k3_p_real">-</span> W</td>
-        <td> <span id="emon_k3_pf">-</span></td>
-      </tr>      
     </table>
 
+
+
+ 
     <hr /> 
 
     <small>
@@ -126,7 +155,7 @@
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.966797],"temp_c":[25.67813],"alarms":[],"WP":{"t_state":32,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":1,"t_susp":0,"t_totruntime":0},"K2":{"I":29.6936,"P_a":0,"P_r":0,"V":230,"PF":0},"K3":{"I":21.15884,"P_a":0,"P_r":0,"V":230,"PF":0}}');
+          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.771484],"temp_c":[26.65469],"alarms":[],"emon_vrms_L_N":235,"emon_vrms_L_GND":115,"emon_vrms_N_GND":105,"WP":{"t_state":430,"is_running":1,"is_suspended":false,"cnt_starts":2,"cnt_susp":2,"t_susp":0,"t_totruntime":1032},"K2":{"I":12.44595,"P_a":2862,"V":230,"PF":0},"K3":{"I":0,"P_a":0,"V":0,"PF":0}}');
           localStorage.setItem('json', JSON.stringify(json));
         }
       ); // fetch
@@ -170,16 +199,18 @@
       $("#wp_t_totruntime").empty().append( formatSecs(json.WP.t_totruntime) );
       $("#wp_t_susp").empty().append( formatSecs(json.WP.t_susp) );
 
-      $("#emon_k2_irms").empty().append( json.K2.I );
-      $("#emon_k2_vrms").empty().append( json.K2.V );
+      $("#emon_vrms_L_N").empty().append( parseFloat(json.emon_vrms_L_N).toFixed(1) );
+      $("#emon_vrms_L_GND").empty().append( parseFloat(json.emon_vrms_L_GND).toFixed(1) );
+      $("#emon_vrms_N_GND").empty().append( parseFloat(json.emon_vrms_N_GND).toFixed(1) );
+
+      $("#emon_k2_irms").empty().append( parseFloat(json.K2.I).toFixed(1) );
       $("#emon_k2_p_app").empty().append( json.K2.P_a );
-      $("#emon_k2_p_real").empty().append( json.K2.P_r );
+      //$("#emon_k2_p_real").empty().append( json.K2.P_r );
       $("#emon_k2_pf").empty().append( json.K2.PF );
 
-      $("#emon_k3_irms").empty().append( json.K3.I );
-      $("#emon_k3_vrms").empty().append( json.K3.V );
+      $("#emon_k3_irms").empty().append(parseFloat(json.K3.I).toFixed(1) );
       $("#emon_k3_p_app").empty().append( json.K3.P_a );
-      $("#emon_k3_p_real").empty().append( json.K3.P_r );
+      //$("#emon_k3_p_real").empty().append( json.K3.P_r );
       $("#emon_k3_pf").empty().append( json.K3.PF );
 
       $("#alarms").empty();
