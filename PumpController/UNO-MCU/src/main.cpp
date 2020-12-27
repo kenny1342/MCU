@@ -11,22 +11,27 @@
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
+#include "EmonLib.h"                   // Include Emon Library
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
+const int interval = 800;   // interval at which to send data (millisecs)
+uint16_t timer1_counter; // preload of timer1
 
 static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
 SoftwareSerial Serial_esp8266(2, 3); // RX, TX
 static sensors_type SENSORS ;
-const int interval = 800;   // interval at which to send data (millisecs)
 String dataString = "no data";
-StaticJsonDocument<200> doc;
+StaticJsonDocument<250> doc;
+JsonObject json;
+EnergyMonitor EMON_K2;    // Livingroom instance
+EnergyMonitor EMON_K3;    // Kitchen instance
 
-uint16_t timer1_counter; // preload of timer1
-
+volatile emon_type      EMON_K2_VAL;   // Livingroom values
+volatile emon_type      EMON_K3_VAL;   // Kitchen values
 volatile appconfig_type APPCONFIG ;
 volatile waterpump_type WATERPUMP;
 volatile flags_BitField APPFLAGS;
@@ -41,9 +46,9 @@ void setup()
     ; // wait for serial port to connect. Needed for Native USB only
   }
 
-  Serial.println("initializing...");
+  Serial.println(F("initializing..."));
   Serial.println( (__FlashStringHelper*)pgm_read_word(FIRMWARE_VERSION_LONG + 0)) ;
-  Serial.println("Made by Ken-Roger Andersen, 2020");
+  Serial.println(F("Made by Ken-Roger Andersen, 2020"));
   Serial.println("");
 
 
@@ -55,7 +60,7 @@ void setup()
 
   // set the data rate for the SoftwareSerial port
   Serial_esp8266.begin(115200);
-  Serial_esp8266.println("uno initializing...");
+  Serial_esp8266.println(F("uno initializing..."));
 
   // initialize all ADC readings to 0:
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
@@ -103,6 +108,9 @@ void setup()
   Serial.println(F("ISR's enabled"));
   delay(500);
     
+  EMON_K2.current(ADC_CT_K2, 111.1);             // Current: input pin, calibration.
+  EMON_K3.current(ADC_CT_K2, 111.1);             // Current: input pin, calibration.
+
   wdt_enable(WDTO_4S);
   APPFLAGS.is_busy = 0;
 
@@ -221,6 +229,17 @@ ISR (TIMER2_COMPA_vect)
       /////// Sensor alarms ////////////////
       ALARMS.sensor_error = 0;
 
+      ALARMS.emon_K2 = 0;
+      ALARMS.emon_K3 = 0;
+      if(EMON_K2.Irms > 20.0) {
+          ALARMS.sensor_error = 1;
+          ALARMS.emon_K2 = 1;
+      }
+      if(EMON_K3.Irms > 20.0) {
+          ALARMS.sensor_error = 1;
+          ALARMS.emon_K3 = 1;
+      }
+
       if(ADC_temp_1.average == 0 || ADC_temp_1.average > 800) { // if sensor (LM335) is disconnected ADC gives very high readings
         ALARMS.sensor_error = 1;
       } else {    
@@ -259,7 +278,7 @@ ISR (TIMER2_COMPA_vect)
       // TODO: ALARMS.power_voltage
       // TODO: ALARMS.power_groundfault
 
-      /*** SET/CLEAR ALARMS END ***/
+      /*** SET/CLEAR ALARMS DONE ***/
     }
     
     /*** Update WP suspension timer (Note: every time an ALARMBITS_WATERPUMP_PROTECTION alarm is cleared, we RESTART suspension period, this is intended design) ***/
@@ -298,12 +317,22 @@ void loop() // run over and over
 
     // Initiate the JSON doc
     doc.clear();
+    JsonObject root = doc.to<JsonObject>();
     // Add values in the document
-    doc["sensor"] = "pumphouse";
-    doc["id"] = "1";
-    doc["firmware"] = FIRMWARE_VERSION;
+    root["sensor"] = "pumphouse";
+    root["id"] = "1";
+    root["firmware"] = FIRMWARE_VERSION;
 
     APPFLAGS.is_updating = 1;
+    
+    //----------- EMON **********
+    // TODO: read from voltage sensors
+    EMON_K2.Vrms = 230.0;
+    EMON_K3.Vrms = 230.0;
+    
+    EMON_K2_VAL.Irms = EMON_K2.calcIrms(1480);  // Calculate Irms
+    EMON_K3_VAL.Irms = EMON_K3.calcIrms(1480);  // Calculate Irms
+
     //----------- WATER PRESSURE **********
 
     ADC_waterpressure.total -= ADC_waterpressure.readings[ADC_waterpressure.readIndex];
@@ -351,28 +380,57 @@ void loop() // run over and over
 
 
     data = doc.createNestedArray("alarms");
+/*
     if(getAlarmStatus(ALARMBIT_ALL)) {
       if(getAlarmStatus(ALARMBIT_LOW_MEMORY)) data.add("lowmem");
       if(getAlarmStatus(ALARMBIT_WATERPUMP_RUNTIME)) data.add("wpruntime");
       if(getAlarmStatus(ALARMBIT_TEMPERATURE_PUMPHOUSE)) data.add("temp_pumphouse");
       if(getAlarmStatus(ALARMBIT_SENSOR_ERROR)) data.add("sensor");
     }
-
-    doc["wp_t_state"] = WATERPUMP.state_age;
-    doc["wp_is_running"] = WATERPUMP.is_running;
-    doc["wp_is_suspended"] = WATERPUMP.is_suspended;
-    doc["wp_cnt_starts"] = WATERPUMP.start_counter;
-    doc["wp_cnt_susp"] = WATERPUMP.suspend_count;
-    doc["wp_t_susp"] = WATERPUMP.suspend_timer;
-    doc["wp_t_totruntime"] = WATERPUMP.total_runtime;
+    */
+    if(getAlarmStatus(ALARMS.allBits)) {
+      if(ALARMS.emon_K2) data.add("K2");
+      if(ALARMS.emon_K3) data.add("K3");
+      if(ALARMS.low_memory) data.add("lowmem");
+      if(ALARMS.waterpump_runtime) data.add("wpruntime");
+      if(ALARMS.temperature_pumphouse) data.add("temp_pumphouse");
+      if(ALARMS.sensor_error) data.add("sensor");
+      if(ALARMS.power_groundfault) data.add("groundfault");
+      if(ALARMS.power_voltage) data.add("emon_voltage");
+    }
+    
 
     APPFLAGS.is_updating = 0;
 
+    json = root.createNestedObject("WP");
+
+    json["t_state"] = WATERPUMP.state_age;
+    json["is_running"] = WATERPUMP.is_running;
+    json["is_suspended"] = WATERPUMP.is_suspended;
+    json["cnt_starts"] = WATERPUMP.start_counter;
+    json["cnt_susp"] = WATERPUMP.suspend_count;
+    json["t_susp"] = WATERPUMP.suspend_timer;
+    json["t_totruntime"] = WATERPUMP.total_runtime;
+
+    json = root.createNestedObject("K2");
+    json["I"] = EMON_K2_VAL.Irms;
+    json["P_a"] = EMON_K2.apparentPower;
+    json["P_r"] = EMON_K2.realPower;
+    json["V"] = EMON_K2.Vrms;
+    json["PF"] = EMON_K2.powerFactor;
+
+    json = root.createNestedObject("K3");
+    json["I"] = EMON_K3_VAL.Irms;
+    json["P_a"] = EMON_K3.apparentPower;
+    json["P_r"] = EMON_K3.realPower;
+    json["V"] = EMON_K3.Vrms;
+    json["PF"] = EMON_K3.powerFactor;
+
     dataString = "";
     // Generate the minified JSON
-    serializeJson(doc, dataString);
-    // The above line prints:
-    // {"sensor":"pumphouse","id":"1","firmware":"0.13","pressure_bar":["1.62"],"temp_c":["26.0"]}
+    serializeJson(root, dataString);
+    // Outputs something like:
+    // {"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.966797],"temp_c":[25.67813],"alarms":[],"WP":{"t_state":32,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":1,"t_susp":0,"t_totruntime":0},"K2":{"I":29.6936,"P_a":0,"P_r":0,"V":230,"PF":0},"K3":{"I":21.15884,"P_a":0,"P_r":0,"V":230,"PF":0}}
 
     Serial.println(dataString);
     Serial_esp8266.println(dataString);

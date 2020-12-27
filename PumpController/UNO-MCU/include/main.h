@@ -2,7 +2,9 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-#define FIRMWARE_VERSION            "2.00"
+#include "EmonLib.h"                   // Include Emon Library
+
+#define FIRMWARE_VERSION            "2.01"
 #define PIN_LED_BUSY                6 // LED OFF if we are running normally (not busy)
 #define PIN_LED_ALARM               5 // LED ON of we have active alarms
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
@@ -10,6 +12,8 @@
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 #define ADC_CH_WATERP               1 // ADC connected to water pressure sensor
 #define ADC_CH_TEMP_1               0 // ADC connected to LM335 temp sensor 1
+#define ADC_CT_K2                   2 // ADC connected to current sensor K2 (living room)
+#define ADC_CT_K3                   3 // ADC connected to current sensor K3 (kitchen)
 #define ADC_SAMPLE_COUNT            50 // nr of ADC readings to calculate average from
 
 #define DEF_CONF_WP_LOWER           3.80 // water pressure lower threshold (bar*100) before starting pump
@@ -20,6 +24,13 @@
 #define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
 
 // Structs
+
+typedef struct
+{
+  //EnergyMonitor emon;                   // Create an instance
+  uint8_t Voltage;
+  double Irms;
+} emon_type;
 
 typedef struct
 {
@@ -95,8 +106,8 @@ typedef union {
     byte power_voltage:1 ; // line voltage too high >= 253V or low <= 209V (230V +/- 10%)
     byte power_groundfault:1 ; // V L/N-GND ~= nettspenning/rot av 3=mellom 100-140V 
     byte temperature_pumphouse:1; // should never be below 0C/freezing
-    byte bitFour:1;
-    byte bitFive:1; 
+    byte emon_K2:1; // if O/R or CT sensor error
+    byte emon_K3:1; // if O/R or CT sensor error
     byte sensor_error:1; // invalid ADC readings etc any sensor
     byte low_memory:1; // set if RAM < x bytes free
   };
@@ -112,9 +123,6 @@ typedef union {
 #define ALARMBIT_ALL                    0xff //0b11111111
 // if any of these alarm bits are set, waterpump will not start (@TODO: make as config option)
 #define ALARMBITS_WATERPUMP_PROTECTION  (ALARMBIT_SENSOR_ERROR | ALARMBIT_WATERPUMP_RUNTIME | ALARMBIT_TEMPERATURE_PUMPHOUSE | ALARMBIT_LOW_MEMORY) 
-
-extern unsigned int __heap_start;
-extern void *__brkval;
 
 void getAllAlarmsAsStr(String const & s);
 bool getAlarmStatus(uint8_t Alarm);
