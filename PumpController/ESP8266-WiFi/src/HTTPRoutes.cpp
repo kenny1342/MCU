@@ -1,4 +1,17 @@
+#include "Arduino.h"
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
+#include "LittleFS.h" // LittleFS is declared
 
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#else
+#include <WiFi.h>
+#endif
+
+#include <ESPAsyncWebServer.h>
+#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
+#include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
 #include <HTTPRoutes.h>
 
 Webserver::Webserver()

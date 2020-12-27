@@ -6,6 +6,24 @@
  * 
  * Kenny Dec 19, 2020
  */
+#include <Arduino.h>
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
+#include "LittleFS.h" // LittleFS is declared
+
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
+#else
+#include <WiFi.h>
+#endif
+
+#include <ESPAsyncWebServer.h>
+#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
+#include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
+#include <BlynkSimpleEsp8266.h>
+#include <ArduinoOTA.h>
+
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
@@ -14,13 +32,13 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) 
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
-char data_string[250];
+char data_string[JSON_SIZE];
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
 
-StaticJsonDocument<250> data_json;
+StaticJsonDocument<JSON_SIZE> data_json;
 uint32_t previousMillis = 0; 
 uint32_t previousMillis_200 = 0; 
 uint16_t reconnects_wifi = 0;
@@ -284,7 +302,7 @@ void loop(void) {
 
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
-  if (readline(Serial.read(), data_string, 250) > 0) {
+  if (readline(Serial.read(), data_string, JSON_SIZE) > 0) {
     digitalWrite(PIN_LED_1, 1);
 
     Serial.print("rcvd: ");

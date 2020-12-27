@@ -51,6 +51,19 @@ h1 {
     color: rgb(51, 51, 51);
   }
 
+  #table_emon {
+    text-align: center;
+    white-space: nowrap;
+    border-spacing: 0;
+    border-collapse: collapse;
+  }
+
+  #table_emon td {
+    border: 1px solid black;
+    padding: 10px;
+  
+  }
+
   #alarms {
     text-align: center;
     white-space: nowrap;

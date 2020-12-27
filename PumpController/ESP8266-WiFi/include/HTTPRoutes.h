@@ -16,6 +16,7 @@
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include <main.h>
 
 class Webserver {
     private:
@@ -35,7 +36,7 @@ extern AsyncWebServer server;
 extern bool shouldReboot;
 extern bool shouldSaveConfig;
 extern const char* _def_hostname;
-extern StaticJsonDocument<250> data_json;
+extern StaticJsonDocument<JSON_SIZE> data_json;
 
 void onRequest(AsyncWebServerRequest *request);
 void onNotFound(AsyncWebServerRequest *request);
