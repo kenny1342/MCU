@@ -2,22 +2,27 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
+// Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
+// note down the values and define them in ZERO_POINT_...
+//#define DO_VOLTAGE_CALIBRATION
+#define ZERO_POINT_L_N              512
+#define ZERO_POINT_L_PE             312
+#define ZERO_POINT_N_PE             312
+
 #define FIRMWARE_VERSION            "2.02"
-#define JSON_SIZE                   210
+#define JSON_SIZE                   250
 #define PIN_LED_BUSY                6 // LED OFF if we are running normally (not busy)
 #define PIN_LED_ALARM               5 // LED ON of we have active alarms
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
-#define ADC_CH_WATERP               1 // ADC connected to water pressure sensor
-#define ADC_CH_TEMP_1               0 // ADC connected to LM335 temp sensor 1
-#define ADC_CH_CT_K2                2 // ADC connected to current sensor K2 (living room) Input
-#define ADC_CH_CT_K3                3 // ADC connected to current sensor K3 (kitchen) Input
-#define ADC_CH_VOLT_L_N             4 // ADC connected to ZMPT101B voltage sensor
-#define ADC_CH_VOLT_L_GND           5 // ADC connected to ZMPT101B voltage sensor
-#define ADC_CH_VOLT_N_GND           6 // ADC connected to ZMPT101B voltage sensor
-//#define ADC_CH_CT_K2_VGND              3 // ADC connected to current sensor K2 Virtual Ground
-#define ADC_SAMPLE_COUNT            50 // nr of ADC readings to calculate average from
+#define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
+#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
+#define ADC_CH_CT_K2                A2 // ADC connected to current sensor K2 (living room) Input
+#define ADC_CH_CT_K3                A3 // ADC connected to current sensor K3 (kitchen) Input
+#define ADC_CH_VOLT_L_N             A4 // ADC connected to ZMPT101B voltage sensor
+#define ADC_CH_VOLT_L_PE            A5 // ADC connected to ZMPT101B voltage sensor
+#define ADC_CH_VOLT_N_PE            A6 // ADC connected to ZMPT101B voltage sensor
 
 #define DEF_EMON_ICAL_K2            3.01
 #define DEF_EMON_ICAL_K3            3.02
@@ -61,8 +66,8 @@ typedef struct
 typedef struct
 {
   double Vrms_L_N;
-  double Vrms_L_GND;
-  double Vrms_N_GND;
+  double Vrms_L_PE;
+  double Vrms_N_PE;
   uint8_t error;
 } emonvrms_type;
 
@@ -166,11 +171,7 @@ typedef union {
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS.low_memory || ALARMS.sensor_error || ALARMS.temperature_pumphouse || ALARMS.waterpump_runtime)
 
-//void calcEMON(emondata_type &emon, uint8_t Number_of_Samples);
-double zmpt101bReadVoltage(uint8_t adc_channel);
-
-long readVcc();
-//void calcEMON(String const & s);
 bool getAlarmStatus(uint8_t Alarm);
+long readVcc();
 
 #endif

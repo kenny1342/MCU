@@ -9,7 +9,7 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "1.40"
+#define FIRMWARE_VERSION    "1.41"
 #define HOSTNAME            "esp8266-pumpctrl"
 #define PORT                "80"
 #define JSON_SIZE           512

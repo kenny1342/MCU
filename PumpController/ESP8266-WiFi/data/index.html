@@ -9,7 +9,7 @@
 <body>
   <h1>Water Pump Controller v%FIRMWARE%</h1>
 
-  JSON output: <a href='/json/sensors'>Sensor</a>, <a href='/json/system'>System</a>  | <a href='/reset'>Reset settings</a>  | <a href='/update'>System Update</a>
+  JSON output: <a href='/json/sensors'>Sensor</a>, <a href='/json/system'>System</a>  | <a href='/reset'>Reset settings</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
   <br />
 
 <div class="container">
@@ -72,12 +72,12 @@
               <td>L - N</td>
               <td><span id="emon_vrms_L_N">-</span> V</td>
             </tr><tr>
-              <td>L - GND</td>
-              <td><span id="emon_vrms_L_GND">-</span> V</td>
+              <td>L - PE</td>
+              <td><span id="emon_vrms_L_PE">-</span> V</td>
             </tr>
             <tr>
-              <td>N - GND</td>
-              <td><span id="emon_vrms_N_GND">-</span> V</td>
+              <td>N - PE</td>
+              <td><span id="emon_vrms_N_PE">-</span> V</td>
             </tr>
           </table>
         </td>
@@ -200,8 +200,8 @@
       $("#wp_t_susp").empty().append( formatSecs(json.WP.t_susp) );
 
       $("#emon_vrms_L_N").empty().append( parseFloat(json.emon_vrms_L_N).toFixed(1) );
-      $("#emon_vrms_L_GND").empty().append( parseFloat(json.emon_vrms_L_GND).toFixed(1) );
-      $("#emon_vrms_N_GND").empty().append( parseFloat(json.emon_vrms_N_GND).toFixed(1) );
+      $("#emon_vrms_L_PE").empty().append( parseFloat(json.emon_vrms_L_PE).toFixed(1) );
+      $("#emon_vrms_N_PE").empty().append( parseFloat(json.emon_vrms_N_PE).toFixed(1) );
 
       $("#emon_k2_irms").empty().append( parseFloat(json.K2.I).toFixed(1) );
       $("#emon_k2_p_app").empty().append( json.K2.P_a );

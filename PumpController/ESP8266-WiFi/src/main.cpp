@@ -316,9 +316,25 @@ void loop(void) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
     } else {
-      // Push new values to Blynk server
-      Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
-      Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
+      // Extract some values and push to Blynk server
+      JsonVariant jsonVal;
+      
+      jsonVal = data_json.getMember("pressure_bar");
+      if(!jsonVal.isNull()) {
+        Blynk.virtualWrite(V0, jsonVal[0].as<float>());
+      }      
+      jsonVal = data_json.getMember("temp_c");
+      if(!jsonVal.isNull()) {
+        Blynk.virtualWrite(V1, jsonVal[0].as<float>());
+      }      
+      jsonVal = data_json.getMember("K2");
+      if(!jsonVal.isNull()) {
+        Blynk.virtualWrite(V3, jsonVal["I"].as<float>());
+        Blynk.virtualWrite(V4, jsonVal["P_a"].as<long>());
+      }
+
+      //Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
+      //Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
     }
 
     digitalWrite(PIN_LED_1, 0);

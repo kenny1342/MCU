@@ -57,7 +57,7 @@ void Webserver::AddRoutes() {
         return;    
       }
 
-      if(data_json.getMember(p->name()).isUndefined() ) {
+      if(data_json.getMember(p->name()).isNull() ) {
         request->send(200, "text/plain", String(p->name()) +  F(" not found in json"));
         return;    
       } else {
@@ -103,6 +103,15 @@ void Webserver::AddRoutes() {
     ESP.reset();
     delay(5000);
   
+  });
+
+  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request){
+    
+    AsyncWiFiManager wifiManager(&server,&dns);
+    request->send(200, "text/plain", "rebooting...");
+    delay(1000);
+    ESP.restart();
+    delay(5000);  
   });
 
 // Simple Firmware Update Form
