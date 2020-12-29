@@ -233,9 +233,14 @@
       let emon_vrms_N_PE = json.emon_vrms_N_PE;
 
       if(Math.abs(emon_vrms_N_PE - emon_vrms_L_PE) > 15.0) {
-        $("#emon_vrms_L_PE").css("color", "rgb(192, 95, 17)");
-        $("#emon_vrms_N_PE").css("color", $("#emon_vrms_L_PE").css("color"));
-      } 
+        $("#emon_vrms_L_PE").removeClass().addClass("ERR");
+        $("#emon_vrms_N_PE").removeClass().addClass("ERR");
+      } else {
+        $("#emon_vrms_L_PE").removeClass().addClass("OK");
+        $("#emon_vrms_N_PE").removeClass().addClass("OK");
+      }
+      
+
 
       $("#emon_k2_irms").empty().append( parseFloat(json.K2.I).toFixed(1) );
       $("#emon_k2_p_app").empty().append( json.K2.P_a );

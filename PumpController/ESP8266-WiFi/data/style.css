@@ -121,8 +121,11 @@ a:hover {
   border-bottom: 3px dotted rgb(141, 118, 14);
 }
 
-#emon_vrms_L_PE, #emon_vrms_N_PE {
+.OK {
   color:rgb(19, 116, 0);
+}
+.ERR {
+  color:rgb(219, 45, 1);
 }
 
 h1 {
