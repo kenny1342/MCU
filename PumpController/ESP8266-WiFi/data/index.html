@@ -16,99 +16,124 @@
 
   <div id="alarms"></div>
 
-    <p>
-      <span class="sensor-labels">Temperature</span>
-      <span id="temperature">%TEMPERATURE%</span>
-      <sup class="units">&deg;C</sup>
-    </p>
-    <p>
-      <span class="sensor-labels">Water Pressure</span>
-      <span id="waterpressure">%WATERPRESSURE%</span>
-      <sup class="units">bar</sup>
-    </p>
+  <table id="table_main">
+    <tr>
+      <td id="table_main_td1">
+        <table id="table_utility">
+          <tr>
+            <th colspan="2">Utility parameters</th>
+          </tr>          
+          <tr>
+            <td class="td_title">
+              Pump House Temp
+            </td>
+            <td class="td_value">
+              <span id="temperature">%TEMPERATURE%</span>&nbsp;<sup class="units">&deg;C</sup>
+            </td>
+          </tr>
+          <tr>
+            <td class="td_title">
+              Water Pressure
+            </td>
+            <td class="td_value">
+              <span id="waterpressure">%WATERPRESSURE%</span> &nbsp;<sup class="units">bar</sup>
+            </td>
+          </tr>
+          <tr>
+            <td class="td_title">
+              Mains V(rms) (L/N)
+            </td>
+            <td class="td_value">
+              <span id="emon_vrms_L_N">-</span> <sup class="units">V</sup>
+            </td>
+          </tr>
+          <tr>
+            <td class="td_title">
+              Phase V(rms) (L/PE)
+            </td>
+            <td class="td_value">
+              <span id="emon_vrms_L_PE">-</span> <sup class="units">V</sup>
+            </td>
+          </tr>
+          <tr>
+            <td class="td_title">
+              Phase V(rms) (N/PE)
+            </td>
+            <td class="td_value">
+              <span id="emon_vrms_N_PE">-</span> <sup class="units">V</sup>
+            </td>
+          </tr>      
+        </table>
+      </td>
 
-    <table>
-      <tr>
-        <th colspan="2">Pump Parameters</th>
-      </tr>
-      <tr>
-        <td>Status</td>
-        <td> <span id="wp_is_running">-</span></td>
-      </tr>
-      <tr>
-        <td>Status duration</td>
-        <td> <span id="wp_t_state">-</span></td>
-      </tr>
-      <tr>
-        <td>Suspended</td>
-        <td> <span id="wp_is_suspended"></span> (<span id="wp_cnt_susp"></span> times)</td>
-      </tr>
-      <tr>
-        <td>Suspended duration</td>
-        <td> <span id="wp_t_susp"></span></td>
-      </tr>
-      <tr>
-        <td>Starts #</td>
-        <td> <span id="wp_cnt_starts">-</span></td>
-      </tr>
-      <tr>
-        <td>Total Runtime</td>
-        <td> <span id="wp_t_totruntime">-</span></td>
-      </tr>
-    </table>      
+      <td id="table_main_td2">
+        <table id="table_pump">
+          <tr>
+            <th colspan="2">Pump Parameters</th>
+          </tr>
+          <tr>
+            <td  class="td_title">Status</td>
+            <td class="td_value"> <span id="wp_is_running">-</span></td>
+          </tr>
+          <tr>
+            <td class="td_title">Status duration</td>
+            <td class="td_value"> <span id="wp_t_state">-</span></td>
+          </tr>
+          <tr>
+            <td class="td_title">Suspended</td>
+            <td class="td_value"> <span id="wp_is_suspended"></span> (<span id="wp_cnt_susp"></span> times)</td>
+          </tr>
+          <tr>
+            <td class="td_title">Suspended duration</td>
+            <td class="td_value"> <span id="wp_t_susp"></span></td>
+          </tr>
+          <tr>
+            <td class="td_title">Starts #</td>
+            <td class="td_value"> <span id="wp_cnt_starts">-</span></td>
+          </tr>
+          <tr>
+            <td class="td_title">Total Runtime</td>
+            <td class="td_value"> <span id="wp_t_totruntime">-</span></td>
+          </tr>
+        </table>              
 
-    <hr />
-    <h4>EMON</h4>
+        <hr />
 
-    <table id="table_emon">
-      <tr>
-        <td>
-          <table id="table_emon_mains">
-            <tr>
-              <th>Phases</th>
-              <th>V(rms)</th>
-            </tr>
-            <tr>
-              <td>L - N</td>
-              <td><span id="emon_vrms_L_N">-</span> V</td>
-            </tr><tr>
-              <td>L - PE</td>
-              <td><span id="emon_vrms_L_PE">-</span> V</td>
-            </tr>
-            <tr>
-              <td>N - PE</td>
-              <td><span id="emon_vrms_N_PE">-</span> V</td>
-            </tr>
-          </table>
-        </td>
+        <table id="table_emon">
+          <tr>
+            <th>Circuit parameters</th>
+          </tr>          
+          <tr>
+            <td>
 
-        <td>          
-          <table id="table_emon_circuits">
-            <tr>
-              <th>Circuit</th>
-              <th>I(rms)</th>
-              <th>Power</th>
-              <th>PF</th>
-            </tr>
-            <tr class="tr_emon">
-              <td>K2</td>
-              <td> <span id="emon_k2_irms">-</span> A</td>
-              <td> <span id="emon_k2_p_app">-</span> W</td>
-              <td> <span id="emon_k2_pf">-</span></td>
-            </tr>
-            <tr class="tr_emon">
-              <td>K3</td>
-              <td> <span id="emon_k3_irms">-</span> A</td>
-              <td> <span id="emon_k3_p_app">-</span> W</td>
-              <td> <span id="emon_k3_pf">-</span></td>
-            </tr>      
-          </table>
-      
-        </td>
-      </tr>
-    </table>
-
-
+              <table id="table_emon_circuits">
+                <tr>
+                  <th>Circuit</th>
+                  <th>I(rms)</th>
+                  <th>Power</th>
+                  <th>PF</th>
+                </tr>
+                <tr>
+                  <td>K2</td>
+                  <td> <span id="emon_k2_irms">-</span> <sup class="units">A</sup></td>
+                  <td> <span id="emon_k2_p_app">-</span> <sup class="units">W</sup></td>
+                  <td> <span id="emon_k2_pf">-</span> <sup class="units">%</sup></td>
+                </tr>
+                <tr>
+                  <td>K3</td>
+                  <td> <span id="emon_k3_irms">-</span> <sup class="units">A</sup></td>
+                  <td> <span id="emon_k3_p_app">-</span> <sup class="units">W</sup></td>
+                  <td> <span id="emon_k3_pf">-</span><sup class="units">%</sup></td>
+                </tr>      
+              </table>
+          
+            </td>
+          </tr>
+        </table>
+    
+      </td>
+    </tr>
+  </table>
 
  
     <hr /> 
@@ -155,7 +180,7 @@
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.771484],"temp_c":[26.65469],"alarms":[],"emon_vrms_L_N":235,"emon_vrms_L_GND":115,"emon_vrms_N_GND":105,"WP":{"t_state":430,"is_running":1,"is_suspended":false,"cnt_starts":2,"cnt_susp":2,"t_susp":0,"t_totruntime":1032},"K2":{"I":12.44595,"P_a":2862,"V":230,"PF":0},"K3":{"I":0,"P_a":0,"V":0,"PF":0}}');
+          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.771484],"temp_c":[26.65469],"alarms":[],"emon_vrms_L_N":235,"emon_vrms_L_PE":115,"emon_vrms_N_PE":105,"WP":{"t_state":430,"is_running":1,"is_suspended":false,"cnt_starts":2,"cnt_susp":2,"t_susp":0,"t_totruntime":1032},"K2":{"I":12.44595,"P_a":2862,"V":230,"PF":0},"K3":{"I":0,"P_a":0,"V":0,"PF":0}}');
           localStorage.setItem('json', JSON.stringify(json));
         }
       ); // fetch
@@ -199,9 +224,18 @@
       $("#wp_t_totruntime").empty().append( formatSecs(json.WP.t_totruntime) );
       $("#wp_t_susp").empty().append( formatSecs(json.WP.t_susp) );
 
+
       $("#emon_vrms_L_N").empty().append( parseFloat(json.emon_vrms_L_N).toFixed(1) );
       $("#emon_vrms_L_PE").empty().append( parseFloat(json.emon_vrms_L_PE).toFixed(1) );
       $("#emon_vrms_N_PE").empty().append( parseFloat(json.emon_vrms_N_PE).toFixed(1) );
+
+      let emon_vrms_L_PE = json.emon_vrms_L_PE;
+      let emon_vrms_N_PE = json.emon_vrms_N_PE;
+
+      if(Math.abs(emon_vrms_N_PE - emon_vrms_L_PE) > 15.0) {
+        $("#emon_vrms_L_PE").css("color", "rgb(192, 95, 17)");
+        $("#emon_vrms_N_PE").css("color", $("#emon_vrms_L_PE").css("color"));
+      } 
 
       $("#emon_k2_irms").empty().append( parseFloat(json.K2.I).toFixed(1) );
       $("#emon_k2_p_app").empty().append( json.K2.P_a );
