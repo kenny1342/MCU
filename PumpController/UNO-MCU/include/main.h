@@ -5,26 +5,36 @@
 // Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
 // note down the values and define them in ZERO_POINT_...
 //#define DO_VOLTAGE_CALIBRATION
-#define ZERO_POINT_L_N              512
-#define ZERO_POINT_L_PE             312
-#define ZERO_POINT_N_PE             312
+// 231, n=127, l=130
+#define ZERO_POINT_L_N              463
+#define ZERO_POINT_L_PE             495
+#define ZERO_POINT_N_PE             483
 
 #define FIRMWARE_VERSION            "2.02"
 #define JSON_SIZE                   250
 #define PIN_LED_BUSY                6 // LED OFF if we are running normally (not busy)
 #define PIN_LED_ALARM               5 // LED ON of we have active alarms
+//#define PIN_RELAY_WP                4
+#define PIN_RESET_MODIO             4
+#define PIN_SCL                     7
+#define PIN_SDA                     8
+#define SW_I2C
+
+#define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
+#define CONF_RELAY_WP               0 // MOD-IO relay controlling water pump
+
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 #define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
 #define ADC_CH_CT_K2                A2 // ADC connected to current sensor K2 (living room) Input
-#define ADC_CH_CT_K3                A3 // ADC connected to current sensor K3 (kitchen) Input
-#define ADC_CH_VOLT_L_N             A4 // ADC connected to ZMPT101B voltage sensor
-#define ADC_CH_VOLT_L_PE            A5 // ADC connected to ZMPT101B voltage sensor
-#define ADC_CH_VOLT_N_PE            A6 // ADC connected to ZMPT101B voltage sensor
+#define ADC_CH_CT_K3                A6 // ADC connected to current sensor K3 (kitchen) Input
+#define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
+#define ADC_CH_VOLT_L_PE            A4 // ADC connected to ZMPT101B voltage sensor
+#define ADC_CH_VOLT_N_PE            A5 // ADC connected to ZMPT101B voltage sensor
 
-#define DEF_EMON_ICAL_K2            3.01
+#define DEF_EMON_ICAL_K2            0.40
 #define DEF_EMON_ICAL_K3            3.02
 #define DEF_CONF_WP_LOWER           3.77 // water pressure lower threshold (bar*100) before starting pump
 #define DEF_CONF_WP_UPPER           4.20 // water pressure upper threshold (bar*100) before stopping pump
