@@ -8,11 +8,13 @@
 #include <Arduino.h>
 #include <main.h>
 #include <SoftwareSerial.h>
+
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
 #include <EmonLib.h>
 #include <ZMPT101B.h>
+#include <olimex-mod-io.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -24,6 +26,8 @@ uint16_t timer1_counter; // preload of timer1
 static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
 SoftwareSerial Serial_esp8266(2, 3); // RX, TX
+
+
 //static sensors_type SENSORS ;
 String dataString = "no data";
 StaticJsonDocument<JSON_SIZE> doc;
@@ -51,7 +55,10 @@ void setup()
 
   pinMode(PIN_LED_ALARM, OUTPUT);
   pinMode(PIN_LED_BUSY, OUTPUT);
-  
+  //pinMode(PIN_SCL, OUTPUT);
+  //pinMode(PIN_SDA, OUTPUT);
+  pinMode(PIN_RESET_MODIO, INPUT); // need to float
+
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   while (!Serial) {
@@ -67,10 +74,10 @@ void setup()
 
   #ifdef DO_VOLTAGE_CALIBRATION
   while(1) {
-    Serial.print(F("read calib/zero-point voltage sensors..."));
+    Serial.println(F("read calib/zero-point voltage sensors..."));
     Serial.print(F("L_N:'")); Serial.print(voltageSensor_L_N.calibrate());
-    Serial.print(F("L_PE:'")); Serial.print(voltageSensor_L_PE.calibrate());
-    Serial.print(F("N_PE:'")); Serial.print(voltageSensor_N_PE.calibrate());
+    Serial.print(F(", L_PE:'")); Serial.print(voltageSensor_L_PE.calibrate());
+    Serial.print(F(", N_PE:'")); Serial.print(voltageSensor_N_PE.calibrate());
     delay(1000);
   }
   #endif
@@ -78,6 +85,9 @@ void setup()
   voltageSensor_L_N.setZeroPoint(ZERO_POINT_L_N);
   voltageSensor_L_PE.setZeroPoint(ZERO_POINT_L_PE);
   voltageSensor_N_PE.setZeroPoint(ZERO_POINT_N_PE);
+  voltageSensor_L_N.setSensitivity(0.0028);
+  voltageSensor_L_PE.setSensitivity(0.0018);
+  voltageSensor_N_PE.setSensitivity(0.0018);
 
   APPCONFIG.wp_max_runtime = DEF_CONF_WP_MAX_RUNTIME;
   APPCONFIG.wp_suspendtime = DEF_CONF_WP_SUSPENDTIME;
@@ -135,7 +145,10 @@ void setup()
   
   EMON_K2.current(ADC_CH_CT_K2, DEF_EMON_ICAL_K2);
   EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
-
+  
+  Serial.println(F("ModIOInitBoard..."));
+  ModIOInitBoard();
+  RESET_MODIO();
 
   wdt_enable(WDTO_4S);
   APPFLAGS.is_busy = 0;
@@ -332,6 +345,8 @@ void loop() // run over and over
 
   wdt_reset();
 
+  //digitalWrite(PIN_RELAY_WP, WATERPUMP.is_running);
+
   if (millis() - previousMillis >= interval) {
     
     previousMillis = millis();
@@ -344,7 +359,7 @@ void loop() // run over and over
     
     //EMONMAINS.Vrms_L_GND = 110.0;
     //EMONMAINS.Vrms_N_GND = 110.0;
-    EMONMAINS.Vrms_L_N = 240.0;
+    //MONMAINS.Vrms_L_N = 240.0;
     
     EMONDATA_K2.Irms = EMON_K2.calcIrms(500);
     EMONDATA_K2.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
@@ -387,6 +402,20 @@ void loop() // run over and over
     WATERPUMP.temp_pumphouse_val = (double) (((5000.0 * (double)ADC_temp_1.average) / 1024L) / 10L) - 273.15; // as float value
 
     APPFLAGS.is_updating = 0;
+
+    // Control MOD-IO board relays
+    APPFLAGS.is_busy = 1;
+    if(ModIOGetRelayStatus(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
+      if(!ModIOSetRelay(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) RESET_MODIO();
+
+    int tmp = ModIOGetRelayStatus(CONF_RELAY_WP);
+    Serial.print(F("wp relay "));
+    Serial.println(tmp);
+    if(!ModIOSetRelay(CONF_RELAY_WP, !tmp) == MODIO_ACK_OK) RESET_MODIO();
+
+    if(!ModIOSetRelay(2, 1) == MODIO_ACK_OK) RESET_MODIO();
+
+    APPFLAGS.is_busy = 0;
 
     //------------ Create JSON doc ----------------        
     doc.clear();
