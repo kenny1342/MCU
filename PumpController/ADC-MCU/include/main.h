@@ -12,9 +12,10 @@
 
 #define FIRMWARE_VERSION            "2.02"
 #define JSON_SIZE                   250
-#define PIN_LED_BUSY                6 // LED OFF if we are running normally (not busy)
+#define PIN_LED_BUSY                13 // LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
 #define PIN_LED_ALARM               5 // LED ON of we have active alarms
 #define PIN_RESET_MODIO             4
+#define PIN_BACKLIGHT               7
 
 #define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
 #define CONF_RELAY_12VBUS           3 // MOD-IO relay controlling 12v bus (sensors, mains relays etc)

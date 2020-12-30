@@ -15,6 +15,23 @@
 #include <EmonLib.h>
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
+#include <LiquidCrystal_I2C.h>
+
+
+
+LiquidCrystal_I2C lcd(0x50);  // Set the LCD I2C address
+
+// Creat a set of new characters
+const uint8_t charBitmap[][8] = {
+   { 0xc, 0x12, 0x12, 0xc, 0, 0, 0, 0 },
+   { 0x6, 0x9, 0x9, 0x6, 0, 0, 0, 0 },
+   { 0x0, 0x6, 0x9, 0x9, 0x6, 0, 0, 0x0 },
+   { 0x0, 0xc, 0x12, 0x12, 0xc, 0, 0, 0x0 },
+   { 0x0, 0x0, 0xc, 0x12, 0x12, 0xc, 0, 0x0 },
+   { 0x0, 0x0, 0x6, 0x9, 0x9, 0x6, 0, 0x0 },
+   { 0x0, 0x0, 0x0, 0x6, 0x9, 0x9, 0x6, 0x0 },
+   { 0x0, 0x0, 0x0, 0xc, 0x12, 0x12, 0xc, 0x0 }
+};
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -52,11 +69,17 @@ volatile alarm_BitField ALARMS;// = (volatile BitField*)&ADMUX; //declare a BitF
 
 void setup()
 {
+  int charBitmapSize = (sizeof(charBitmap ) / sizeof (charBitmap[0]));
+
   APPFLAGS.is_busy = 1;
 
   pinMode(PIN_LED_ALARM, OUTPUT);
   pinMode(PIN_LED_BUSY, OUTPUT);
   pinMode(PIN_RESET_MODIO, INPUT); // need to float
+  // Switch on the backlight
+  pinMode ( BACKLIGHT_PIN, OUTPUT );
+  
+  digitalWrite ( BACKLIGHT_PIN, HIGH );
 
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
@@ -68,6 +91,19 @@ void setup()
   Serial.println( (__FlashStringHelper*)pgm_read_word(FIRMWARE_VERSION_LONG + 0)) ;
   Serial.println(F("Made by Ken-Roger Andersen, 2020"));
   Serial.println("");
+
+  lcd.begin(20,4);               // initialize the lcd 
+
+   for ( int i = 0; i < charBitmapSize; i++ )
+   {
+      lcd.createChar ( i, (uint8_t *)charBitmap[i] );
+   }
+
+  lcd.home ();
+  lcd.print("Controller ");  
+  lcd.setCursor ( 0, 2 );
+  lcd.print ("   Init...  ");
+  delay ( 1000 );
 
   analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
 
@@ -157,6 +193,12 @@ void setup()
   //delay(500);
 
   wdt_enable(WDTO_4S);
+
+  lcd.home ();                   // go home
+  lcd.print("Controller ");  
+  lcd.setCursor ( 0, 2 );
+  lcd.print ("   READY  ");
+
   APPFLAGS.is_busy = 0;
 
 }
