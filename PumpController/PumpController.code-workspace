@@ -4,12 +4,11 @@
 			"path": "."
 		},
 		{
-			"name": "ESP8266-WiFi",
-			"path": "ESP8266-WiFi"
+			"name": "WiFi-MCU",
+			"path": "WiFi-MCU"
 		},
 		{
-			"name": "UNO-MCU",
-			"path": "UNO-MCU"
+			"path": "ADC-MCU"
 		}
 	],
 	"settings": {

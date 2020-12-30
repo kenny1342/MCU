@@ -8,7 +8,7 @@
  */
 #include <Arduino.h>
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
-#include "LittleFS.h" // LittleFS is declared
+#include "SPIFFS.h"
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -19,9 +19,9 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
 
-#include <ESP8266mDNS.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <BlynkSimpleEsp8266.h>
+#include <BlynkSimpleEsp32.h>
 #include <ArduinoOTA.h>
 
 #include <main.h>
@@ -78,7 +78,7 @@ void setup(void) {
   delay(1000);
 
   
-  Serial.print(F("Starting FS (LittleFS)..."));
+  Serial.print(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
 
   Serial.print(F("Loading configuration from /config.json..."));
@@ -86,6 +86,7 @@ void setup(void) {
 
   Serial.println(F("Starting WiFi..."));
 
+/*
   //WiFiManager custom parameters/config
   AsyncWiFiManagerParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
   AsyncWiFiManagerParameter custom_port("port", "HTTP port", config.port, 6);
@@ -96,10 +97,10 @@ void setup(void) {
   Serial.printf("SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 
   //reset settings if button pressed
-  if(digitalRead(PIN_SW_RST) == LOW) {
+  if(digitalRead(PIN_SW_RST) == HIGH) {
     Serial.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
     delay(5000);
-    if(digitalRead(PIN_SW_RST) == LOW) {
+    if(digitalRead(PIN_SW_RST) == HIGH) {
       Serial.println(F("reset button still pressed, all settings reset to default!"));
       delay(1000);
       wifiManager.resetSettings();
@@ -127,14 +128,25 @@ void setup(void) {
   if (!wifiManager.autoConnect("KRATECH-AP", "password")) {
     Serial.println(F("failed to connect, we should reset as see if it connects"));
     delay(3000);
-    ESP.reset();
+    ESP.restart();
     delay(5000);
   }
- 
+ */
+
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.begin("kra-stb", "escort82");
+  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+
+  } else {
+    Serial.println("connection failed!");
+    delay(1000);
+    ESP.restart();
+  }
+
   Serial.println("connected!");
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
-
+/*
   //save the custom parameters to FS
   if (shouldSaveConfig) {
     Serial.println(F("Saving config..."));
@@ -146,6 +158,7 @@ void setup(void) {
       strcpy(config.port, custom_port.getValue());
     } 
   }
+*/
 
   Serial.print(F("Starting Blynk..."));
   if(ConnectBlynk()) {
@@ -270,8 +283,8 @@ void loop(void) {
   }
 
   ArduinoOTA.handle();
-//  server.handleClient();
-  MDNS.update();
+
+  //MDNS.update();
   Blynk.run();
 
   while ((WiFi.status() != WL_CONNECTED))

@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include <main.h>
 #include <SoftwareSerial.h>
-
+#include <Wire.h>
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
@@ -25,8 +25,9 @@ uint16_t timer1_counter; // preload of timer1
 
 static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
-SoftwareSerial Serial_esp8266(2, 3); // RX, TX
+//SoftwareSerial Serial_esp8266(2, 3); // RX, TX
 
+#define Serial_esp8266 Serial1
 
 //static sensors_type SENSORS ;
 String dataString = "no data";
@@ -55,8 +56,6 @@ void setup()
 
   pinMode(PIN_LED_ALARM, OUTPUT);
   pinMode(PIN_LED_BUSY, OUTPUT);
-  //pinMode(PIN_SCL, OUTPUT);
-  //pinMode(PIN_SDA, OUTPUT);
   pinMode(PIN_RESET_MODIO, INPUT); // need to float
 
   // Open serial communications and wait for port to open:
@@ -146,9 +145,16 @@ void setup()
   EMON_K2.current(ADC_CH_CT_K2, DEF_EMON_ICAL_K2);
   EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
   
+  Wire.begin(); // Initiate the Wire library
+
   Serial.println(F("ModIOInitBoard..."));
   ModIOInitBoard();
-  RESET_MODIO();
+  //RESET_MODIO();
+  delay(100);
+  Serial.println(F("switching on 12v bus..."));
+  // turn on 12v bus (system power sensors, relays etc)
+  if(!ModIOSetRelay(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) RESET_MODIO();
+  //delay(500);
 
   wdt_enable(WDTO_4S);
   APPFLAGS.is_busy = 0;
@@ -338,14 +344,10 @@ ISR (TIMER2_COMPA_vect)
 void loop() // run over and over
 {
     
-  //double tmp;
-  //uint32_t currentMillis = 0;
   static uint32_t previousMillis = 0;
   JsonArray data;
 
   wdt_reset();
-
-  //digitalWrite(PIN_RELAY_WP, WATERPUMP.is_running);
 
   if (millis() - previousMillis >= interval) {
     
@@ -356,10 +358,6 @@ void loop() // run over and over
     EMONMAINS.Vrms_L_N = voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
-    
-    //EMONMAINS.Vrms_L_GND = 110.0;
-    //EMONMAINS.Vrms_N_GND = 110.0;
-    //MONMAINS.Vrms_L_N = 240.0;
     
     EMONDATA_K2.Irms = EMON_K2.calcIrms(500);
     EMONDATA_K2.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
@@ -407,13 +405,8 @@ void loop() // run over and over
     APPFLAGS.is_busy = 1;
     if(ModIOGetRelayStatus(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
       if(!ModIOSetRelay(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) RESET_MODIO();
-
-    int tmp = ModIOGetRelayStatus(CONF_RELAY_WP);
-    Serial.print(F("wp relay "));
-    Serial.println(tmp);
-    if(!ModIOSetRelay(CONF_RELAY_WP, !tmp) == MODIO_ACK_OK) RESET_MODIO();
-
-    if(!ModIOSetRelay(2, 1) == MODIO_ACK_OK) RESET_MODIO();
+    
+    ModIOUpdateRelays(); // make 100% sure relay states are in sync with our state (in case a i2c command got lost)
 
     APPFLAGS.is_busy = 0;
 

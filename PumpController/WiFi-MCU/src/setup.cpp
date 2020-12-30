@@ -19,11 +19,8 @@ bool Setup::GetConfig() {
   strlcpy(config.port, "80", sizeof(config.port));    
 
 
-  if (LittleFS.exists(_configfile)) {
-      //file exists, reading and loading
-      //Serial.println("reading config file");
-      File configFile = LittleFS.open(_configfile, "r");
-      //File configFile = LittleFS.open("/config.json", "r");
+  if (SPIFFS.exists(_configfile)) {
+      File configFile = SPIFFS.open(_configfile, "r");
       if (configFile) {
 
         StaticJsonDocument<512> doc;
@@ -58,7 +55,7 @@ bool Setup::GetConfig() {
 
 bool Setup::SaveConfig() {
 
-  File configFile = LittleFS.open(_configfile, "w");
+  File configFile = SPIFFS.open(_configfile, "w");
   if (!configFile) {
       Serial.println("FAILED");
       Serial.println("failed to open /config.json for writing");
@@ -86,7 +83,7 @@ bool Setup::SaveConfig() {
 
 bool Setup::FileSystem()
 {
-  if (LittleFS.begin()){
+  if (SPIFFS.begin(true)){
       Serial.println(F("Success"));
   }else{
       Serial.println(F("Failed! Rebooting in 10 sec..."));
@@ -100,8 +97,9 @@ bool Setup::FileSystem()
 
   // Get all information of your LittleFS
   // TODO: move to separate function
+  /*
   FSInfo fs_info;
-  LittleFS.info(fs_info);
+  SPIFFS.info(fs_info);
 
   Serial.println("Fetching file system info...");
   Serial.print("Total space:      ");
@@ -120,7 +118,7 @@ bool Setup::FileSystem()
   Serial.println(fs_info.maxOpenFiles);
   Serial.print("Max path lenght:  ");
   Serial.println(fs_info.maxPathLength);
-
+*/
   Serial.println("\nFS init completed");
 
   return true;

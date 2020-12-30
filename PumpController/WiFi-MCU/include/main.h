@@ -9,14 +9,14 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "1.41"
-#define HOSTNAME            "esp8266-pumpctrl"
+#define FIRMWARE_VERSION    "2.41"
+#define HOSTNAME            "wifi-mcu"
 #define PORT                "80"
 #define JSON_SIZE           512
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
-#define PIN_SW_RST          13
+#define PIN_SW_RST          2
 #define PIN_LED_1           14
 
 /* Comment this out to disable prints and save space */

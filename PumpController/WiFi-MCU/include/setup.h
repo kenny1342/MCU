@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
-#include "LittleFS.h" // LittleFS is declared
+#include "SPIFFS.h"
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -13,7 +13,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
-#include <ESP8266mDNS.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 
 

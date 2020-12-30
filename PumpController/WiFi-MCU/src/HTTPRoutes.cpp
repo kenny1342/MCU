@@ -1,6 +1,6 @@
 #include "Arduino.h"
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
-#include "LittleFS.h" // LittleFS is declared
+#include "SPIFFS.h"
 
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
@@ -10,7 +10,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
-#include <ESP8266mDNS.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <HTTPRoutes.h>
 
@@ -28,15 +28,15 @@ void Webserver::AddRoutes() {
 
   // Route for root / web page with variable parser/processor
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/index.html", "text/html", false, HTMLProcessor);
+    request->send(SPIFFS, "/index.html", "text/html", false, HTMLProcessor);
   });
   
   // File routes
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/style.css", "text/css");
+    request->send(SPIFFS, "/style.css", "text/css");
   });
   server.on("/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/jquery.min.js", "application/x-javascript");
+    request->send(SPIFFS, "/jquery.min.js", "application/x-javascript");
   });
   // GET command routes
 
@@ -86,7 +86,7 @@ void Webserver::AddRoutes() {
     JsonObject json = root.createNestedObject("ESP");
     json["heap"] = ESP.getFreeHeap();
     json["freq"] = ESP.getCpuFreqMHz();
-    json["chipid"] = ESP.getChipId();
+    json["chipid"] = "N/A";
     json["uptimesecs"] = millis() /1000;
     
     serializeJson(root, output);
@@ -100,14 +100,12 @@ void Webserver::AddRoutes() {
     delay(1000);
     wifiManager.resetSettings();
     delay(100);
-    ESP.reset();
+    ESP.restart();
     delay(5000);
   
   });
 
   server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request){
-    
-    AsyncWiFiManager wifiManager(&server,&dns);
     request->send(200, "text/plain", "rebooting...");
     delay(1000);
     ESP.restart();
@@ -118,8 +116,9 @@ void Webserver::AddRoutes() {
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
     //const char* updateHTML = "Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
     //request->send(200, "text/html", updateHTML);
-    request->send(LittleFS, "/update.html", "text/html", false, HTMLProcessor);
+    request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
   });
+/*
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
     shouldReboot = !Update.hasError();
     AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
@@ -163,9 +162,10 @@ void Webserver::AddRoutes() {
       }
     }
   });
+*/
 
   // attach filesystem root at URL /fs
-  server.serveStatic("/fs", LittleFS, "/");
+  server.serveStatic("/fs", SPIFFS, "/");
 
 
 }
