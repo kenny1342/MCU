@@ -12,6 +12,8 @@
 #include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+//#include <WebServer.h>
+#include <Update.h>
 #include <HTTPRoutes.h>
 
 Webserver::Webserver()
@@ -38,6 +40,10 @@ void Webserver::AddRoutes() {
   server.on("/jquery.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/jquery.min.js", "application/x-javascript");
   });
+  server.on("/main.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/main.js", "application/x-javascript");
+  });
+
   // GET command routes
 
   // return data fields from json as requested in /sensordata?fieldname
@@ -86,7 +92,8 @@ void Webserver::AddRoutes() {
     JsonObject json = root.createNestedObject("ESP");
     json["heap"] = ESP.getFreeHeap();
     json["freq"] = ESP.getCpuFreqMHz();
-    json["chipid"] = "N/A";
+    uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+    json["chipid"] = (uint16_t)(chipid>>32); //use High 2 bytes
     json["uptimesecs"] = millis() /1000;
     
     serializeJson(root, output);
@@ -118,21 +125,56 @@ void Webserver::AddRoutes() {
     //request->send(200, "text/html", updateHTML);
     request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
   });
+
+
 /*
+  //handling uploading firmware file 
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Serial.printf("Update: %s\n", upload.filename.c_str());
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      // flashing firmware to ESP
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Serial);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) { //true to set the size to the current progress
+        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      } else {
+        Update.printError(Serial);
+      }
+    }
+  });
+*/
+
+
+
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
     shouldReboot = !Update.hasError();
     AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
     response->addHeader("Connection", "close");
     request->send(response);
+    delay(800);
+    ESP.restart();
     
   },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     if(!index){
         
-        Update.runAsync(true);
+        //Update.runAsync(true);
         
         // if filename includes littlefs, update the littlefs partition
-        int cmd = (filename.indexOf("littlefs") >= 0) ? U_FS : U_FLASH; 
+        int cmd = (filename.indexOf("spiffs") >= 0) ? U_SPIFFS : U_FLASH; 
         
+
+
         if(cmd == U_FLASH) {
             Serial.printf("Firmware Update Start: %s\n", filename.c_str());
             uint32_t freespace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
@@ -141,9 +183,10 @@ void Webserver::AddRoutes() {
             }
         } else {
             Serial.printf("File System Update Start: %s\n", filename.c_str());
-            size_t fsSize = ((size_t) &_FS_end - (size_t) &_FS_start);
-            close_all_fs();
-            if (!Update.begin(fsSize, U_FS)){//start with max available size
+            //size_t fsSize = ((size_t) &_FS_end - (size_t) &_FS_start);
+            //close_all_fs();
+            size_t fsSize = SPIFFS.totalBytes();
+            if (!Update.begin(fsSize, cmd)){//start with max available size
             Update.printError(Serial);
             }
         }
@@ -162,7 +205,7 @@ void Webserver::AddRoutes() {
       }
     }
   });
-*/
+
 
   // attach filesystem root at URL /fs
   server.serveStatic("/fs", SPIFFS, "/");

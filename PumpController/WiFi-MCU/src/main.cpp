@@ -27,7 +27,7 @@
 #include <main.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
-const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP8266-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
@@ -37,6 +37,7 @@ bool shouldReboot = false;      //flag to use from web firmware update to reboot
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
+
 
 StaticJsonDocument<JSON_SIZE> data_json;
 uint32_t previousMillis = 0; 
@@ -65,6 +66,9 @@ void setup(void) {
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
   pinMode(PIN_SW_RST, INPUT); // reset button
+
+  Serial_DATA.begin(115200, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
+  Serial_DATA.println("WiFi-MCU booting up...");
 
   Serial.begin(115200);
 
@@ -315,7 +319,7 @@ void loop(void) {
 
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
-  if (readline(Serial.read(), data_string, JSON_SIZE) > 0) {
+  if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
     digitalWrite(PIN_LED_1, 1);
 
     Serial.print("rcvd: ");
@@ -346,8 +350,8 @@ void loop(void) {
         Blynk.virtualWrite(V4, jsonVal["P_a"].as<long>());
       }
 
-      //Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
-      //Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
+      Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
+      Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
     }
 
     digitalWrite(PIN_LED_1, 0);

@@ -5,6 +5,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
   <script src='jquery.min.js'></script>
+  <script src='/main.js'></script>
 </head>
 <body>
   <h1>Water Pump Controller v%FIRMWARE%</h1>
@@ -141,31 +142,17 @@
     <small>
       Uptime: <span id="uptime">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
       <br /><br />
-      Web Interface v2.35<br />
+      Web Interface v2.38<br />
       <hr />Made by Ken-Roger Andersen, Dec 2020
     </small>
   </div>
 
   
 </body>
+
+<script src='/main.js'></script>
+
 <script>
-  
-  function formatSecs(secs=0) {
-    
-    dateObj = new Date(secs * 1000); 
-    days = Math.round(secs/86400);
-    hours = dateObj.getUTCHours(); 
-    minutes = dateObj.getUTCMinutes(); 
-    seconds = dateObj.getSeconds(); 
-
-    timeString = days.toString() + ' days, ' +  
-    hours.toString().padStart(2, '0') 
-        + ':' + minutes.toString().padStart(2, '0') 
-        + ':' + seconds.toString().padStart(2, '0'); 
-        
-    return timeString;
-  }
-
   jQuery(document).ready(function () {
 
     // Get sensor data from JSON

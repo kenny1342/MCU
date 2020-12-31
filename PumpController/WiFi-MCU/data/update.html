@@ -4,6 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
+  <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
 </head>
 <body>
   <h1>Firmware update</h1>
@@ -12,16 +13,19 @@
   (%FIRMWARE_LONG%)
 
   <hr />
+    Upload .bin (For filesystem image, name the file like *spiffs*.bin): <br /><br />
 
-    Upload .bin (For filesystem image, name the file like *littlefs*.bin): <br /><br />
+<form method='POST' action='/update' enctype='multipart/form-data' id='upload_form'>
+<input type='file' name='update'>
+<input type='submit' value='Update'>
+</form>
 
-    <form method='POST' action='/update' enctype='multipart/form-data'>
-        <input type='file' name='update'>
-        <br /><br />
-        
-        <input type='submit' value='Update!'>
-    
-    </form>
+<div id='prg'>progress: 0%</div>
+
+<div id='success' style='display:none;'>Success, please wait while rebooting...</div>
+<div id='error' style='display:none;'>ERROR</div>
+
+<script src='/main.js'></script>
 
 </body>
 </html>

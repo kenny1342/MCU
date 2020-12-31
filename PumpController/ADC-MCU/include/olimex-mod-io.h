@@ -5,8 +5,8 @@
 #include "Arduino.h"
 #include <main.h>
 
-#ifndef PIN_RESET_MODIO
-    #define PIN_RESET_MODIO  5
+#ifndef PIN_ModIO_Reset
+    #define PIN_ModIO_Reset  5
 #endif
 
 #ifndef CONF_I2C_ID_MODIO_BOARD
@@ -15,13 +15,10 @@
 
 #define MODIO_ACK_OK    0
 
-//extern uint8_t relayState;
-
-
-void RESET_MODIO(void);
-void ModIOInitBoard();
-uint8_t ModIOUpdateRelays();
-uint8_t ModIOSetRelay(unsigned char relay, unsigned char mode);
-uint8_t ModIOGetRelayStatus(unsigned char relay);
+void ModIO_Reset(void);
+void ModIO_Init();
+uint8_t ModIO_Update();
+uint8_t ModIO_SetRelayState(unsigned char relay, unsigned char mode);
+uint8_t ModIO_GetRelayState(unsigned char relay);
 
 #endif

@@ -100,15 +100,15 @@ bool Setup::FileSystem()
   /*
   FSInfo fs_info;
   SPIFFS.info(fs_info);
-
+*/
   Serial.println("Fetching file system info...");
   Serial.print("Total space:      ");
-  Serial.print(fs_info.totalBytes);
+  Serial.print(SPIFFS.totalBytes());
   Serial.println("byte");
   Serial.print("Total space used: ");
-  Serial.print(fs_info.usedBytes);
+  Serial.print(SPIFFS.usedBytes());
   Serial.println("byte");
-  Serial.print("Block size:       ");
+  /*Serial.print("Block size:       ");
   Serial.print(fs_info.blockSize);
   Serial.println("byte");
   Serial.print("Page size:        ");

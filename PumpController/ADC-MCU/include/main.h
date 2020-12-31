@@ -14,7 +14,7 @@
 #define JSON_SIZE                   250
 #define PIN_LED_BUSY                13 // LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
 #define PIN_LED_ALARM               5 // LED ON of we have active alarms
-#define PIN_RESET_MODIO             4
+#define PIN_ModIO_Reset             4
 #define PIN_BACKLIGHT               7
 
 #define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
@@ -41,21 +41,6 @@
 #define DEF_CONF_MIN_TEMP_PUMPHOUSE 10L   // minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
 
-// define theoretical vref calibration constant for use in readvcc()
-// 1100mV*1024 ADC steps http://openenergymonitor.org/emon/node/1186
-// override in your code with value for your specific AVR chip
-// determined by procedure described under "Calibrating the internal reference voltage" at
-// http://openenergymonitor.org/emon/buildingblocks/calibration
-#ifndef READVCC_CALIBRATION_CONST
-#define READVCC_CALIBRATION_CONST 1126400L
-#endif
-
-#if defined(__arm__)
-#define ADC_BITS    12
-#else
-#define ADC_BITS    10
-#endif
-#define ADC_COUNTS  (1<<ADC_BITS)
 
 // Structs
 
@@ -109,6 +94,7 @@ typedef struct
   uint8_t readIndex = 0;              // the index of the current reading
   uint16_t total = 0;                  // the running total
   uint16_t average = 0;                // the average
+  uint8_t ready = 0;                // set to 1 after boot when numReadings is reached
 } adc_avg;
 /*
 typedef struct
@@ -152,34 +138,49 @@ typedef union {
 typedef union {
   byte allBits;
   struct {
+    byte b0:1;
+    byte b1:1;
+    byte b2:1;
+    byte b3:1;
+    byte b4:1;
+    byte b5:1;
+    byte b6:1;
+    byte low_memory:1; // set if RAM < x bytes free
+  };
+} alarm_BitField_SYS;
+
+typedef union {
+  byte allBits;
+  struct {
     byte waterpump_runtime:1 ;
-    byte power_voltage:1 ; // line voltage too high >= 253V or low <= 209V (230V +/- 10%)
-    byte power_groundfault:1 ; // V L/N-GND ~= nettspenning/rot av 3=mellom 100-140V 
+    byte b1:1;
+    byte b2:1;
     byte temperature_pumphouse:1; // should never be below 0C/freezing
+    byte b4:1;
+    byte b5:1;
+    byte sensor_error:1; // invalid ADC readings etc any sensor
+    byte b7:1;
+  };
+} alarm_BitField_WP;
+
+typedef union {
+  byte allBits;
+  struct {
+    byte power_voltage:1 ; // line voltage too high >= 253V or low <= 209V (230V +/- 10%)
+    byte power_groundfault:1 ; // V L/N-GND !~= nettspenning/rot av 3=230/132,9 (mellom 100-140V )
+    byte b2:1;
+    byte b3:1;
     byte emon_K2:1; // if O/R or CT sensor error
     byte emon_K3:1; // if O/R or CT sensor error
     byte sensor_error:1; // invalid ADC readings etc any sensor
-    byte low_memory:1; // set if RAM < x bytes free
+    byte b7:1;
   };
-} alarm_BitField;
+} alarm_BitField_EMON;
 
-/*
-// Define names for the bitfields in alarm_BitField
-#define ALARMBIT_WATERPUMP_RUNTIME      0x01 //0b00000001
-#define ALARMBIT_POWER_VOLTAGE          0x02 //0b00000010
-#define ALARMBIT_GROUNDFAULT            0x04 //0b00000100
-#define ALARMBIT_TEMPERATURE_PUMPHOUSE  0x08 //0b00001000
-#define ALARMBIT_POWER_GENERIC          0x10 //0b00010000
-#define ALARMBIT_SENSOR_ERROR           0x40 //0b01000000
-#define ALARMBIT_LOW_MEMORY             0x80 //0b10000000
-#define ALARMBIT_ALL                    0xff //0b11111111
-// if any of these alarm bits are set, waterpump will not start (@TODO: make as config option)
-#define ALARMBITS_WATERPUMP_PROTECTION  (ALARMBIT_SENSOR_ERROR | ALARMBIT_WATERPUMP_RUNTIME | ALARMBIT_TEMPERATURE_PUMPHOUSE | ALARMBIT_LOW_MEMORY) 
-*/
+#define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
 
-#define IS_ACTIVE_ALARMS_WP() (ALARMS.low_memory || ALARMS.sensor_error || ALARMS.temperature_pumphouse || ALARMS.waterpump_runtime)
-
-bool getAlarmStatus(uint8_t Alarm);
-long readVcc();
+bool getAlarmStatus_WP(uint8_t Alarm);
+bool getAlarmStatus_EMON(uint8_t Alarm);
+//bool getAlarmStatus(&struct ALARMS uint8_t Alarm);
 
 #endif

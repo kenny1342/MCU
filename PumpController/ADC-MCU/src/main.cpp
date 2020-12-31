@@ -18,9 +18,6 @@
 #include <LiquidCrystal_I2C.h>
 
 
-
-LiquidCrystal_I2C lcd(0x50);  // Set the LCD I2C address
-
 // Creat a set of new characters
 const uint8_t charBitmap[][8] = {
    { 0xc, 0x12, 0x12, 0xc, 0, 0, 0, 0 },
@@ -39,15 +36,14 @@ const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 const int interval = 800;   // interval at which to send data (millisecs)
 uint16_t timer1_counter; // preload of timer1
+String dataString = "no data";
 
 static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
-//SoftwareSerial Serial_esp8266(2, 3); // RX, TX
+//SoftwareSerial Serial_Wifi(2, 3); // RX, TX
+#define Serial_Wifi Serial1
 
-#define Serial_esp8266 Serial1
-
-//static sensors_type SENSORS ;
-String dataString = "no data";
+LiquidCrystal_I2C lcd(0x50);  // Set the LCD I2C address
 StaticJsonDocument<JSON_SIZE> doc;
 JsonObject json;
 
@@ -65,7 +61,10 @@ emondata_type EMONDATA_K3;   // Kitchen values
 volatile appconfig_type APPCONFIG ;
 volatile waterpump_type WATERPUMP;
 volatile flags_BitField APPFLAGS;
-volatile alarm_BitField ALARMS;// = (volatile BitField*)&ADMUX; //declare a BitField variable which is located at the address of ADMUX.
+volatile alarm_BitField_WP ALARMS_WP;     // Waterpump alarms
+volatile alarm_BitField_EMON ALARMS_EMON; // Utility/EMON alarms
+volatile alarm_BitField_SYS ALARMS_SYS;   // local system/MCU alarms
+
 
 void setup()
 {
@@ -75,11 +74,11 @@ void setup()
 
   pinMode(PIN_LED_ALARM, OUTPUT);
   pinMode(PIN_LED_BUSY, OUTPUT);
-  pinMode(PIN_RESET_MODIO, INPUT); // need to float
+  pinMode(PIN_ModIO_Reset, INPUT); // need to float
   // Switch on the backlight
-  pinMode ( BACKLIGHT_PIN, OUTPUT );
+  pinMode ( PIN_BACKLIGHT, OUTPUT );
   
-  digitalWrite ( BACKLIGHT_PIN, HIGH );
+  digitalWrite ( PIN_BACKLIGHT, HIGH );
 
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
@@ -131,8 +130,8 @@ void setup()
   APPCONFIG.min_temp_pumphouse = DEF_CONF_MIN_TEMP_PUMPHOUSE;
 
   // set the data rate for the SoftwareSerial port
-  Serial_esp8266.begin(115200);
-  Serial_esp8266.println(F("uno initializing..."));
+  Serial_Wifi.begin(115200);
+  Serial_Wifi.println(F("uno initializing..."));
 
   // initialize all ADC readings to 0:
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
@@ -182,15 +181,16 @@ void setup()
   EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
   
   Wire.begin(); // Initiate the Wire library
+  Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
 
-  Serial.println(F("ModIOInitBoard..."));
-  ModIOInitBoard();
-  //RESET_MODIO();
+  Serial.println(F("ModIO_Init..."));
+  ModIO_Init();
+  //ModIO_Reset();
   delay(100);
-  Serial.println(F("switching on 12v bus..."));
+
   // turn on 12v bus (system power sensors, relays etc)
-  if(!ModIOSetRelay(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) RESET_MODIO();
-  //delay(500);
+  Serial.println(F("switching on 12v bus..."));
+  if(!ModIO_SetRelayState(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) ModIO_Reset();
 
   wdt_enable(WDTO_4S);
 
@@ -206,7 +206,7 @@ void setup()
 ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
-  if(millis() < 5000) return; // just powered up, let things stabilize
+  if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
   /**** Water pump state logic ****/
   if(!WATERPUMP.is_running) {
@@ -225,6 +225,7 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
   } else { // is running
     if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper || IS_ACTIVE_ALARMS_WP() ) { // stop if reached upper threshold OR alarms active     
       WATERPUMP.is_running = 0; // STOP waterpump in main loop if running
+      //TODO: check if runtime too short, indicate too low air pressure in accumulator tank
       WATERPUMP.state_age=0; //reset state age
     }
   }
@@ -246,7 +247,7 @@ ISR (TIMER2_COMPA_vect)
 
   digitalWrite(PIN_LED_BUSY, APPFLAGS.is_busy);
 
-  if(millis() < 5000) return; // just powered up, let things stabilize
+  if(!ADC_waterpressure.ready || !ADC_temp_1.ready || millis() < 5000) return; // just powered up, let things stabilize
   
 
   t2_overflow_cnt++; // will rollover, that's fine
@@ -264,10 +265,6 @@ ISR (TIMER2_COMPA_vect)
       WATERPUMP.total_runtime++; 
     }
 
-    if(ALARMS.low_memory) {
-      Serial.print(F("LOW MEM: "));
-      Serial.println(freeMemory());
-    }
   }
 
   // Control Alarm LED
@@ -277,7 +274,7 @@ ISR (TIMER2_COMPA_vect)
       //asm ("sbi %0, %1 \n": : "I" (_SFR_IO_ADDR(PIND)), "I" (PIND5)); // use 2 cycles to toggle pin (PIND5=digital port 2 on Uno board)
       digitalWrite(PIN_LED_ALARM, !digitalRead(PIN_LED_ALARM));
     }
-    else if(getAlarmStatus(ALARMS.allBits) && intervals._200ms) // Active alarm, blink alarm LED every 200ms/0.2 sec
+    else if( (getAlarmStatus_WP(ALARMS_SYS.allBits) || getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) ) && intervals._200ms) // Active alarm, blink alarm LED every 200ms/0.2 sec
     {      
       //asm ("sbi %0, %1 \n": : "I" (_SFR_IO_ADDR(PIND)), "I" (PIND5)); // use 2 cycles to toggle pin
       digitalWrite(PIN_LED_ALARM, !digitalRead(PIN_LED_ALARM));
@@ -295,70 +292,75 @@ ISR (TIMER2_COMPA_vect)
     // Check free RAM (less than xxx here means erratic behaviour/weird random stuff happens!) (on a 328p at least)
     // OBS! here we have 5-6 bytes less mem free than where we print it in debug output  
     if(freeMemory() < (int)LOWMEM_LIMIT) {
-      ALARMS.low_memory = 1;
+      ALARMS_SYS.low_memory = 1;
     } else {
-        if(ALARMS.low_memory) start_wp_suspension = 1; // was active until now, start suspension period
+        if(ALARMS_SYS.low_memory) start_wp_suspension = 1; // was active until now, start suspension period
 
-      ALARMS.low_memory = 0; 
+      ALARMS_SYS.low_memory = 0; 
+    }
+
+    if(ALARMS_SYS.low_memory) {
+      Serial.print(F("LOW MEM: "));
+      Serial.println(freeMemory());
     }
 
     // Only update alarms (for external data) if not currently reading new ADC values/updating data, we might get zero/invalid results until it's completed
     if(!APPFLAGS.is_updating) {
 
-      /////// Sensor alarms ////////////////
-      ALARMS.sensor_error = 0;
+      /////// EMON Sensor alarms ////////////////
+      ALARMS_EMON.sensor_error = 0;
 
-      ALARMS.emon_K2 = 0;
-      ALARMS.emon_K3 = 0;
+      ALARMS_EMON.emon_K2 = 0;
+      ALARMS_EMON.emon_K3 = 0;
       if(EMONDATA_K2.error || EMONDATA_K2.Irms > 20.0 || EMONDATA_K2.Irms < 0.0) {
-          ALARMS.emon_K2 = 1;
+          ALARMS_EMON.emon_K2 = 1;
       }
       if(EMONDATA_K3.error || EMONDATA_K3.Irms > 20.0 || EMONDATA_K3.Irms < 0.0) {
-          ALARMS.emon_K3 = 1;
+          ALARMS_EMON.emon_K3 = 1;
       }
 
       // Groundfaults
-      ALARMS.power_groundfault = 0;
+      ALARMS_EMON.power_groundfault = 0;
       // Jordfeil i et 230V IT nett når spenningen fase jord er  mindre en 90V eller større en 170V (130 +- 40V)	
       if(EMONMAINS.Vrms_L_PE < 90.0 || EMONMAINS.Vrms_N_PE < 90.0 || EMONMAINS.Vrms_L_PE > 170.0 || EMONMAINS.Vrms_N_PE > 170.0) {
-        ALARMS.power_groundfault = 1; 
+        ALARMS_EMON.power_groundfault = 1; 
       }
 
       // Mains voltage outside range
-      ALARMS.power_voltage = 0;
+      ALARMS_EMON.power_voltage = 0;
       // Forsyningskrav i Norge er nominell spenning 230V +/- 10%
       if(EMONMAINS.Vrms_L_N > 253 || EMONMAINS.Vrms_L_N < 207) {
-        ALARMS.power_voltage = 1;
+        ALARMS_EMON.power_voltage = 1;
       }
 
       if(ADC_temp_1.average == 0 || ADC_temp_1.average > 800) { // if sensor (LM335) is disconnected ADC gives very high readings
-        ALARMS.sensor_error = 1;
+        ALARMS_EMON.sensor_error = 1;
       } else {    
-         if(ALARMS.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+         if(ALARMS_EMON.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
       }
 
       if(ADC_waterpressure.average == 0) {
-        ALARMS.sensor_error = 1;
+        ALARMS_WP.sensor_error = 1;
       } else {    
-          if(ALARMS.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+          if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
       }
 
       /////// Water pump and related alarms ///////
       if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
-        ALARMS.temperature_pumphouse = 1;
+        ALARMS_WP.temperature_pumphouse = 1;
       } else {    
-          if(ALARMS.temperature_pumphouse) start_wp_suspension = 1; // was active until now, start suspension period
+          if(ALARMS_WP.temperature_pumphouse) start_wp_suspension = 1; // was active until now, start suspension period
 
-        ALARMS.temperature_pumphouse = 0;
+        ALARMS_WP.temperature_pumphouse = 0;
       }
         
 
       if(WATERPUMP.is_running && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
-        ALARMS.waterpump_runtime = 1;
+        ALARMS_WP.waterpump_runtime = 1;
       } else {    
-        if(ALARMS.waterpump_runtime) start_wp_suspension = 1; // was active until now, start suspension period
+        if(ALARMS_WP.waterpump_runtime) start_wp_suspension = 1; // was active until now, start suspension period
 
-        ALARMS.waterpump_runtime = 0;
+        ALARMS_WP.waterpump_runtime = 0;
       }
 
       /*** SET/CLEAR ALARMS DONE ***/
@@ -394,9 +396,16 @@ void loop() // run over and over
   if (millis() - previousMillis >= interval) {
     
     previousMillis = millis();
+    APPFLAGS.is_busy = 1;
     APPFLAGS.is_updating = 1;
+
+    // Control MOD-IO board relays
+    if(ModIO_GetRelayState(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
+      if(!ModIO_SetRelayState(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) ModIO_Reset();
     
-    //----------- EMON **********
+    ModIO_Update();
+
+    //----------- Update EMON data -------------
     EMONMAINS.Vrms_L_N = voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
@@ -406,7 +415,7 @@ void loop() // run over and over
     EMONDATA_K3.Irms = EMON_K3.calcIrms(500);
     EMONDATA_K3.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K3.Irms);
 
-    //----------- WATER PRESSURE **********
+    //----------- Update WATER PRESSURE data -------------
 
     ADC_waterpressure.total -= ADC_waterpressure.readings[ADC_waterpressure.readIndex];
     ADC_waterpressure.readings[ADC_waterpressure.readIndex] = analogRead(ADC_CH_WATERP); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
@@ -415,6 +424,7 @@ void loop() // run over and over
 
     if (ADC_waterpressure.readIndex >= numReadings) {
       ADC_waterpressure.readIndex = 0;
+      ADC_waterpressure.ready = 1;
     }
 
     ADC_waterpressure.average = ADC_waterpressure.total / numReadings;
@@ -426,7 +436,7 @@ void loop() // run over and over
     WATERPUMP.water_pressure_bar_val = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
     WATERPUMP.water_pressure_bar_val += (double)CORR_FACTOR_PRESSURE_SENSOR;
 
-    //------------- TEMPERATURE ***********
+    //------------- Update TEMPERATURE data ***********
     ADC_temp_1.total -= ADC_temp_1.readings[ADC_temp_1.readIndex];
     ADC_temp_1.readings[ADC_temp_1.readIndex] = analogRead(ADC_CH_TEMP_1); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
     ADC_temp_1.total += ADC_temp_1.readings[ADC_temp_1.readIndex];
@@ -434,6 +444,7 @@ void loop() // run over and over
 
     if (ADC_temp_1.readIndex >= numReadings) {
       ADC_temp_1.readIndex = 0;
+      ADC_temp_1.ready = 1;
     }
 
     ADC_temp_1.average = ADC_temp_1.total / numReadings;
@@ -442,15 +453,6 @@ void loop() // run over and over
     WATERPUMP.temp_pumphouse_val = (double) (((5000.0 * (double)ADC_temp_1.average) / 1024L) / 10L) - 273.15; // as float value
 
     APPFLAGS.is_updating = 0;
-
-    // Control MOD-IO board relays
-    APPFLAGS.is_busy = 1;
-    if(ModIOGetRelayStatus(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
-      if(!ModIOSetRelay(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) RESET_MODIO();
-    
-    ModIOUpdateRelays(); // make 100% sure relay states are in sync with our state (in case a i2c command got lost)
-
-    APPFLAGS.is_busy = 0;
 
     //------------ Create JSON doc ----------------        
     doc.clear();
@@ -464,15 +466,16 @@ void loop() // run over and over
     data.add(WATERPUMP.temp_pumphouse_val);
     data = doc.createNestedArray("alarms");
 
-    if(getAlarmStatus(ALARMS.allBits)) { // any alarm bit set?
-      if(ALARMS.emon_K2) data.add(F("K2"));
-      if(ALARMS.emon_K3) data.add(F("K3"));
-      if(ALARMS.low_memory) data.add(F("lowmem"));
-      if(ALARMS.waterpump_runtime) data.add(F("wpruntime"));
-      if(ALARMS.temperature_pumphouse) data.add(F("temp_pumphouse"));
-      if(ALARMS.sensor_error) data.add(F("sensor"));
-      if(ALARMS.power_groundfault) data.add(F("groundfault"));
-      if(ALARMS.power_voltage) data.add(F("emon_voltage"));
+    if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits)) { // any alarm bit set?
+      if(ALARMS_EMON.emon_K2) data.add(F("K2"));
+      if(ALARMS_EMON.emon_K3) data.add(F("K3"));
+      if(ALARMS_SYS.low_memory) data.add(F("lowmem"));
+      if(ALARMS_WP.waterpump_runtime) data.add(F("wpruntime"));
+      if(ALARMS_WP.temperature_pumphouse) data.add(F("temp_pumphouse"));
+      if(ALARMS_WP.sensor_error) data.add(F("sensor_wp"));
+      if(ALARMS_EMON.sensor_error) data.add(F("sensor_utils"));
+      if(ALARMS_EMON.power_groundfault) data.add(F("groundfault"));
+      if(ALARMS_EMON.power_voltage) data.add(F("emon_voltage"));
     }
     
     doc["emon_vrms_L_N"] = EMONMAINS.Vrms_L_N;
@@ -507,11 +510,9 @@ void loop() // run over and over
     // {"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.966797],"temp_c":[25.67813],"alarms":[],"WP":{"t_state":32,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":1,"t_susp":0,"t_totruntime":0},"K2":{"I":29.6936,"P_a":0,"P_r":0,"V":230,"PF":0},"K3":{"I":21.15884,"P_a":0,"P_r":0,"V":230,"PF":0}}
 
     Serial.println(dataString);
-    Serial_esp8266.println(dataString);
+    Serial_Wifi.println(dataString);
     
-    Serial.print(F("mem:"));
-    Serial.println(freeMemory());
-
+    APPFLAGS.is_busy = 0;
   }
 
 }
@@ -519,40 +520,12 @@ void loop() // run over and over
 /**
 * check if an alarm bit is set or not
 */
-bool getAlarmStatus(uint8_t Alarm) {
+bool getAlarmStatus_WP(uint8_t Alarm) {
 
-  return (ALARMS.allBits & Alarm);
+  return (ALARMS_WP.allBits & Alarm);
 }
 
-long readVcc() {
-  long result;
+bool getAlarmStatus_EMON(uint8_t Alarm) {
 
-  #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined (__AVR_ATmega328P__)
-  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-  #elif defined(__AVR_ATmega644__) || defined(__AVR_ATmega644P__) || defined(__AVR_ATmega1284__) || defined(__AVR_ATmega1284P__)
-  ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-  #elif defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB1286__)
-  ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-  ADCSRB &= ~_BV(MUX5);   // Without this the function always returns -1 on the ATmega2560 http://openenergymonitor.org/emon/node/2253#comment-11432
-  #elif defined (__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
-  ADMUX = _BV(MUX5) | _BV(MUX0);
-  #elif defined (__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-  ADMUX = _BV(MUX3) | _BV(MUX2);
-
-  #endif
-
-
-  #if defined(__AVR__)
-  delay(2);                                        // Wait for Vref to settle
-  ADCSRA |= _BV(ADSC);                             // Convert
-  while (bit_is_set(ADCSRA,ADSC));
-  result = ADCL;
-  result |= ADCH<<8;
-  result = READVCC_CALIBRATION_CONST / result;  //1100mV*1024 ADC steps http://openenergymonitor.org/emon/node/1186
-  return result;
-  #elif defined(__arm__)
-  return (3300);                                  //Arduino Due
-  #else
-  return (3300);                                  //Guess that other un-supported architectures will be running a 3.3V!
-  #endif
+  return (ALARMS_EMON.allBits & Alarm);
 }
