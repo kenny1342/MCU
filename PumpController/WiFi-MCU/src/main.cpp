@@ -23,8 +23,15 @@
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp32.h>
 #include <ArduinoOTA.h>
-
+#include <TFT_eSPI.h>
+#include "bmp.h"
 #include <main.h>
+
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+
+char buff[512];
+
+#define ENABLE_SPI_SDCARD
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -81,7 +88,34 @@ void setup(void) {
   Serial.println("");
   delay(1000);
 
-  
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_GREEN);
+    tft.setCursor(0, 0);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(1);
+
+
+    tft.setSwapBytes(true);
+    tft.pushImage(0, 0,  240, 135, ttgo);
+    delay(2000);
+
+    tft.setRotation(0);
+    tft.fillScreen(TFT_RED);
+    delay(500);
+    tft.fillScreen(TFT_BLUE);
+    delay(500);
+    tft.fillScreen(TFT_GREEN);
+    delay(500);
+
+  tft.setRotation(3);
+tft.setTextSize(2);
+tft.fillScreen(TFT_BLACK);
+tft.setCursor(0 ,0);
+tft.println("\n\n   Bootup...  ");
+
   Serial.print(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
 
@@ -90,7 +124,7 @@ void setup(void) {
 
   Serial.println(F("Starting WiFi..."));
 
-/*
+
   //WiFiManager custom parameters/config
   AsyncWiFiManagerParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
   AsyncWiFiManagerParameter custom_port("port", "HTTP port", config.port, 6);
@@ -101,14 +135,14 @@ void setup(void) {
   Serial.printf("SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 
   //reset settings if button pressed
-  if(digitalRead(PIN_SW_RST) == HIGH) {
+  if(digitalRead(PIN_SW_RST) == LOW) {
     Serial.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
     delay(5000);
-    if(digitalRead(PIN_SW_RST) == HIGH) {
+    if(digitalRead(PIN_SW_RST) == LOW) {
       Serial.println(F("reset button still pressed, all settings reset to default!"));
       delay(1000);
       wifiManager.resetSettings();
-
+      ESP.restart();
     } else {
       Serial.println(F("reset aborted! resuming startup..."));
     }
@@ -135,8 +169,8 @@ void setup(void) {
     ESP.restart();
     delay(5000);
   }
- */
-
+ 
+/*
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin("kra-stb", "escort82");
   if (WiFi.waitForConnectResult() == WL_CONNECTED) {
@@ -146,11 +180,11 @@ void setup(void) {
     delay(1000);
     ESP.restart();
   }
-
+*/
   Serial.println("connected!");
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
-/*
+
   //save the custom parameters to FS
   if (shouldSaveConfig) {
     Serial.println(F("Saving config..."));
@@ -162,7 +196,7 @@ void setup(void) {
       strcpy(config.port, custom_port.getValue());
     } 
   }
-*/
+
 
   Serial.print(F("Starting Blynk..."));
   if(ConnectBlynk()) {
@@ -191,6 +225,8 @@ void setup(void) {
   
 
   Serial.println(F("Setup completed!"));
+  
+  tft.fillScreen(TFT_BLACK);
 }
 
 bool ConnectBlynk() {
@@ -352,6 +388,59 @@ void loop(void) {
 
       Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
       Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
+
+
+/*
+      //tft.setRotation(3);
+      tft.setTextSize(2);
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(0, 0);
+
+      char  str[32] = { 0 };
+      
+      //tft.drawString(str, 0, tft.height() / 2 - 48);
+      tft.drawString("IP: 192.168.255.255", 1, tft.height() / 2 -32);
+      tft.drawString("some info here.....!", 2, tft.height() / 2 - 16);
+
+      sprintf(str, "WP: P=%d.%02d, Temp=%d.%01d dC", (int)p, (int)(p*100)%100, (int)t, (int)(t*10)%10 );
+      tft.drawString(str, 5, tft.height() / 2 - 0);
+
+      
+      sprintf(str, "Mains/N-L:  %d.%01dV", (int)t, (int)(t*10)%10 );
+      tft.drawString(str, 10, tft.height() / 2 + 18);
+
+      tft.drawString("Earth/L-PE: 150.33V", 11, tft.height() / 2 + 34 );
+      tft.drawString("Earth/N-PE: 150.44V", 12, tft.height() / 2 + 48);
+      //tft.drawString("3. some info here.....!", tft.width() / 2, tft.height() / 2 + 64 );
+      tft.setTextDatum(TL_DATUM);
+
+    delay(5000);
+    
+*/
+      double t = 0;
+      tft.setTextSize(2);
+        //tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(0, 0);
+      //sprintf(str, "SSID: %s", WiFi.SSID().c_str());
+      tft.printf("SSID: %s\n", WiFi.SSID().c_str());    
+      tft.printf("IP: %s\n", WiFi.localIP().toString().c_str());
+      double p = data_json["pressure_bar"][0].as<float>();
+      t = data_json["temp_c"][0].as<float>();
+      tft.printf("P=%d.%02d B, Th=%d.%01d  C\n", (int)p, (int)(p*100)%100, (int)t, (int)(t*10)%10 );
+      t = data_json["emon_vrms_L_N"].as<float>();
+      tft.printf("Mains/L-N:  %d.%01d V\n", (int)t, (int)(t*10)%10);
+      t = data_json["emon_vrms_L_PE"].as<float>();
+      tft.printf("Earth/L-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
+      t = data_json["emon_vrms_N_PE"].as<float>();
+      tft.printf("Earth/N-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
+
+      
+
+      tft.setTextDatum(TL_DATUM);
+
+      //delay(3000);
     }
 
     digitalWrite(PIN_LED_1, 0);

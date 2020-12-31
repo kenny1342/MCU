@@ -9,7 +9,7 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "2.51"
+#define FIRMWARE_VERSION    "2.52"
 #define HOSTNAME            "wifi-mcu"
 #define PORT                "80"
 #define JSON_SIZE           512
@@ -20,6 +20,9 @@
 #define PIN_LED_1           37
 #define PIN_RXD2 25
 #define PIN_TXD2 26
+
+#define BUTTON_1            35
+#define BUTTON_2            0
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
 
