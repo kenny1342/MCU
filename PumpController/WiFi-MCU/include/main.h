@@ -10,19 +10,24 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "2.54"
+#define FIRMWARE_VERSION    "2.55"
 #define HOSTNAME            "websrv-mcu"
 #define PORT                "80"
 #define JSON_SIZE           512
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
-#define PIN_SW_RST          23 // (IO0)
+#define PIN_SW_RST          23 //23 (IO0)
+#define PIN_SW_SEL          35 // 11 (IO35)
 #define PIN_LED_1           37
 #define PIN_RXD2 25
 #define PIN_TXD2 26
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
+
+#define MENU_PAGE_UTILITY_STATS 0
+#define MENU_PAGE_SYSTEM_STATS  1
+#define MENU_PAGE_MAX           1
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
@@ -49,7 +54,8 @@ void ReconnectWiFi();
 int readline(int readch, char *buffer, int len);
 String HTMLProcessor(const String& var);
 void saveConfigCallback ();
-void makeCStringSpaces(char str[], int _len);
+//void makeCStringSpaces(char str[], int _len);
+char * TimeToString(unsigned long t);
 
 extern Config config;
 #endif

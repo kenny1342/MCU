@@ -10,6 +10,7 @@
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
 #include <WiFi.h>
+//#include <Time.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
@@ -37,6 +38,10 @@ bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
 //char logline[160] = "";
+uint8_t lcd_page_curr = 0;
+//uint8_t lcd_page_max = MENU_PAGE_MAX;
+bool lcd_page_has_changed = true; // flag to clear display
+
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 StaticJsonDocument<JSON_SIZE> data_json;
@@ -69,6 +74,7 @@ void setup(void) {
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
   pinMode(PIN_SW_RST, INPUT); // reset button
+  pinMode(PIN_SW_SEL, INPUT); // menu page button
 
   Serial_DATA.begin(115200, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
   Serial_DATA.println("WiFi-MCU booting up...");
@@ -242,7 +248,7 @@ delay(700);
   }
   Serial.println(F("OK"));
   
-  logger.println(F("Setup completed!"));
+  logger.println(F("Setup completed! Waiting for RX..."));
   
   delay(2000);
   tft.fillScreen(TFT_BLACK);
@@ -346,6 +352,7 @@ void loop(void) {
   unsigned long currentMillis = millis();
   int wifitries = 0;
   double t = 0;
+  uint32_t t_btn_pressed = 0;
 
   if(shouldReboot){
     Serial.println("Rebooting...");
@@ -355,6 +362,25 @@ void loop(void) {
 
   //ArduinoOTA.handle();
   Blynk.run();
+
+
+  // TODO: make non-blocking debounce handler...
+  t_btn_pressed = 0;
+  while(digitalRead(PIN_SW_SEL) == LOW) {
+    t_btn_pressed++;
+    delay(1);
+  }
+
+  if(t_btn_pressed > 30) { // button was pressed > 30 ms, goto next menu page index
+    
+    if(lcd_page_curr == MENU_PAGE_MAX) {
+      lcd_page_curr = 0;
+    } else {
+      lcd_page_curr++;
+    }
+    lcd_page_has_changed = true;
+  }
+
 
   if (currentMillis - previousMillis_200 >= 200L) { // update Blynk every 200ms
     previousMillis_200 = currentMillis;
@@ -376,6 +402,8 @@ void loop(void) {
 
   if (currentMillis - previousMillis >= 60000L) { // once a minute, check WiFi, Blynk connection
     previousMillis = currentMillis;
+
+    //tft.fillScreen(TFT_BLACK); // to be sure we don't have "leftover" chars
 
     if ((WiFi.status() != WL_CONNECTED))
     {
@@ -437,74 +465,101 @@ void loop(void) {
       Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
       Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
 
+    } // RX
+
+
       //----------- Update OLED display ---------------
 
-      tft.setTextSize(txtsize);
-      //tft.fillScreen(TFT_BLACK);
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      
-      tft.setCursor(0, TFT_LINE1);
-      tft.printf("SSID: %-14s", WiFi.SSID().c_str());
-
-      tft.setCursor(0, TFT_LINE2);
-      tft.printf("IP: %-16s", WiFi.localIP().toString().c_str());
-
-      tft.setCursor(0, TFT_LINE3);
-      tft.printf("%-16s", " ");
-
-      
-      tft.setCursor(0, TFT_LINE4);      
-      tft.printf("WP:" );
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-      t = data_json["pressure_bar"][0].as<float>();      
-      tft.printf("%d.%02d", (int)t, (int)(t*100)%100 );
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.printf(" bar, ");
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-      t = data_json["temp_c"][0].as<float>();
-      tft.printf("%d.%01d", (int)t, (int)(t*10)%10 );
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.printf(" %cC", (char)247);
-      // "WP: 1.11 Bar, 1.1 oC"
-
-      tft.setCursor(0, TFT_LINE5);
-      t = data_json["emon_vrms_L_N"].as<float>();
-      tft.printf("V(rms)  L-N: %d.%01d V", (int)t, (int)(t*10)%10);
-      
-      tft.setCursor(0, TFT_LINE6);      
-      t = data_json["emon_vrms_L_PE"].as<float>();
-      tft.printf("V(rms) L-PE: %d.%01d V", (int)t, (int)(t*10)%10);
-      
-      tft.setCursor(0, TFT_LINE7);      
-      t = data_json["emon_vrms_N_PE"].as<float>();
-      tft.printf("V(rms) N-PE: %d.%01d V", (int)t, (int)(t*10)%10);
-      // "V(rms) L-N:  250.0 V"
-      
-      
-      JsonArray alarms = data_json.getMember("alarms");
-      if(alarms.size() == 0) {
-        tft.setCursor(0, TFT_LINE8);
-        tft.printf("     No alarms      ");
-      } else {
-        tft.setTextColor(TFT_RED, TFT_WHITE);
-        tft.setCursor(0, TFT_LINE8);
-        tft.printf("%20s", " "); // clear line
-        tft.setCursor(0, TFT_LINE8);
-    
-        for(uint8_t x=0; x< alarms.size(); x++) {
-          const char* str = alarms[x];
-          tft.printf("A:%s ", str );
+      if(lcd_page_curr == MENU_PAGE_UTILITY_STATS) {
+        tft.setTextSize(txtsize);
+        if(lcd_page_has_changed) {
+          lcd_page_has_changed = false;
+          tft.fillScreen(TFT_BLACK);
         }
-        tft.setTextColor(TFT_GREEN);
-      }
+        
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        
+        tft.setCursor(0, TFT_LINE1);
+        tft.printf("SSID: %-14s", WiFi.SSID().c_str());
+
+        tft.setCursor(0, TFT_LINE2);
+        tft.printf("IP: %-16s", WiFi.localIP().toString().c_str());
+
+        tft.setCursor(0, TFT_LINE3);
+        tft.printf("%-16s", " ");
+        
+        tft.setCursor(0, TFT_LINE4);      
+        tft.printf("WP:" );
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        t = data_json["pressure_bar"][0].as<float>();      
+        tft.printf("%d.%02d", (int)t, (int)(t*100)%100 );
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.printf(" bar, ");
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        t = data_json["temp_c"][0].as<float>();
+        tft.printf("%d.%01d", (int)t, (int)(t*10)%10 );
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.printf(" %cC", (char)247);
+        // "WP: 1.11 Bar, 1.1 oC"
+
+        tft.setCursor(0, TFT_LINE5);
+        t = data_json["emon_vrms_L_N"].as<float>();
+        tft.printf("V(rms) L-N:  %d.%01d V", (int)t, (int)(t*10)%10);
+        
+        tft.setCursor(0, TFT_LINE6);      
+        t = data_json["emon_vrms_L_PE"].as<float>();
+        tft.printf("V(rms) L-PE: %d.%01d V", (int)t, (int)(t*10)%10);
+        
+        tft.setCursor(0, TFT_LINE7);      
+        t = data_json["emon_vrms_N_PE"].as<float>();
+        tft.printf("V(rms) N-PE: %d.%01d V", (int)t, (int)(t*10)%10);
+        // "V(rms) L-N:  250.0 V"
+        
+        
+        JsonArray alarms = data_json.getMember("alarms");
+        if(alarms.size() == 0) {
+          tft.setCursor(0, TFT_LINE8);
+          tft.printf("     No alarms      ");
+        } else {
+          tft.setTextColor(TFT_RED, TFT_WHITE);
+          tft.setCursor(0, TFT_LINE8);
+          tft.printf("%20s", " "); // clear line
+          tft.setCursor(0, TFT_LINE8);
       
-    }
+          for(uint8_t x=0; x< alarms.size(); x++) {
+            const char* str = alarms[x];
+            tft.printf("A:%s ", str );
+          }
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        }
+
+      } else if(lcd_page_curr == MENU_PAGE_SYSTEM_STATS) {
+
+        tft.setTextSize(txtsize);
+        if(lcd_page_has_changed) {
+          lcd_page_has_changed = false;
+          tft.fillScreen(TFT_BLACK);
+        }
+
+        tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+        
+        tft.setCursor(0, 0);
+        tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
+        tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
+        tft.printf("ID: %llu\n", ESP.getEfuseMac());
+        tft.printf("SDK: %s\n", ESP.getSdkVersion());
+        tft.printf("PROG: %u B\n", ESP.getSketchSize());
+        tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
+        //tft.printf("Uptime: %s\n", );
+
+      }
+
 
     digitalWrite(PIN_LED_1, 0);
   }
 
 }
-
+/*
 void makeCStringSpaces(char str[], int _len)// Simple C string function
 {
   //char spaces[] = "                ";     // 16 spaces
@@ -514,4 +569,16 @@ void makeCStringSpaces(char str[], int _len)// Simple C string function
 
 memset(bla, ' ', sizeof bla - 1);
 bla[sizeof bla - 1] = '\0';
+}
+*/
+// t is time in seconds = millis()/1000;
+char * TimeToString(unsigned long t)
+{
+ static char str[12];
+ long h = t / 3600;
+ t = t % 3600;
+ int m = t / 60;
+ int s = t % 60;
+ sprintf(str, "%04ld:%02d:%02d", h, m, s);
+ return str;
 }
