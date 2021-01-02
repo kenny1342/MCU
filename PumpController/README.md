@@ -44,5 +44,6 @@ Link to board: https://robotdyn.com/uno-wifi-r3-atmega328p-esp8266-32mb-flash-us
 - [ ] Upgrade to use a single ESP32 MCU (replace both)
 - [ ] Change interconnection from serial to I2C or SPI
 
+![Prototype](Pics/20210102_160239.jpg)
 
 ![Board pinout](PINOUT_UNO-WiFi-R3-AT328-ESP8266-CH340G.jpg)
