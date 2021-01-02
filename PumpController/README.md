@@ -40,9 +40,8 @@ The board will now become an AP with SSID "KRATECH-AP". Connect to it, open 192.
 Link to board: https://robotdyn.com/uno-wifi-r3-atmega328p-esp8266-32mb-flash-usb-ttl-ch340g-micro-usb.html
 
 ## Future plans
-- [ ] Control the water pump
-- [ ] Upgrade to use a single ESP32 MCU (replace both)
-- [ ] Change interconnection from serial to I2C or SPI
+- [X] Control the water pump
+- [ ] Change datalink/interconnection from serial to I2C or SPI
 
 ![Prototype](Pics/20210102_160239.jpg)
 
