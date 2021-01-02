@@ -9,29 +9,21 @@
 #include <Arduino.h>
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
-
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-#else
 #include <WiFi.h>
-#endif
-
 #include <ESPAsyncWebServer.h>
-#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
-
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp32.h>
 #include <ArduinoOTA.h>
+#include <logger.h>
 #include <TFT_eSPI.h>
 #include "bmp.h"
+#include <setup.h>
+
+#define _ESPASYNC_WIFIMGR_LOGLEVEL_    4 // Use from 0 to 4. Higher number, more debugging messages and memory usage.
+#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 #include <main.h>
 
-TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
-
-char buff[512];
-
-#define ENABLE_SPI_SDCARD
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -44,17 +36,21 @@ bool shouldReboot = false;      //flag to use from web firmware update to reboot
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
+//char logline[160] = "";
 
-
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 StaticJsonDocument<JSON_SIZE> data_json;
 uint32_t previousMillis = 0; 
 uint32_t previousMillis_200 = 0; 
+uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
-DNSServer dns;
+DNSServer dnsServer;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events"); // event source (Server-Sent events)
+
+Logger logger = Logger(&tft);
 
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
@@ -68,8 +64,8 @@ BLYNK_WRITE(V2) {
   digitalWrite(PIN_LED_1, blynk_button_V2);
 }
 
-
 void setup(void) {
+  
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
   pinMode(PIN_SW_RST, INPUT); // reset button
@@ -83,96 +79,56 @@ void setup(void) {
   Serial.println("initializing...");
   Serial.println(FPSTR(FIRMWARE_VERSION_LONG));
   Serial.println("Made by Ken-Roger Andersen, 2020");
-  Serial.println("");
-  Serial.println(F("To reset, press button for 5+ secs while powering on"));
-  Serial.println("");
+  logger.println("");
+  logger.println(F("To reset, press button for 5+ secs while powering on"));
+  logger.println("");
   delay(1000);
 
+
     tft.init();
-    tft.setRotation(1);
+    tft.setRotation(3); // 1
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(2);
+    //tft.setTextSize(2);
     tft.setTextColor(TFT_GREEN);
     tft.setCursor(0, 0);
     tft.setTextDatum(MC_DATUM);
-    tft.setTextSize(1);
 
 
     tft.setSwapBytes(true);
     tft.pushImage(0, 0,  240, 135, ttgo);
     delay(2000);
 
-    tft.setRotation(0);
     tft.fillScreen(TFT_RED);
-    delay(500);
+    delay(300);
     tft.fillScreen(TFT_BLUE);
-    delay(500);
+    delay(300);
     tft.fillScreen(TFT_GREEN);
-    delay(500);
+    delay(300);
 
-  tft.setRotation(3);
-tft.setTextSize(2);
+  //tft.setRotation(3);
+tft.setTextWrap(false);
+
+tft.setTextSize(3);
 tft.fillScreen(TFT_BLACK);
 tft.setCursor(0 ,0);
 tft.println("\n\n   Bootup...  ");
+tft.setTextSize(txtsize);
 
-  Serial.print(F("Starting FS (SPIFFS)..."));
+delay(700);
+
+  logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
 
-  Serial.print(F("Loading configuration from /config.json..."));
+  delay(700);
+  logger.print(F("Loading configuration from /config.json..."));
   Setup::GetConfig();
 
-  Serial.println(F("Starting WiFi..."));
-
-
-  //WiFiManager custom parameters/config
-  AsyncWiFiManagerParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
-  AsyncWiFiManagerParameter custom_port("port", "HTTP port", config.port, 6);
-
-  //Local intialization. Once setup() done, there is no need to keep it around
-  AsyncWiFiManager wifiManager(&server,&dns);
-
-  Serial.printf("SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
-
-  //reset settings if button pressed
-  if(digitalRead(PIN_SW_RST) == LOW) {
-    Serial.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
-    delay(5000);
-    if(digitalRead(PIN_SW_RST) == LOW) {
-      Serial.println(F("reset button still pressed, all settings reset to default!"));
-      delay(1000);
-      wifiManager.resetSettings();
-      ESP.restart();
-    } else {
-      Serial.println(F("reset aborted! resuming startup..."));
-    }
-    
-  }
-
-  //set config save notify callback
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-  //set static ip
-  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
-
-  // our custom parameters
-  wifiManager.addParameter(&custom_hostname);
-  wifiManager.addParameter(&custom_port);
-
-  wifiManager.setBreakAfterConfig(true); // exit after config
-
-  //fetches ssid and pass from eeprom and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //and goes into a blocking loop awaiting configuration
-  if (!wifiManager.autoConnect("KRATECH-AP", "password")) {
-    Serial.println(F("failed to connect, we should reset as see if it connects"));
-    delay(3000);
-    ESP.restart();
-    delay(5000);
-  }
- 
+delay(700);
+  logger.println(F("Starting WiFi..."));
 /*
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin("kra-stb", "escort82");
+  delay(1000);
   if (WiFi.waitForConnectResult() == WL_CONNECTED) {
 
   } else {
@@ -181,15 +137,71 @@ tft.println("\n\n   Bootup...  ");
     ESP.restart();
   }
 */
-  Serial.println("connected!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
 
+  //WiFiManager custom parameters/config
+  ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
+  ESPAsync_WMParameter custom_port("port", "HTTP port", config.port, 6);
+
+  //Local intialization. Once setup() done, there is no need to keep it around
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer, "KRATECH-WEB");
+
+  ESPAsync_wifiManager.setDebugOutput(true);
+  //ESPAsync_wifiManager.setConnectTimeout(10);
+
+  ESPAsync_wifiManager.setBreakAfterConfig(true); // exit after config
+
+  // reset settings if flagfile exists
+  if(SPIFFS.exists("/doreset.dat")) {
+    logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting as AP...");
+    SPIFFS.remove("/doreset.dat");
+
+    delay(500);
+    ESPAsync_wifiManager.resetSettings();  // esp8266, not esp32
+    delay(500);
+    delay(5000);
+    ESP.restart();
+
+  } else {
+    logger.println("reset flagfile /doreset.dat not found, continue");
+  }
+
+  //reset settings if button pressed
+  if(digitalRead(PIN_SW_RST) == LOW) {
+    logger.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
+    delay(5000);
+    if(digitalRead(PIN_SW_RST) == LOW) {
+      logger.println(F("will reboot and reset settings"));
+      delay(500);
+      //ESP.restart();
+    } else {
+      logger.println(F("reset aborted! resuming startup..."));
+    }
+    
+  }
+
+  //set config save notify callback
+  ESPAsync_wifiManager.setSaveConfigCallback(saveConfigCallback);
+  //set static ip
+  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
+
+  // our custom parameters
+  ESPAsync_wifiManager.addParameter(&custom_hostname);
+  ESPAsync_wifiManager.addParameter(&custom_port);
+
+  //ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
+  ESPAsync_wifiManager.autoConnect("KRATECH-AP");
+  if (WiFi.status() != WL_CONNECTED) { 
+    logger.println(F("failed to connect, we should reset as see if it connects"));
+    delay(3000);
+    ESP.restart();
+    delay(5000);
+  }
+ 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
-    Serial.println(F("Saving config..."));
+    logger.println(F("Saving config..."));
     if(Setup::SaveConfig()) {
-      Serial.println("OK");
+      logger.println("OK");
 
       //read updated parameters
       strcpy(config.hostname, custom_hostname.getValue());
@@ -198,21 +210,28 @@ tft.println("\n\n   Bootup...  ");
   }
 
 
-  Serial.print(F("Starting Blynk..."));
+  //Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
+  Serial.print("Connected! SSID: "); Serial.print(WiFi.SSID().c_str()); Serial.print(", psk "); Serial.println(WiFi.psk().c_str());
+  //Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+  
+
+  logger.print(F("Starting Blynk..."));
   if(ConnectBlynk()) {
-    Serial.println(F("OK - Connected to Blynk server"));
+    logger.println(F("OK - Connected to Blynk server"));
   } else {
-    Serial.println(F("FAILED to connect to Blynk server!"));
+    logger.println(F("FAILED to connect to Blynk server!"));
   }
 
-  Serial.print(F("Starting MDNS..."));
+  logger.print(F("Starting MDNS..."));
   if (MDNS.begin(config.hostname)) {
     Serial.println(F("OK"));
   } else {
     Serial.println(F("FAILED"));
   }
 
-  Serial.print(F("Starting HTTP server..."));
+  logger.print(F("Starting HTTP server..."));
 
   if(Setup::WebServer()) {
     Serial.println(F("OK"));
@@ -223,9 +242,9 @@ tft.println("\n\n   Bootup...  ");
   }
   Serial.println(F("OK"));
   
-
-  Serial.println(F("Setup completed!"));
+  logger.println(F("Setup completed!"));
   
+  delay(2000);
   tft.fillScreen(TFT_BLACK);
 }
 
@@ -248,16 +267,27 @@ bool ConnectBlynk() {
 void ReconnectWiFi() {  
 
     reconnects_wifi++;
+    uint8_t cnt = 0;
+
+    if(WiFi.SSID().length() < 2 || WiFi.psk().length() < 2) {
+      Serial.println(F("invalid SSID/psk"));
+      return;
+    }
     Serial.print("Reconnecting to ");
     Serial.print(WiFi.SSID());
     WiFi.mode(WIFI_STA);  
     WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());  
+    
     while (WiFi.status() != WL_CONNECTED) {  
+        if(cnt++ > 6) {
+          Serial.println(F("Failed, giving up!"));
+          return;
+        }
         delay(500);  
         Serial.print(".");
         digitalWrite(PIN_LED_1, !digitalRead(PIN_LED_1));
     }  
-    Serial.println("Connected!");
+    Serial.println(F("Connected!"));
 } 
 
 /**
@@ -315,37 +345,54 @@ void saveConfigCallback () {
 void loop(void) {
   unsigned long currentMillis = millis();
   int wifitries = 0;
-  
+  double t = 0;
+
   if(shouldReboot){
     Serial.println("Rebooting...");
     delay(100);
     ESP.restart();
   }
 
-  ArduinoOTA.handle();
-
-  //MDNS.update();
+  //ArduinoOTA.handle();
   Blynk.run();
 
-  while ((WiFi.status() != WL_CONNECTED))
-  {
-      ReconnectWiFi();
-      wifitries++;
-      delay(1000);
-
-      if (wifitries == 5)
-      {
-          return;
-      }
-  }
-
   if (currentMillis - previousMillis_200 >= 200L) { // update Blynk every 200ms
-    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
     previousMillis_200 = currentMillis;
+
+    if(currentMillis - dataAge > 5000 && dataAge > 0L) {
+      //Serial.println(F("no data rx"));
+
+      tft.setTextSize(3);
+      tft.setCursor(0, 0);
+      tft.setTextDatum(MC_DATUM);
+      //tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_RED, TFT_BLACK);
+      tft.println("\n  NO DATA RX" );
+  
+    }
+    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
+    
   }
 
-  if (currentMillis - previousMillis >= 60000L) { // once a minute, check Blynk connection
+  if (currentMillis - previousMillis >= 60000L) { // once a minute, check WiFi, Blynk connection
     previousMillis = currentMillis;
+
+    if ((WiFi.status() != WL_CONNECTED))
+    {
+        Serial.print(F("Trying to reconnect to WiFi - "));
+        Serial.println(wifitries);
+        ReconnectWiFi();
+        wifitries++;
+
+        if (wifitries == 10)
+        {
+          Serial.println(F("Too many failures, rebooting..."));
+          ESP.restart();
+          return;
+        }
+    } else {
+      Serial.println(F("WiFi OK"));
+    }
 
     if(!Blynk.connected()) {
       Serial.println(F("Blynk disconnected, reconnecting..."));
@@ -357,7 +404,8 @@ void loop(void) {
   //
   if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
     digitalWrite(PIN_LED_1, 1);
-
+    
+    dataAge = millis();
     Serial.print("rcvd: ");
     Serial.println(data_string); 
 
@@ -389,61 +437,81 @@ void loop(void) {
       Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
       Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
 
+      //----------- Update OLED display ---------------
 
-/*
-      //tft.setRotation(3);
-      tft.setTextSize(2);
-        tft.fillScreen(TFT_BLACK);
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(0, 0);
-
-      char  str[32] = { 0 };
+      tft.setTextSize(txtsize);
+      //tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
       
-      //tft.drawString(str, 0, tft.height() / 2 - 48);
-      tft.drawString("IP: 192.168.255.255", 1, tft.height() / 2 -32);
-      tft.drawString("some info here.....!", 2, tft.height() / 2 - 16);
+      tft.setCursor(0, TFT_LINE1);
+      tft.printf("SSID: %-14s", WiFi.SSID().c_str());
 
-      sprintf(str, "WP: P=%d.%02d, Temp=%d.%01d dC", (int)p, (int)(p*100)%100, (int)t, (int)(t*10)%10 );
-      tft.drawString(str, 5, tft.height() / 2 - 0);
+      tft.setCursor(0, TFT_LINE2);
+      tft.printf("IP: %-16s", WiFi.localIP().toString().c_str());
+
+      tft.setCursor(0, TFT_LINE3);
+      tft.printf("%-16s", " ");
 
       
-      sprintf(str, "Mains/N-L:  %d.%01dV", (int)t, (int)(t*10)%10 );
-      tft.drawString(str, 10, tft.height() / 2 + 18);
-
-      tft.drawString("Earth/L-PE: 150.33V", 11, tft.height() / 2 + 34 );
-      tft.drawString("Earth/N-PE: 150.44V", 12, tft.height() / 2 + 48);
-      //tft.drawString("3. some info here.....!", tft.width() / 2, tft.height() / 2 + 64 );
-      tft.setTextDatum(TL_DATUM);
-
-    delay(5000);
-    
-*/
-      double t = 0;
-      tft.setTextSize(2);
-        //tft.fillScreen(TFT_BLACK);
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(0, 0);
-      //sprintf(str, "SSID: %s", WiFi.SSID().c_str());
-      tft.printf("SSID: %s\n", WiFi.SSID().c_str());    
-      tft.printf("IP: %s\n", WiFi.localIP().toString().c_str());
-      double p = data_json["pressure_bar"][0].as<float>();
+      tft.setCursor(0, TFT_LINE4);      
+      tft.printf("WP:" );
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      t = data_json["pressure_bar"][0].as<float>();      
+      tft.printf("%d.%02d", (int)t, (int)(t*100)%100 );
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.printf(" bar, ");
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
       t = data_json["temp_c"][0].as<float>();
-      tft.printf("P=%d.%02d B, Th=%d.%01d  C\n", (int)p, (int)(p*100)%100, (int)t, (int)(t*10)%10 );
+      tft.printf("%d.%01d", (int)t, (int)(t*10)%10 );
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.printf(" %cC", (char)247);
+      // "WP: 1.11 Bar, 1.1 oC"
+
+      tft.setCursor(0, TFT_LINE5);
       t = data_json["emon_vrms_L_N"].as<float>();
-      tft.printf("Mains/L-N:  %d.%01d V\n", (int)t, (int)(t*10)%10);
-      t = data_json["emon_vrms_L_PE"].as<float>();
-      tft.printf("Earth/L-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
-      t = data_json["emon_vrms_N_PE"].as<float>();
-      tft.printf("Earth/N-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
-
+      tft.printf("V(rms)  L-N: %d.%01d V", (int)t, (int)(t*10)%10);
       
-
-      tft.setTextDatum(TL_DATUM);
-
-      //delay(3000);
+      tft.setCursor(0, TFT_LINE6);      
+      t = data_json["emon_vrms_L_PE"].as<float>();
+      tft.printf("V(rms) L-PE: %d.%01d V", (int)t, (int)(t*10)%10);
+      
+      tft.setCursor(0, TFT_LINE7);      
+      t = data_json["emon_vrms_N_PE"].as<float>();
+      tft.printf("V(rms) N-PE: %d.%01d V", (int)t, (int)(t*10)%10);
+      // "V(rms) L-N:  250.0 V"
+      
+      
+      JsonArray alarms = data_json.getMember("alarms");
+      if(alarms.size() == 0) {
+        tft.setCursor(0, TFT_LINE8);
+        tft.printf("     No alarms      ");
+      } else {
+        tft.setTextColor(TFT_RED, TFT_WHITE);
+        tft.setCursor(0, TFT_LINE8);
+        tft.printf("%20s", " "); // clear line
+        tft.setCursor(0, TFT_LINE8);
+    
+        for(uint8_t x=0; x< alarms.size(); x++) {
+          const char* str = alarms[x];
+          tft.printf("A:%s ", str );
+        }
+        tft.setTextColor(TFT_GREEN);
+      }
+      
     }
 
     digitalWrite(PIN_LED_1, 0);
   }
 
+}
+
+void makeCStringSpaces(char str[], int _len)// Simple C string function
+{
+  //char spaces[] = "                ";     // 16 spaces
+  //int end = strlen(str);
+  //strcat(str, &spaces[end]);
+  char bla[_len];
+
+memset(bla, ' ', sizeof bla - 1);
+bla[sizeof bla - 1] = '\0';
 }

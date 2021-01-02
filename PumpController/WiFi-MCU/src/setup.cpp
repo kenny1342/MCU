@@ -1,3 +1,12 @@
+#include "Arduino.h"
+#include <FS.h>                   //this needs to be first, or it all crashes and burns...
+#include "SPIFFS.h"
+
+#include <WiFi.h>
+
+#include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
+#include <ArduinoJson.h>
 
 #include <HTTPRoutes.h>
 #include <setup.h>
@@ -10,6 +19,10 @@ const char *Setup::_configfile = "/config.json";
 Setup::Setup()
 {
     this->error = false;
+}
+
+void Setup::deleteAllCredentials(void) {
+
 }
 
 bool Setup::GetConfig() {

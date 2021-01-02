@@ -4,7 +4,7 @@ function home() {
         // TODO: check if responding or wait another few secs
       window.location.href = "/";
 
-}, 12000);
+}, 14000);
 }
 
 function formatSecs(secs=0) {

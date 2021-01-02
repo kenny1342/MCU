@@ -2,19 +2,16 @@
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
 
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-#else
 #include <WiFi.h>
-#endif
 
-#include <ESPAsyncWebServer.h>
-#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
+//#include <ESPAsyncWebServer.h>
+//#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
+
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-//#include <WebServer.h>
 #include <Update.h>
 #include <HTTPRoutes.h>
+//#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 
 Webserver::Webserver()
 {
@@ -78,7 +75,8 @@ void Webserver::AddRoutes() {
   server.on("/json/sensors", HTTP_GET, [](AsyncWebServerRequest *request){
     //request->send(200, "application/json", json_output);
     
-    String output;
+    //String output = "";
+    char output[512] = { 0 };
     serializeJson(data_json, output);
     request->send(200, "application/json", output);
   });
@@ -90,6 +88,7 @@ void Webserver::AddRoutes() {
     JsonObject root = doc.to<JsonObject>();
     // Add vital data from our self (ESP chip)
     JsonObject json = root.createNestedObject("ESP");
+    json["hostname"] = config.hostname;
     json["heap"] = ESP.getFreeHeap();
     json["freq"] = ESP.getCpuFreqMHz();
     uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
@@ -102,11 +101,21 @@ void Webserver::AddRoutes() {
   
   server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
     
-    AsyncWiFiManager wifiManager(&server,&dns);
+    //ESPAsync_WiFiManager ESPAsync_wifiManager(&server,&dnsServer);
     request->send(200, "text/plain", "resetting...");
     delay(1000);
-    wifiManager.resetSettings();
-    delay(100);
+    //ESPAsync_wifiManager.resetSettings();
+    File file = SPIFFS.open("/doreset.dat", "w"); // we check for this file on boot
+    if(file.print("RESET") == 0) {
+      Serial.println(F("SPIFFS ERROR writing flagfile /doreset.dat"));
+    } else {
+      Serial.println(F("wrote flagfile /doreset.dat"));
+    }
+    file.close();
+    delay(500);
+    WiFi.disconnect(true, true);  // will erase ssid/password on some platforms (not esp32)
+    WiFi.begin("0","0");       // adding this effectively seems to erase the previous stored SSID/PW
+
     ESP.restart();
     delay(5000);
   
@@ -125,37 +134,6 @@ void Webserver::AddRoutes() {
     //request->send(200, "text/html", updateHTML);
     request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
   });
-
-
-/*
-  //handling uploading firmware file 
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      // flashing firmware to ESP
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
-      }
-    }
-  });
-*/
-
-
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
     shouldReboot = !Update.hasError();
