@@ -4,7 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" type="text/css" href="style.css">
   <script src='jquery.min.js'></script>
-  <script src='/main.js'></script>
+  <script src='main.js'></script>
 </head>
 <body>
   <h1>Home Controller v%FIRMWARE%</h1>
@@ -65,18 +65,7 @@
                   <th>Power</th>
                   <th>PF</th>
                 </tr>
-                <tr>
-                  <td>K2</td>
-                  <td><span id="emon_k2_irms">-</span><sup class="units">A</sup></td>
-                  <td><span id="emon_k2_p_app">-</span><sup class="units">W</sup></td>
-                  <td><span id="emon_k2_pf">-</span><sup class="units">%</sup></td>
-                </tr>
-                <tr>
-                  <td>K3</td>
-                  <td><span id="emon_k3_irms">-</span> <sup class="units">A</sup></td>
-                  <td><span id="emon_k3_p_app">-</span> <sup class="units">W</sup></td>
-                  <td><span id="emon_k3_pf">-</span><sup class="units">%</sup></td>
-                </tr>      
+                  <!-- <tbody> dynamically added by JS -->
               </table>
           
             </td>
@@ -133,7 +122,7 @@
     <small>
       Uptime: <span id="uptime">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
       <br /><br />
-      Web Interface v2.39<br />
+      Web Interface v2.42<br />
       <hr />Made by Ken-Roger Andersen, Dec 2020
     </small>
   </div>
@@ -158,7 +147,7 @@
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.771484],"temp_c":[26.65469],"alarms":[],"emon_vrms_L_N":235,"emon_vrms_L_PE":115,"emon_vrms_N_PE":105,"WP":{"t_state":430,"is_running":1,"is_suspended":false,"cnt_starts":2,"cnt_susp":2,"t_susp":0,"t_totruntime":1032},"K2":{"I":12.44595,"P_a":2862,"V":230,"PF":0},"K3":{"I":0,"P_a":0,"V":0,"PF":0}}');
+          json = JSON.parse('{"firmware":"2.11","pressure_bar":[4.132813],"temp_c":[22.74844],"alarms":[],"emon_vrms_L_N":229.6465,"emon_vrms_L_PE":130.0808,"emon_vrms_N_PE":120.427,"WP":{"t_state":26,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":1.004865,"P_a":230,"PF":0},"K3":{"I":0.225199,"P_a":51,"PF":0}}}');
           localStorage.setItem('json', JSON.stringify(json));
         }
       ); // fetch
@@ -189,6 +178,7 @@
     // Update the page
     setInterval(function ( ) {
 
+      //console.log(JSON.parse(localStorage.getItem('json')));
       let json = JSON.parse(localStorage.getItem('json'));
       let jsonsystem = JSON.parse(localStorage.getItem('jsonsystem'));
 
@@ -218,17 +208,20 @@
         $("#emon_vrms_N_PE").removeClass().addClass("OK");
       }
       
+      // dynamically add table rows from json.circuits array
+      if(Object.keys(json.circuits).length > 0) {
+        $("#table_emon_circuits tbody").empty();
+        for(var key in json.circuits) {
+          markup ='<tr>'+
+            '<td>'+key+'</td>' +
+            '<td>' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units">A</sup></td>' +
+            '<td>' + json.circuits[key].P_a + '<sup class="units">W</sup></td>' +
+            '<td>' + json.circuits[key].PF + '<sup class="units">%</sup></td>' +
+          '</tr>"';
+          $("#table_emon_circuits tbody").append(markup);
 
-
-      $("#emon_k2_irms").empty().append( parseFloat(json.K2.I).toFixed(1) );
-      $("#emon_k2_p_app").empty().append( json.K2.P_a );
-      //$("#emon_k2_p_real").empty().append( json.K2.P_r );
-      $("#emon_k2_pf").empty().append( json.K2.PF );
-
-      $("#emon_k3_irms").empty().append(parseFloat(json.K3.I).toFixed(1) );
-      $("#emon_k3_p_app").empty().append( json.K3.P_a );
-      //$("#emon_k3_p_real").empty().append( json.K3.P_r );
-      $("#emon_k3_pf").empty().append( json.K3.PF );
+        }
+      }
 
       $("#alarms").empty();
       if(Object.keys(json.alarms).length > 0) {

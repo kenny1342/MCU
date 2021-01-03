@@ -4,7 +4,8 @@
 
 class Logger {
     private:
-        bool newline = true;
+        bool func_nl = true;
+        //bool insert_nl = false; // our own "wordwrap"
         //char *prependstr(char *str, const char *pstr);
     public:
     //static const char*  _configfile;// = "/config.json";

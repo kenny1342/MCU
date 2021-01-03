@@ -15,26 +15,13 @@
 #include <EmonLib.h>
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
-#include <LiquidCrystal_I2C.h>
-
-
-// Creat a set of new characters
-const uint8_t charBitmap[][8] = {
-   { 0xc, 0x12, 0x12, 0xc, 0, 0, 0, 0 },
-   { 0x6, 0x9, 0x9, 0x6, 0, 0, 0, 0 },
-   { 0x0, 0x6, 0x9, 0x9, 0x6, 0, 0, 0x0 },
-   { 0x0, 0xc, 0x12, 0x12, 0xc, 0, 0, 0x0 },
-   { 0x0, 0x0, 0xc, 0x12, 0x12, 0xc, 0, 0x0 },
-   { 0x0, 0x0, 0x6, 0x9, 0x9, 0x6, 0, 0x0 },
-   { 0x0, 0x0, 0x0, 0x6, 0x9, 0x9, 0x6, 0x0 },
-   { 0x0, 0x0, 0x0, 0xc, 0x12, 0x12, 0xc, 0x0 }
-};
+#include <Timemark.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
-const int interval = 800;   // interval at which to send data (millisecs)
+//const int interval = 800;   // interval at which to send data (millisecs)
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
@@ -43,9 +30,8 @@ static adc_avg ADC_waterpressure;
 //SoftwareSerial Serial_Wifi(2, 3); // RX, TX
 #define Serial_Wifi Serial1
 
-LiquidCrystal_I2C lcd(0x50);  // Set the LCD I2C address
 StaticJsonDocument<JSON_SIZE> doc;
-JsonObject json;
+//JsonObject json;
 
 EnergyMonitor EMON_K2;  // instance used for calcIrms()
 EnergyMonitor EMON_K3;  // instance used for calcIrms()
@@ -55,6 +41,7 @@ ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
 // Structs
+volatile Buzzer buzzer;
 emonvrms_type EMONMAINS; // Vrms values (phases/gnd)
 emondata_type EMONDATA_K2;   // Livingroom values
 emondata_type EMONDATA_K3;   // Kitchen values
@@ -65,21 +52,33 @@ volatile alarm_BitField_WP ALARMS_WP;     // Waterpump alarms
 volatile alarm_BitField_EMON ALARMS_EMON; // Utility/EMON alarms
 volatile alarm_BitField_SYS ALARMS_SYS;   // local system/MCU alarms
 
+Timemark tm_blinkAlarm(200);
+Timemark tm_blinkWarning(500);
+Timemark tm_counterWP_runtime(1000);
+Timemark tm_counterWP_suspend_1sec(1000);
+Timemark tm_100ms_setAlarms(100);
+Timemark tm_DataTX(DATA_TX_INTERVAL);
+Timemark tm_buzzer(0);
 
 void setup()
 {
-  int charBitmapSize = (sizeof(charBitmap ) / sizeof (charBitmap[0]));
 
   APPFLAGS.is_busy = 1;
 
-  pinMode(PIN_LED_ALARM, OUTPUT);
-  pinMode(PIN_LED_BUSY, OUTPUT);
+  pinMode(PIN_LED_RED, OUTPUT);
+  pinMode(PIN_LED_YELLOW, OUTPUT);
+  pinMode(PIN_LED_BLUE, OUTPUT);
+  pinMode(PIN_LED_WHITE, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_ModIO_Reset, INPUT); // need to float
-  // Switch on the backlight
-  pinMode ( PIN_BACKLIGHT, OUTPUT );
   
-  digitalWrite ( PIN_BACKLIGHT, HIGH );
-
+  LED_ON(PIN_LED_RED);
+  delay(300);
+  LED_ON(PIN_LED_YELLOW);
+  delay(300);
+  LED_ON(PIN_LED_BLUE);
+  delay(300);
+  LED_ON(PIN_LED_WHITE);
   // Open serial communications and wait for port to open:
   Serial.begin(115200);
   while (!Serial) {
@@ -91,18 +90,6 @@ void setup()
   Serial.println(F("Made by Ken-Roger Andersen, 2020"));
   Serial.println("");
 
-  lcd.begin(20,4);               // initialize the lcd 
-
-   for ( int i = 0; i < charBitmapSize; i++ )
-   {
-      lcd.createChar ( i, (uint8_t *)charBitmap[i] );
-   }
-
-  lcd.home ();
-  lcd.print("Controller ");  
-  lcd.setCursor ( 0, 2 );
-  lcd.print ("   Init...  ");
-  delay ( 1000 );
 
   analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
 
@@ -192,14 +179,29 @@ void setup()
   Serial.println(F("switching on 12v bus..."));
   if(!ModIO_SetRelayState(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) ModIO_Reset();
 
+
+  LED_OFF(PIN_LED_RED);
+  delay(300);
+  LED_OFF(PIN_LED_YELLOW);
+  delay(300);
+  LED_OFF(PIN_LED_BLUE);
+  delay(300);
+  LED_OFF(PIN_LED_WHITE);
+
+  tm_blinkAlarm.start();
+  tm_blinkWarning.start();
+  tm_counterWP_suspend_1sec.start();
+  tm_counterWP_runtime.start();
+  tm_100ms_setAlarms.start();
+  tm_DataTX.start();
+
+  buzzer_on(PIN_BUZZER, 200);
+
   wdt_enable(WDTO_4S);
 
-  lcd.home ();                   // go home
-  lcd.print("Controller ");  
-  lcd.setCursor ( 0, 2 );
-  lcd.print ("   READY  ");
-
   APPFLAGS.is_busy = 0;
+  
+  //LED_ON(PIN_LED_RED);
 
 }
 
@@ -207,6 +209,7 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
+
 
   /**** Water pump state logic ****/
   if(!WATERPUMP.is_running) {
@@ -240,26 +243,23 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 
 ISR (TIMER2_COMPA_vect) 
 {
-  static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
-  bool start_wp_suspension=0; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
-  intervals_type intervals;
-  //char *endptr;
+  //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
+  static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
+  
+  if(tm_buzzer.expired()) {
+    tm_buzzer.stop();
+    digitalWrite(PIN_BUZZER, 0);
+  } else {
+    if(tm_buzzer.running()) {
+      digitalWrite(PIN_BUZZER, !digitalRead(PIN_BUZZER));
+    }    
+  }
 
-  digitalWrite(PIN_LED_BUSY, APPFLAGS.is_busy);
+  digitalWrite(LED_BUSY, !APPFLAGS.is_busy);
 
   if(!ADC_waterpressure.ready || !ADC_temp_1.ready || millis() < 5000) return; // just powered up, let things stabilize
   
-
-  t2_overflow_cnt++; // will rollover, that's fine
-  //intervals.allBits = 0x00; // reset all
-  //TODO: optimize (remember to declare intervals as static), modulus is quite slow, but it is easy to read and ok for now
-  intervals._2sec = !(t2_overflow_cnt % 2000);
-  intervals._1sec = !(t2_overflow_cnt % 1000);
-  intervals._500ms = !(t2_overflow_cnt % 500);
-  intervals._200ms = !(t2_overflow_cnt % 200);
-  intervals._100ms = !(t2_overflow_cnt % 100);
-
-  if(intervals._1sec) {
+  if(tm_counterWP_runtime.expired()) {
     WATERPUMP.state_age++; 
     if(WATERPUMP.is_running) {
       WATERPUMP.total_runtime++; 
@@ -267,24 +267,38 @@ ISR (TIMER2_COMPA_vect)
 
   }
 
-  // Control Alarm LED
-  if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
-    if(WATERPUMP.is_suspended && intervals._1sec) // In suspension period, blink alarm LED every 1000ms/1 sec
-    {     
-      //asm ("sbi %0, %1 \n": : "I" (_SFR_IO_ADDR(PIND)), "I" (PIND5)); // use 2 cycles to toggle pin (PIND5=digital port 2 on Uno board)
-      digitalWrite(PIN_LED_ALARM, !digitalRead(PIN_LED_ALARM));
-    }
-    else if( (getAlarmStatus_WP(ALARMS_SYS.allBits) || getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) ) && intervals._200ms) // Active alarm, blink alarm LED every 200ms/0.2 sec
-    {      
-      //asm ("sbi %0, %1 \n": : "I" (_SFR_IO_ADDR(PIND)), "I" (PIND5)); // use 2 cycles to toggle pin
-      digitalWrite(PIN_LED_ALARM, !digitalRead(PIN_LED_ALARM));
-    }       
+  // --------- Control Warning and Alarm LEDs -------------
+  if( (IS_ACTIVE_ALARMS_WP() /*|| WATERPUMP.is_suspended*/)) { // Water pump related is critical/Alarm LED
+      if(tm_blinkAlarm.expired()) {
+        LED_TOGGLE(LED_ALARM);
+        buzzer_on(PIN_BUZZER, 100);
+      }
   } else {
-    digitalWrite(PIN_LED_ALARM, 0); // no alarms or suspension active
+    LED_OFF(LED_ALARM);
   }
-  
-  if(intervals._100ms) // every 0.1 sec (OBS! Keep under 1000 (1 sec) for the seconds-counters in alarms to work)
+
+  if(WATERPUMP.is_suspended) { // if WP is suspended, turn on Warning LED to indicate
+    LED_ON(LED_WARNING);
+    if(tm_blinkWarning.expired()) { // TODO create dedicated tm_ for this buzzer
+      buzzer_on(PIN_BUZZER, 10);
+    }
+
+  } else {
+    // Non-water pump/other alarms is not critical, blink Warning LED
+    if( (getAlarmStatus_SYS(ALARMS_SYS.allBits) || getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) ) ) // Active alarm
+    {  
+      if(tm_blinkWarning.expired()) {
+        LED_TOGGLE(LED_WARNING);
+        buzzer_on(PIN_BUZZER, 50);
+      }    
+    } else {
+      LED_OFF(LED_WARNING);
+    }
+  }
+
+  if(tm_100ms_setAlarms.expired()) // every 0.1 sec (OBS! Keep under 1000 (1 sec) for the seconds-counters in alarms to work)
   {
+    start_wp_suspension = 0;
 
     /*** SET/CLEAR ALARMS START ***/
     // All alarms should be set/cleared here, because if they are part of ALARMBITS_WATERPUMP_PROTECTION, this is where the suspension timer is handled!
@@ -310,6 +324,13 @@ ISR (TIMER2_COMPA_vect)
       /////// EMON Sensor alarms ////////////////
       ALARMS_EMON.sensor_error = 0;
 
+      if(EMONMAINS.Vrms_L_PE < 20.0 || EMONMAINS.Vrms_N_PE < 20.0 || EMONMAINS.Vrms_L_PE > 200.0 || EMONMAINS.Vrms_N_PE > 200.0) {
+        ALARMS_EMON.sensor_error = 1; 
+      }
+      if(EMONMAINS.Vrms_L_N < 50.0 || EMONMAINS.Vrms_L_N > 280.0) {
+        ALARMS_EMON.sensor_error = 1; 
+      }
+
       ALARMS_EMON.emon_K2 = 0;
       ALARMS_EMON.emon_K3 = 0;
       if(EMONDATA_K2.error || EMONDATA_K2.Irms > 20.0 || EMONDATA_K2.Irms < 0.0) {
@@ -333,10 +354,13 @@ ISR (TIMER2_COMPA_vect)
         ALARMS_EMON.power_voltage = 1;
       }
 
-      if(ADC_temp_1.average == 0 || ADC_temp_1.average > 800) { // if sensor (LM335) is disconnected ADC gives very high readings
-        ALARMS_EMON.sensor_error = 1;
+      /////// WATER PUMP Sensor alarms ////////////////
+      ALARMS_WP.sensor_error = 0;
+
+      if(ADC_temp_1.average < 350 || ADC_temp_1.average > 700) { // if sensor (LM335) is disconnected ADC gives very high readings
+        ALARMS_WP.sensor_error = 1;
       } else {    
-         if(ALARMS_EMON.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+         if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
       }
 
       if(ADC_waterpressure.average == 0) {
@@ -368,17 +392,22 @@ ISR (TIMER2_COMPA_vect)
 
     /*** Update WP suspension timer (Note: every time an ALARMBITS_WATERPUMP_PROTECTION alarm is cleared, we RESTART suspension period, this is intended design) ***/
     if(!IS_ACTIVE_ALARMS_WP()) { // No active WP alarms, it's ok to start or continue suspension period
+
       if(start_wp_suspension) {// we just cleared an WP alarm, start suspension timer from 1  
-          WATERPUMP.suspend_timer = 1; 
-          WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
-        } else { // see if we should increase or disable suspension timer
-          if(WATERPUMP.suspend_timer > 0L && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
-            if(intervals._1sec) { WATERPUMP.suspend_timer++; }
-          } else if(WATERPUMP.suspend_timer >= DEF_CONF_WP_SUSPENDTIME)  {// Suspension period is over
-            WATERPUMP.suspend_timer = 0; // disable suspension timer
+        WATERPUMP.suspend_timer = 1; 
+        WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
+      } else { // see if we should increase or disable suspension timer
+
+        if(WATERPUMP.suspend_timer > 0 && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
+          if(tm_counterWP_suspend_1sec.expired() ) { 
+            WATERPUMP.suspend_timer++; 
+            WATERPUMP.suspend_timer_total++;
           }
+        } else if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
+            WATERPUMP.suspend_timer = 0; // disable suspension timer
         }
       }
+    }
     WATERPUMP.is_suspended = WATERPUMP.suspend_timer != 0 ? true : false; // if suspend_timer != 0, we are suspended, update flag
 
   }
@@ -388,14 +417,14 @@ ISR (TIMER2_COMPA_vect)
 void loop() // run over and over
 {
     
-  static uint32_t previousMillis = 0;
+  //static uint32_t previousMillis = 0;
   JsonArray data;
 
   wdt_reset();
 
-  if (millis() - previousMillis >= interval) {
+  if (tm_DataTX.expired()) {
     
-    previousMillis = millis();
+    //previousMillis = millis();
     APPFLAGS.is_busy = 1;
     APPFLAGS.is_updating = 1;
 
@@ -448,6 +477,7 @@ void loop() // run over and over
     }
 
     ADC_temp_1.average = ADC_temp_1.total / numReadings;
+    //Serial.println(ADC_temp_1.average);
 
     // LM335 outputs mv/Kelvin, convert ADC to millivold and subtract Kelvin zero (273.15) to get Celsius
     WATERPUMP.temp_pumphouse_val = (double) (((5000.0 * (double)ADC_temp_1.average) / 1024L) / 10L) - 273.15; // as float value
@@ -457,7 +487,7 @@ void loop() // run over and over
     //------------ Create JSON doc ----------------        
     doc.clear();
     JsonObject root = doc.to<JsonObject>();
-
+    
     root["firmware"] = FIRMWARE_VERSION;
 
     data = doc.createNestedArray("pressure_bar");
@@ -473,7 +503,7 @@ void loop() // run over and over
       if(ALARMS_WP.waterpump_runtime) data.add(F("wpruntime"));
       if(ALARMS_WP.temperature_pumphouse) data.add(F("temp_pumphouse"));
       if(ALARMS_WP.sensor_error) data.add(F("sensor_wp"));
-      if(ALARMS_EMON.sensor_error) data.add(F("sensor_utils"));
+      if(ALARMS_EMON.sensor_error) data.add(F("sensor_emon"));
       if(ALARMS_EMON.power_groundfault) data.add(F("groundfault"));
       if(ALARMS_EMON.power_voltage) data.add(F("emon_voltage"));
     }
@@ -482,7 +512,9 @@ void loop() // run over and over
     doc["emon_vrms_L_PE"] = EMONMAINS.Vrms_L_PE;
     doc["emon_vrms_N_PE"] = EMONMAINS.Vrms_N_PE;
 
-    json = root.createNestedObject("WP");
+    
+
+    JsonObject json = root.createNestedObject("WP");
 
     json["t_state"] = WATERPUMP.state_age;
     json["is_running"] = WATERPUMP.is_running;
@@ -490,28 +522,34 @@ void loop() // run over and over
     json["cnt_starts"] = WATERPUMP.start_counter;
     json["cnt_susp"] = WATERPUMP.suspend_count;
     json["t_susp"] = WATERPUMP.suspend_timer;
+    json["t_susp_tot"] = WATERPUMP.suspend_timer_total;
     json["t_totruntime"] = WATERPUMP.total_runtime;
 
-    json = root.createNestedObject("K2");
+    JsonObject circuits = root.createNestedObject("circuits");
+    json = circuits.createNestedObject("K2");
+    //json = root.createNestedObject("K2");
     json["I"] = EMONDATA_K2.Irms;
     json["P_a"] = EMONDATA_K2.apparentPower;
     json["PF"] = EMONDATA_K2.PF;
     
-
-    json = root.createNestedObject("K3");
+    json = circuits.createNestedObject("K3");
+    //json = root.createNestedObject("K3");
     json["I"] = EMONDATA_K3.Irms;
     json["P_a"] = EMONDATA_K3.apparentPower;
     json["PF"] = EMONDATA_K3.PF;
 
     dataString = "";
     // Generate the minified JSON
+    LED_ON(PIN_LED_WHITE);
     serializeJson(root, dataString);
     // Outputs something like:
     // {"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.966797],"temp_c":[25.67813],"alarms":[],"WP":{"t_state":32,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":1,"t_susp":0,"t_totruntime":0},"K2":{"I":29.6936,"P_a":0,"P_r":0,"V":230,"PF":0},"K3":{"I":21.15884,"P_a":0,"P_r":0,"V":230,"PF":0}}
 
     Serial.println(dataString);
     Serial_Wifi.println(dataString);
-    
+    LED_OFF(PIN_LED_WHITE);
+    //tone(PIN_BUZZER, 1000, 100);
+
     APPFLAGS.is_busy = 0;
   }
 
@@ -520,6 +558,11 @@ void loop() // run over and over
 /**
 * check if an alarm bit is set or not
 */
+bool getAlarmStatus_SYS(uint8_t Alarm) {
+
+  return (ALARMS_SYS.allBits & Alarm);
+}
+
 bool getAlarmStatus_WP(uint8_t Alarm) {
 
   return (ALARMS_WP.allBits & Alarm);
@@ -528,4 +571,23 @@ bool getAlarmStatus_WP(uint8_t Alarm) {
 bool getAlarmStatus_EMON(uint8_t Alarm) {
 
   return (ALARMS_EMON.allBits & Alarm);
+}
+
+void buzzer_on(uint8_t pin, uint16_t duration) {
+    buzzer.pin = pin;
+    //buzzer.duration = duration;
+    //buzzer._mscnt = 0;
+    //buzzer.state = 1;
+    if(tm_buzzer.running()) {
+      //tm_buzzer.stop();
+      return;
+    }
+    tm_buzzer.limitMillis(duration);
+    tm_buzzer.start();
+}
+
+void buzzer_off(uint8_t pin) {
+    buzzer.pin = pin;
+    //buzzer.state = 0;
+    tm_buzzer.stop();
 }

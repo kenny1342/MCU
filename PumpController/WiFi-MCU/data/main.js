@@ -1,12 +1,3 @@
-function home() {
-    setTimeout(function(){ 
-
-        // TODO: check if responding or wait another few secs
-      window.location.href = "/";
-
-}, 14000);
-}
-
 function formatSecs(secs=0) {
     
     dateObj = new Date(secs * 1000); 
@@ -46,7 +37,10 @@ $('form').submit(function(e){
       success:function(d, s) {
         console.log('success!');
         $('#success').show();
-        home();
+        setTimeout(function(){ 
+          // TODO: check if responding or wait another few secs
+          window.location.href = "/";
+        }, 20000);
       },
         error: function (a, b, c) {
             $('#error').show();

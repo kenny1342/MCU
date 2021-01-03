@@ -10,12 +10,19 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.02"
-#define JSON_SIZE                   250
-#define PIN_LED_BUSY                13 // LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
-#define PIN_LED_ALARM               5 // LED ON of we have active alarms
+#define FIRMWARE_VERSION            "2.12"
+#define JSON_SIZE                   768
+#define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
+#define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
+#define PIN_LED_YELLOW               11 // YELLOW, LED ON of we have active alarms
+#define PIN_LED_BLUE                9 // BLUE
+#define PIN_LED_WHITE               7 // WHITE, 
+#define PIN_BUZZER                  8
 #define PIN_ModIO_Reset             4
-#define PIN_BACKLIGHT               7
+
+#define LED_BUSY                    PIN_LED_BLUE
+#define LED_ALARM                   PIN_LED_RED
+#define LED_WARNING                 PIN_LED_YELLOW
 
 #define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
 #define CONF_RELAY_12VBUS           3 // MOD-IO relay controlling 12v bus (sensors, mains relays etc)
@@ -34,10 +41,10 @@
 
 #define DEF_EMON_ICAL_K2            0.40
 #define DEF_EMON_ICAL_K3            3.02
-#define DEF_CONF_WP_LOWER           3.77 // water pressure lower threshold (bar*100) before starting pump
+#define DEF_CONF_WP_LOWER           3.75 // water pressure lower threshold (bar*100) before starting pump
 #define DEF_CONF_WP_UPPER           4.20 // water pressure upper threshold (bar*100) before stopping pump
-#define DEF_CONF_WP_MAX_RUNTIME     600L  // max duration we should let pump run (seconds)
-#define DEF_CONF_WP_SUSPENDTIME     20L  // seconds to wait after alarms are cleared before we start pump again
+#define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
+#define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
 #define DEF_CONF_MIN_TEMP_PUMPHOUSE 10L   // minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
 
@@ -73,20 +80,27 @@ typedef struct
   double wp_upper;
   uint8_t  min_temp_pumphouse;
 } appconfig_type;
-
+/*
 typedef union {
   byte allBits;
   struct {
-    byte _2sec:1 ;
-    byte _1sec:1 ;
-    byte _500ms:1 ; 
-    byte _200ms:1 ;
-    byte _100ms:1;
+    byte OLD__2sec:1 ;
+    byte OLD_1sec:1 ;
+    byte OLD_500ms:1 ; 
+    byte OLD_200ms:1 ;
+    byte OLD_100ms:1;
     byte bitFive:1;
     byte bitSix:1;
     byte bitSeven:1; 
   };
 } intervals_type;
+*/
+typedef struct {
+  uint8_t pin = 8;
+  //bool state = 0;
+  //uint16_t duration = 1000;
+  //uint16_t _mscnt = 0;
+} Buzzer;
 
 typedef struct
 {
@@ -114,6 +128,7 @@ typedef struct
   uint16_t suspend_timer; // seconds to wait after alarms are cleared before we start pump again
   bool is_suspended; // 1 if we have a suspension period after alarms before we can run again
   uint8_t suspend_count; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
+  uint32_t suspend_timer_total;
   uint32_t  total_runtime;
   double temp_pumphouse_val;
   double water_pressure_bar_val;  
@@ -178,9 +193,15 @@ typedef union {
 } alarm_BitField_EMON;
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
+#define LED_ON(pin) digitalWrite(pin, 0)
+#define LED_OFF(pin) digitalWrite(pin, 1)
+#define LED_TOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
 
+bool getAlarmStatus_SYS(uint8_t Alarm);
 bool getAlarmStatus_WP(uint8_t Alarm);
 bool getAlarmStatus_EMON(uint8_t Alarm);
+void buzzer_on(uint8_t pin, uint16_t duration);
+void buzzer_off(uint8_t pin);
 //bool getAlarmStatus(&struct ALARMS uint8_t Alarm);
 
 #endif

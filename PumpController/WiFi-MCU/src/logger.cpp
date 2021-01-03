@@ -8,7 +8,7 @@ Logger::Logger(TFT_eSPI * _tft) { // TFT_eSPI tft = TFT_eSPI(135, 240); // Invok
 }
 
 void Logger::print(char *str) {
-    this->newline = false;
+    this->func_nl = false;
     this->println(str);
 }
 
@@ -17,7 +17,7 @@ void Logger::println(char *str) {
 }
 
 void Logger::print(const char *str) {
-    this->newline = false;
+    this->func_nl = false;
     this->println(str);
 }
 
@@ -28,7 +28,7 @@ void Logger::println(const char *str) {
 }
 
 void Logger::print(const __FlashStringHelper *str) {
-    this->newline = false;
+    this->func_nl = false;
     this->println(str);
 }
 
@@ -42,13 +42,18 @@ void Logger::println(const __FlashStringHelper *str) {
 /**
  * Insert '\n' every 20 char, and print on TFT display + serial
  */
-void Logger::println(char *str, bool clear_lcd) {
+//void Logger::println(char *str, bool clear_lcd) {
+/**
+ * print on TFT display + serial
+ */
+void Logger::println(char *line, bool clear_lcd) {
 
     this->tft->setCursor(0, 0);
     if(clear_lcd) {
         this->tft->fillScreen(TFT_BLACK);
     }
 
+    /*
     char line[200] = {0};
 
     size_t l = strlen(str);
@@ -72,15 +77,15 @@ void Logger::println(char *str, bool clear_lcd) {
     size_t length = strlen(line);
 
     if(line[length] != '\0') line[length] = '\0';
-
+*/
     //Serial.println("line START");
-    if(this->newline) {
+    if(this->func_nl) {
         Serial.println(line);
     } else {
         Serial.print(line);
     }
     
-    this->newline = true;
+    this->func_nl = true;
     //Serial.println("line END");
     this->tft->println(line);
 }
