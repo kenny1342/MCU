@@ -10,14 +10,14 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "2.57"
+#define FIRMWARE_VERSION    "2.58"
 #define HOSTNAME            "websrv-mcu"
 #define PORT                "80"
 #define JSON_SIZE           768
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
-#define PIN_SW_DOWN         0 //23 (IO0)
+#define PIN_SW_DOWN         23 //23 (IO0)
 #define PIN_SW_UP           35 // 11 (IO35)
 #define PIN_LED_1           37
 #define PIN_RXD2 25
@@ -62,20 +62,6 @@ union ISRFLAGS_struct {
     };
 };
 */
-union Intervals_struct{
-  byte allBits;
-  struct {
-    byte _1min:1 ;
-    byte _1sec:1 ;
-    byte _500ms:1 ; 
-    byte _200ms:1 ;
-    byte _100ms:1;
-    byte bitFive:1;
-    byte bitSix:1;
-    byte bitSeven:1; 
-  };
-} ;
-
 
 bool ConnectBlynk();
 void ReconnectWiFi();

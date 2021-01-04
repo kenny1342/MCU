@@ -18,7 +18,8 @@
 #include <ArduinoOTA.h>
 #include <logger.h>
 #include <TFT_eSPI.h>
-#include "bmp.h"
+#include "bmp.h" // TODO: remove, free space
+#include <Timemark.h>
 #include <setup.h>
 
 #define _ESPASYNC_WIFIMGR_LOGLEVEL_    4 // Use from 0 to 4. Higher number, more debugging messages and memory usage.
@@ -55,6 +56,11 @@ AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 Logger logger = Logger(&tft);
 
+Timemark tm_ClearDisplay(600000); // 600sec=10min
+Timemark tm_CheckConnections(120000); 
+Timemark tm_CheckDataAge(1000); // 1sec 
+Timemark tm_PushToBlynk(500);
+
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
   // Request the latest state from the server
@@ -71,31 +77,21 @@ BLYNK_WRITE(V2) {
 volatile int interruptCounter;
 //int totalInterruptCounter;
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
-Intervals_struct intervals;
+
 
 
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
  
 /**
- * Timer ISR 10ms
+ * Timer ISR 1ms
  */
 void IRAM_ATTR onTimer() {
 
   portENTER_CRITICAL_ISR(&timerMux);
-  interruptCounter++; // will rollover, that's fine
-  //intervals._1min = 1;
-  //intervals.allBits = 0x00; // reset all
-  //TODO: optimize (remember to declare intervals as static), modulus is quite slow, but it is easy to read and ok for now
-  intervals._1min = !(interruptCounter % 6000);
-  intervals._1sec = !(interruptCounter % 100);
-  intervals._500ms = !(interruptCounter % 50);
-  intervals._200ms = !(interruptCounter % 20);
-  intervals._100ms = !(interruptCounter % 10);
-
+  interruptCounter++;
   portEXIT_CRITICAL_ISR(&timerMux);
   
-  //if(intervals._1min) ISRFLAGS.lcd_clear = true;
 }
 void setup(void) {
   
@@ -151,7 +147,7 @@ void setup(void) {
   logger.println(F("Starting 1min timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 10000, true); // 1000us=1ms, 1000000us=1s
+  timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
   //timerAlarmWrite(timer, 6000000, true); // 6000000us=60sec
   timerAlarmEnable(timer);
 
@@ -177,6 +173,8 @@ void setup(void) {
     ESP.restart();
   }
 */
+
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
 
   //WiFiManager custom parameters/config
   ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
@@ -249,6 +247,9 @@ void setup(void) {
     } 
   }
 
+  //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO 
+  WiFi.setAutoReconnect(true);
+  
 
   //Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
   Serial.print("Connected! SSID: "); Serial.print(WiFi.SSID().c_str()); Serial.print(", psk "); Serial.println(WiFi.psk().c_str());
@@ -282,6 +283,11 @@ void setup(void) {
   }
   Serial.println(F("OK"));
   
+  tm_ClearDisplay.start();
+  tm_CheckConnections.start();
+  tm_CheckDataAge.start();
+  tm_PushToBlynk.start();
+
   logger.println(F("Setup completed! Waiting for RX..."));
   
   delay(2000);
@@ -306,28 +312,39 @@ bool ConnectBlynk() {
 
 void ReconnectWiFi() {  
 
-    reconnects_wifi++;
-    uint8_t cnt = 0;
+  reconnects_wifi++;
+  uint8_t cnt = 0;
 
-    if(WiFi.SSID().length() < 2 || WiFi.psk().length() < 2) {
-      Serial.println(F("invalid SSID/psk"));
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
+
+  // if(WiFi.SSID().length() < 2 || WiFi.psk().length() < 2) {
+  //Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
+
+  //   return;
+  // }
+
+if(WiFi.isConnected()) {
+  return;
+}
+    
+  Serial.print("Reconnecting to ");
+  Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
+  /*
+  Serial.print(WiFi.SSID());
+  WiFi.mode(WIFI_STA);  
+  WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());  
+  */  
+  ESPAsync_wifiManager.autoConnect();
+
+  while (WiFi.status() != WL_CONNECTED) {  
+    if(cnt++ > 6) {
+      Serial.println(F("Failed, giving up!"));
       return;
     }
-    Serial.print("Reconnecting to ");
-    Serial.print(WiFi.SSID());
-    WiFi.mode(WIFI_STA);  
-    WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());  
-    
-    while (WiFi.status() != WL_CONNECTED) {  
-        if(cnt++ > 6) {
-          Serial.println(F("Failed, giving up!"));
-          return;
-        }
-        delay(500);  
-        Serial.print(".");
-        digitalWrite(PIN_LED_1, !digitalRead(PIN_LED_1));
-    }  
-    Serial.println(F("Connected!"));
+    delay(500);  
+    Serial.print(".");
+  }  
+  Serial.println(F("Reconnected OK!"));
 } 
 
 /**
@@ -384,7 +401,7 @@ void saveConfigCallback () {
 
 void loop(void) {
   unsigned long currentMillis = millis();
-  int wifitries = 0;
+  //int wifitries = 0;
   double t = 0;
 
   Blynk.run();
@@ -396,10 +413,13 @@ void loop(void) {
     ESP.restart();
   }
 
-  if(intervals._500ms) {
-      portENTER_CRITICAL(&timerMux);
-      intervals._500ms = 0;
-      portEXIT_CRITICAL(&timerMux);
+  if(interruptCounter > 0) {
+    portENTER_CRITICAL(&timerMux);
+    interruptCounter--;
+    portEXIT_CRITICAL(&timerMux);
+  }
+
+  if(tm_CheckDataAge.expired()) {
 
     if(currentMillis - dataAge > 5000 && dataAge > 0L) {
             
@@ -409,50 +429,52 @@ void loop(void) {
       //tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_RED, TFT_BLACK);
       tft.println("  NO DATA RX " );
-  
-    }
-
-    // push state data to Blynk
-    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
-    
+    }    
   }
 
-  if(intervals._1min) {
-      portENTER_CRITICAL(&timerMux);
-      intervals._1min = 0;
-      portEXIT_CRITICAL(&timerMux);
+  if(tm_PushToBlynk.expired()) {
+    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
+  }
 
+  if(tm_ClearDisplay.expired()) {
       tft.fillScreen(LCD_state.bgcolor);
       //Serial.println("ISR CLEAR LCD");
+  }
 
-
-    if ((WiFi.status() != WL_CONNECTED))
+  if(tm_CheckConnections.expired()) {
+    if (!WiFi.isConnected())
     {
-        Serial.print(F("Trying to reconnect to WiFi - "));
-        Serial.println(wifitries);
+        delay(5000);
+        if(!WiFi.isConnected()) {
+        Serial.print(F("Trying WiFi reconnect #"));
+        Serial.println(reconnects_wifi);
         ReconnectWiFi();
-        wifitries++;
-
-        if (wifitries == 10)
+        
+        if (reconnects_wifi == 20)
         {
           Serial.println(F("Too many failures, rebooting..."));
-          ESP.restart();
+          //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO 
+          reconnects_wifi = 0; //TODO: comment
+          //ESP.restart(); //TODO: uncomment
           return;
+        }
+
         }
     } else {
       Serial.println(F("WiFi OK"));
+
+      if(!Blynk.connected()) {
+        Serial.println(F("Blynk disconnected, reconnecting..."));
+        ConnectBlynk();
+      }
+
     }
 
-    if(!Blynk.connected()) {
-      Serial.println(F("Blynk disconnected, reconnecting..."));
-      ConnectBlynk();
-    }
   }
 
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
   if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
-    digitalWrite(PIN_LED_1, 1);
     
     dataAge = millis();
     Serial.print("rcvd: ");
@@ -601,13 +623,6 @@ void loop(void) {
         tft.printf("Start count: %u \n", data_json["WP"].getMember("cnt_starts").as<uint16_t>());
 
         const char * state = data_json["WP"].getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
-        /*
-        if(data_json["WP"].getMember("is_running").as<uint8_t>() == 1) {
-          sprintf(state, "ON");
-        } else {
-          sprintf(state, "OFF");
-        }
-        */
         tft.printf("%s: %s\n", state, TimeToString(data_json["WP"].getMember("t_state").as<uint16_t>()));
 
         const char * suspended = data_json["WP"].getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
@@ -640,26 +655,34 @@ void loop(void) {
         tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
         
       }
-
-
-    digitalWrite(PIN_LED_1, 0);
   }
 
 }
 
 /**
  * Check button states, act accordingly
+ * Run by ISR! No time consuming tasks here
  */
 void CheckButtons(void) {
-  static uint32_t t_btn_up_pressed;
-  static uint32_t t_btn_down_pressed;
+  volatile static uint32_t t_btn_up_pressed;
+  volatile static uint32_t t_btn_down_pressed;
 
   if(digitalRead(PIN_SW_UP) == LOW) {
     t_btn_up_pressed++;
   } else {
 
-    if(t_btn_up_pressed > 5) { // button was pressed > 5 ms, goto next menu page index
-      
+    //---------- TODO: REMOVE -----------------
+    if(t_btn_up_pressed > 2000) { // button was pressed > x ms
+      t_btn_up_pressed = 0;
+
+      Serial.println("WIFI DISC");
+      WiFi.disconnect();
+      delay(5000);
+    }
+    
+    if(t_btn_up_pressed > 10) { // button was pressed > x ms, goto next menu page index
+      t_btn_up_pressed = 0;  
+
       if(lcd_page_curr == MENU_PAGE_MAX) {
         lcd_page_curr = 0;
       } else {
@@ -667,16 +690,15 @@ void CheckButtons(void) {
       }
       LCD_state.clear = true;
     }
-
-    t_btn_up_pressed = 0;
   }
 
   if(digitalRead(PIN_SW_DOWN) == LOW) {
     t_btn_down_pressed++;
   } else {
 
-    if(t_btn_down_pressed > 5) { // button was pressed > 5 ms, goto previous menu page index
-      
+    if(t_btn_down_pressed > 10) { // button was pressed > 5 ms, goto previous menu page index
+      t_btn_down_pressed = 0;
+
       if(lcd_page_curr == 0) {
         lcd_page_curr = MENU_PAGE_MAX;
       } else {
@@ -684,8 +706,6 @@ void CheckButtons(void) {
       }
       LCD_state.clear = true;
     }
-
-    t_btn_down_pressed = 0;
   }
 
 }
