@@ -11,10 +11,14 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define FIRMWARE_VERSION    "2.59"
-#define WEBIF_VERSION       "3.01"
+
+#define FIRMWARE_VERSION    "2.60"
+#define WEBIF_VERSION       "3.02"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
+// store long global string in flash (put the pointers to PROGMEM)
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+
 #define HOSTNAME            "websrv-mcu"
 #define PORT                "80"
 #define JSON_SIZE           768

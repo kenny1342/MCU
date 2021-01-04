@@ -113,7 +113,6 @@ a:hover {
   xborder: 1px solid red;
   white-space: nowrap;
   border-spacing: 1px;
-
   margin: 0 auto;
 }
 #table_emon_circuits td {
@@ -188,4 +187,53 @@ h1 {
     color: red;    
     background-color: rgb(0, 0, 0);  
     padding: 1em;
+  }
+
+ 
+  
+  @media screen and (max-width: 768px) {
+    body, .container {
+      font-size:0.7em;
+    }
+
+    .container {
+      justify-content:start;
+    }
+    #table_main {
+      margin: 0.5em;
+    }
+    #table_utility td, #table_pump td, #table_emon_circuits td {
+      padding: 2px;
+    }
+
+    #table_utility .td_title {
+      font-size: 0.6em;
+    }
+    #table_utility .td_value {
+      font-size: 0.8em;
+    }
+
+    #table_pump .td_title {
+      font-size: 0.6em;  
+    }
+    
+    #table_pump .td_value {
+      font-size: 0.7em;  
+    }
+
+    #alarms {
+      font-size: 0.8em;
+    }
+    .units {
+      font-size: 0.8em;  
+    }
+
+    #table_main th, #table_pump th, #table_emon th {
+      font-size: 0.7em;
+    }
+
+    #table_emon_circuits td {
+      font-size: 0.5em;
+    }
+
   }

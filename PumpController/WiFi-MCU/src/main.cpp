@@ -30,9 +30,6 @@
 
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
-// store long global string in flash (put the pointers to PROGMEM)
-const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
-
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
