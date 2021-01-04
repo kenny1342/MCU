@@ -12,6 +12,9 @@
 #define STR(x) XSTR(x)
 
 #define FIRMWARE_VERSION    "2.59"
+#define WEBIF_VERSION       "3.01"
+#define AUTHOR_COPYRIGHT    "2020-2021"
+#define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 #define HOSTNAME            "websrv-mcu"
 #define PORT                "80"
 #define JSON_SIZE           768
@@ -26,8 +29,8 @@
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
 
-enum MENUPAGES_t { MENU_PAGE_UTILITY_STATS = 0, MENU_PAGE_WATER_STATS = 1, MENU_PAGE_SYSTEM_STATS = 2 };
-#define MENU_PAGE_MAX           2
+enum MENUPAGES_t { MENU_PAGE_UTILITY_STATS = 0, MENU_PAGE_WATER_STATS = 1, MENU_PAGE_SYSTEM_STATS = 2, MENU_PAGE_ABOUT = 3, MENU_PAGE_LOGO = 4 };
+#define MENU_PAGE_MAX           4
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
@@ -37,7 +40,7 @@ enum MENUPAGES_t { MENU_PAGE_UTILITY_STATS = 0, MENU_PAGE_WATER_STATS = 1, MENU_
 
 struct LCD_state_struct {
     bool clear = true; // flag to clear display
-    bool textwrap = true;
+    //bool textwrap = true;
     uint16_t bgcolor = TFT_BLACK;
     uint16_t fgcolor = TFT_GREEN;    
 } ;

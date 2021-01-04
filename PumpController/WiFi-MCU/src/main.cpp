@@ -414,6 +414,13 @@ String HTMLProcessor(const String& var) {
   else if (var == "FIRMWARE_LONG"){
     return String(FIRMWARE_VERSION_LONG);
   }
+  else if (var == "WEBIF_VERSION"){
+    return String(WEBIF_VERSION);
+  }
+  else if (var == "AUTHOR_TEXT"){
+    return String(AUTHOR_TEXT);
+  }
+
   return String();
 }
 
@@ -557,7 +564,7 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("    SUMMARY    \n");
+        tft.printf("       SUMMARY      \n");
 
         LCD_state.fgcolor = TFT_GREEN;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
@@ -565,7 +572,7 @@ void loop(void) {
         //tft.setCursor(0, TFT_LINE2);
         tft.printf("W Pump: ");
         if(data_json["WP"].getMember("is_running").as<uint8_t>() == 1) {
-          tft.setTextColor(TFT_BLACK, TFT_GREEN); 
+          tft.setTextColor(TFT_WHITE, TFT_GREEN); 
           tft.printf("   RUNNING  ");
         } else {
           tft.setTextColor(TFT_WHITE, TFT_RED); 
@@ -669,7 +676,35 @@ void loop(void) {
         tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
       }
       break;
+      case MENU_PAGE_ABOUT:
+        tft.setTextSize(txtsize);
+        tft.setTextWrap(false);
+        if(LCD_state.bgcolor != TFT_DARKGREEN) {
+          LCD_state.bgcolor = TFT_DARKGREEN;
+          tft.fillScreen(LCD_state.bgcolor);
+        }
+        tft.setCursor(0, 0);
+        LCD_state.fgcolor = TFT_GOLD;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+        
+        tft.printf("  House-Controller  \n");        
+        LCD_state.fgcolor = TFT_ORANGE;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
+        tft.printf("\nWeb-MCU version: %s\n", FIRMWARE_VERSION); //L3
+        tft.printf("ADC-MCU version: %s\n",  data_json.getMember("firmware").as<String>().c_str());
+        tft.printf("Web-IF version: %s\n", WEBIF_VERSION); //L5
+        tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
+        tft.print(F("Ken-Roger Andersen  \n") );
+        tft.print(F("ken.roger@gmail.com \n") );
+        
+        tft.setTextWrap(true);
+      break;
+      case MENU_PAGE_LOGO:
+        tft.pushImage(0, 0,  240, 135, kra_tech);
+      break;
+
+      default: menu_page_current = 0;
 
     }
   }
