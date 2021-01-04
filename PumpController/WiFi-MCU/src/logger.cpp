@@ -78,15 +78,19 @@ void Logger::println(char *line, bool clear_lcd) {
 
     if(line[length] != '\0') line[length] = '\0';
 */
-    //Serial.println("line START");
+    
+    //tft.setTextWrap(true);
+
     if(this->func_nl) {
         Serial.println(line);
+        this->tft->println(line);
     } else {
         Serial.print(line);
+        this->tft->print(line);
     }
     
     this->func_nl = true;
     //Serial.println("line END");
-    this->tft->println(line);
+    
 }
 

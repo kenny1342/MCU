@@ -18,14 +18,17 @@
 #include <ArduinoOTA.h>
 #include <logger.h>
 #include <TFT_eSPI.h>
-#include "bmp.h" // TODO: remove, free space
+//#include "bmp.h" // TODO: remove, free space
+#include <logo_kra-tech.h>
 #include <Timemark.h>
+#include <Button_KRA.h>
 #include <setup.h>
 
 #define _ESPASYNC_WIFIMGR_LOGLEVEL_    4 // Use from 0 to 4. Higher number, more debugging messages and memory usage.
 #include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 #include <main.h>
 
+void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -39,8 +42,13 @@ bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 int blynk_button_V2 = 0;
 //char logline[160] = "";
-uint8_t lcd_page_curr = 0;
+uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
+MENUPAGES_t MenuPages;
+
+Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO T-Display board
+Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable internal
+const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 StaticJsonDocument<JSON_SIZE> data_json;
@@ -60,25 +68,9 @@ Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(1000); // 1sec 
 Timemark tm_PushToBlynk(500);
+Timemark tm_SerialDebug(10000);
 
-// Every time we connect to the cloud...
-BLYNK_CONNECTED() {
-  // Request the latest state from the server
-  Blynk.syncVirtual(V2);
-}
-
-// When App button is pushed - switch the state
-BLYNK_WRITE(V2) {
-  blynk_button_V2 = param.asInt();
-  digitalWrite(PIN_LED_1, blynk_button_V2);
-}
-
-//volatile ISRFLAGS_struct ISRFLAGS;
 volatile int interruptCounter;
-//int totalInterruptCounter;
-  //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
-
-
 
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
@@ -93,13 +85,26 @@ void IRAM_ATTR onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
   
 }
+
+// Every time we connect to the cloud...
+BLYNK_CONNECTED() {
+  // Request the latest state from the server
+  Blynk.syncVirtual(V2);
+}
+
+// When App button is pushed - switch the state
+BLYNK_WRITE(V2) {
+  blynk_button_V2 = param.asInt();
+  digitalWrite(PIN_LED_1, blynk_button_V2);
+}
+
 void setup(void) {
   
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
-  pinMode(PIN_SW_UP, INPUT); // reset + menu page button
-  pinMode(PIN_SW_DOWN, INPUT); // menu page button
-
+  BtnUP.begin();    // This also sets pinMode
+  BtnDOWN.begin();  // This also sets pinMode
+  
   Serial_DATA.begin(115200, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
   Serial_DATA.println("WiFi-MCU booting up...");
 
@@ -124,8 +129,9 @@ void setup(void) {
   tft.setTextDatum(MC_DATUM);
 
   tft.setSwapBytes(true);
-  tft.pushImage(0, 0,  240, 135, ttgo);
-  delay(2000);
+  //tft.pushImage(0, 0,  240, 135, ttgo);
+  tft.pushImage(0, 0,  240, 135, kra_tech);
+  delay(10000);
 
   tft.fillScreen(TFT_RED);
   delay(300);
@@ -134,23 +140,15 @@ void setup(void) {
   tft.fillScreen(TFT_GREEN);
   delay(300);
 
-  tft.setTextWrap(LCD_state.textwrap);
+  tft.setTextWrap(true);
 
   tft.setTextSize(3);
   tft.fillScreen(LCD_state.bgcolor);
   tft.setCursor(0 ,0);
 
-  tft.println("\n\n   Bootup...  ");
+  tft.println("\n\n   Starting...  ");
   tft.setTextSize(txtsize);
   delay(700);
-
-  logger.println(F("Starting 1min timer ISR..."));
-  timer = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
-  //timerAlarmWrite(timer, 6000000, true); // 6000000us=60sec
-  timerAlarmEnable(timer);
-
 
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
@@ -159,7 +157,7 @@ void setup(void) {
   logger.print(F("Loading configuration from /config.json..."));
   Setup::GetConfig();
 
-  delay(700);
+  delay(500);
   logger.println(F("Starting WiFi..."));
 /*
   WiFi.mode(WIFI_AP_STA);
@@ -188,6 +186,15 @@ void setup(void) {
 
   ESPAsync_wifiManager.setBreakAfterConfig(true); // exit after config
 
+  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  ESPAsync_wifiManager.setAPCallback(WIFIconfigModeCallback);
+
+  //set config save notify callback
+  ESPAsync_wifiManager.setSaveConfigCallback(saveConfigCallback);
+  //set static ip
+  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
+
+
   // reset settings if flagfile exists
   if(SPIFFS.exists("/doreset.dat")) {
     logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting as AP...");
@@ -195,7 +202,6 @@ void setup(void) {
 
     delay(500);
     ESPAsync_wifiManager.resetSettings();  // esp8266, not esp32
-    delay(500);
     delay(5000);
     ESP.restart();
 
@@ -203,24 +209,33 @@ void setup(void) {
     logger.println("reset flagfile /doreset.dat not found, continue");
   }
 
-  //reset settings if button pressed
-  if(digitalRead(PIN_SW_UP) == LOW) {
-    logger.println(F("reset button pressed, keep pressed for 5 sec to reset all settings!"));
+  BtnUP.read();
+
+  //reset network settings if button pressed
+  if(BtnUP.isPressed()) {
+    logger.println(F("Reset button pressed, keep pressed for 5 sec to reset network settings!"));
     delay(5000);
-    if(digitalRead(PIN_SW_UP) == LOW) {
-      logger.println(F("will reboot and reset settings"));
-      delay(500);
-      //ESP.restart();
+    BtnUP.read();
+    if(BtnUP.isPressed() &&  BtnUP.pressedFor(5000)) {
+      
+      File file = SPIFFS.open("/doreset.dat", "w"); // we check for this file on boot
+      if(file.print("RESET") == 0) {
+        logger.println(F("SPIFFS ERROR writing flagfile /doreset.dat"));
+      } else {
+        logger.println(F("wrote flagfile /doreset.dat"));
+      }
+      file.close();
+      
+      logger.println(F("Will reboot to complete reset..."));
+      delay(5000);
+      ESP.restart();
     } else {
-      logger.println(F("reset aborted! resuming startup..."));
+      logger.println(F("Reset cancelled, resuming normal startup..."));
     }
     
   }
 
-  //set config save notify callback
-  ESPAsync_wifiManager.setSaveConfigCallback(saveConfigCallback);
-  //set static ip
-  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
+  logger.println(F("Connecting to WiFi..."));
 
   // our custom parameters
   ESPAsync_wifiManager.addParameter(&custom_hostname);
@@ -229,7 +244,7 @@ void setup(void) {
   //ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
   ESPAsync_wifiManager.autoConnect("KRATECH-AP");
   if (WiFi.status() != WL_CONNECTED) { 
-    logger.println(F("failed to connect, we should reset as see if it connects"));
+    logger.println(F("Failed to connect, will restart"));
     delay(3000);
     ESP.restart();
     delay(5000);
@@ -247,13 +262,10 @@ void setup(void) {
     } 
   }
 
-  //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO 
   WiFi.setAutoReconnect(true);
-  
 
   //Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
-  Serial.print("Connected! SSID: "); Serial.print(WiFi.SSID().c_str()); Serial.print(", psk "); Serial.println(WiFi.psk().c_str());
-  //Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
+  Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   
@@ -283,15 +295,38 @@ void setup(void) {
   }
   Serial.println(F("OK"));
   
+  logger.println(F("Starting timer ISR..."));
+  timer = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer, &onTimer, true);
+  timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
+  //timerAlarmWrite(timer, 6000000, true); // 6000000us=60sec
+  timerAlarmEnable(timer);
+
   tm_ClearDisplay.start();
   tm_CheckConnections.start();
   tm_CheckDataAge.start();
   tm_PushToBlynk.start();
+  tm_SerialDebug.start();
 
-  logger.println(F("Setup completed! Waiting for RX..."));
+  logger.println(F("Setup completed! Waiting for data..."));
   
   delay(2000);
+  tft.setTextWrap(false);
   tft.fillScreen(TFT_BLACK);
+}
+
+//gets called when WiFiManager enters configuration mode
+void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
+  Serial.println("Entered config mode");
+  Serial.println(WiFi.softAPIP());
+  //if you used auto generated SSID, print it
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+  
+  char str[150];
+  snprintf(str, 150, "*IN AP/CONFIG MODE *\nTo configure the\nnetwork settings:\nConnect to WiFi/SSID\n      %s      \n  and navigate to\n%s", myWiFiManager->getConfigPortalSSID().c_str(), WiFi.softAPIP().toString().c_str());
+  logger.println(str);
+  //delay(2000);
+  // Connect to WiFi KRA-TECH and open http://192.168.255.255 in a browser to complete configuration
 }
 
 bool ConnectBlynk() {
@@ -317,23 +352,12 @@ void ReconnectWiFi() {
 
   ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
 
-  // if(WiFi.SSID().length() < 2 || WiFi.psk().length() < 2) {
-  //Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
-
-  //   return;
-  // }
-
-if(WiFi.isConnected()) {
-  return;
-}
+  if(WiFi.isConnected()) {
+    return;
+  }
     
-  Serial.print("Reconnecting to ");
+  Serial.print(F("Reconnecting to "));
   Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
-  /*
-  Serial.print(WiFi.SSID());
-  WiFi.mode(WIFI_STA);  
-  WiFi.begin(WiFi.SSID().c_str(), WiFi.psk().c_str());  
-  */  
   ESPAsync_wifiManager.autoConnect();
 
   while (WiFi.status() != WL_CONNECTED) {  
@@ -426,7 +450,6 @@ void loop(void) {
       tft.setTextSize(3);
       tft.setCursor(0, 0);
       tft.setTextDatum(MC_DATUM);
-      //tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_RED, TFT_BLACK);
       tft.println("  NO DATA RX " );
     }    
@@ -446,19 +469,17 @@ void loop(void) {
     {
         delay(5000);
         if(!WiFi.isConnected()) {
-        Serial.print(F("Trying WiFi reconnect #"));
-        Serial.println(reconnects_wifi);
-        ReconnectWiFi();
-        
-        if (reconnects_wifi == 20)
-        {
-          Serial.println(F("Too many failures, rebooting..."));
-          //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO //----------- TODO TODO 
-          reconnects_wifi = 0; //TODO: comment
-          //ESP.restart(); //TODO: uncomment
-          return;
-        }
-
+          Serial.print(F("Trying WiFi reconnect #"));
+          Serial.println(reconnects_wifi);
+          ReconnectWiFi();
+          
+          if (reconnects_wifi == 20)
+          {
+            Serial.println(F("Too many failures, rebooting..."));          
+            reconnects_wifi = 0; //TODO: comment
+            ESP.restart(); //TODO: uncomment
+            return;
+          }
         }
     } else {
       Serial.println(F("WiFi OK"));
@@ -467,7 +488,6 @@ void loop(void) {
         Serial.println(F("Blynk disconnected, reconnecting..."));
         ConnectBlynk();
       }
-
     }
 
   }
@@ -475,10 +495,15 @@ void loop(void) {
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
   if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
-    
+    bool doSerialDebug = tm_SerialDebug.expired();
     dataAge = millis();
-    Serial.print("rcvd: ");
-    Serial.println(data_string); 
+
+    if(doSerialDebug) {
+      Serial.print("rcvd: ");
+      Serial.println(data_string); 
+    } else {
+      Serial.print(".");
+    }
 
     // Deserialize the JSON document (zero-copy method)
     DeserializationError error = deserializeJson(data_json, data_string);
@@ -511,13 +536,16 @@ void loop(void) {
     } // RX
 
 
-      //----------- Update OLED display ---------------
-      if(LCD_state.clear) {
-        LCD_state.clear = false;
-        tft.fillScreen(LCD_state.bgcolor);
-      }
+    //----------- Update OLED display ---------------
+    if(LCD_state.clear) {
+      LCD_state.clear = false;
+      tft.fillScreen(LCD_state.bgcolor);
+    }
 
-      if(lcd_page_curr == MENU_PAGE_UTILITY_STATS) {
+    switch(menu_page_current)
+    {
+      case MENU_PAGE_UTILITY_STATS:
+      {
         tft.setTextSize(txtsize);
 
         if(LCD_state.bgcolor != TFT_BLACK) {
@@ -534,10 +562,7 @@ void loop(void) {
         LCD_state.fgcolor = TFT_GREEN;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         
-        //tft.setCursor(0, TFT_LINE1);
-        //tft.printf("SSID: %-14s", WiFi.SSID().c_str());
-
-        tft.setCursor(0, TFT_LINE2);
+        //tft.setCursor(0, TFT_LINE2);
         tft.printf("W Pump: ");
         if(data_json["WP"].getMember("is_running").as<uint8_t>() == 1) {
           tft.setTextColor(TFT_BLACK, TFT_GREEN); 
@@ -546,12 +571,11 @@ void loop(void) {
           tft.setTextColor(TFT_WHITE, TFT_RED); 
           tft.printf("     OFF    ");
         }
+        tft.printf("\n");
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
 
-        tft.setCursor(0, TFT_LINE3);
-        tft.printf("%-16s", " ");
+        tft.printf("%-16s\n", " "); // EMPTY line
         
-        tft.setCursor(0, TFT_LINE4);      
         tft.printf("WP:" );
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
         t = data_json["pressure_bar"][0].as<float>();      
@@ -562,57 +586,45 @@ void loop(void) {
         t = data_json["temp_c"][0].as<float>();
         tft.printf("%d.%01d", (int)t, (int)(t*10)%10 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        tft.printf(" %cC", (char)247);
-        // "WP: 1.11 Bar, 1.1 oC"
-
-        tft.setCursor(0, TFT_LINE5);
+        tft.printf(" %cC\n", (char)247);
+                
         t = data_json["emon_vrms_L_N"].as<float>();
-        tft.printf("V(rms) L-N:  %d.%01d V", (int)t, (int)(t*10)%10);
-        
-        tft.setCursor(0, TFT_LINE6);      
+        tft.printf("V(rms) L-N:  %d.%01d V\n", (int)t, (int)(t*10)%10);
+                
         t = data_json["emon_vrms_L_PE"].as<float>();
-        tft.printf("V(rms) L-PE: %d.%01d V", (int)t, (int)(t*10)%10);
-        
-        tft.setCursor(0, TFT_LINE7);      
+        tft.printf("V(rms) L-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
+
         t = data_json["emon_vrms_N_PE"].as<float>();
-        tft.printf("V(rms) N-PE: %d.%01d V", (int)t, (int)(t*10)%10);
-        // "V(rms) L-N:  250.0 V"
-        
+        tft.printf("V(rms) N-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);        
         
         JsonArray alarms = data_json.getMember("alarms");
         if(alarms.size() == 0) {
-          tft.setCursor(0, TFT_LINE8);
           tft.printf("     No alarms      ");
         } else {
           tft.setTextColor(TFT_RED, TFT_WHITE);
-          tft.setCursor(0, TFT_LINE8);
-          tft.printf("%20s", " "); // clear line
-          tft.setCursor(0, TFT_LINE8);
       
           for(uint8_t x=0; x< alarms.size(); x++) {
             const char* str = alarms[x];
             tft.printf("A:%s ", str );
           }
         }
-
-      } else if(lcd_page_curr == MENU_PAGE_WATER_STATS) {
-
+      }
+      break;
+      case MENU_PAGE_WATER_STATS:
+      {
         tft.setTextSize(txtsize);
 
         if(LCD_state.bgcolor != TFT_BLACK) {
           LCD_state.bgcolor = TFT_BLACK;
           tft.fillScreen(LCD_state.bgcolor);
         }
-
-        LCD_state.fgcolor = TFT_GOLD;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        
         tft.setCursor(0, 0);
-        tft.printf("    WATER SUPPLY    \n");
-
+        LCD_state.fgcolor = TFT_GOLD;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+        
+        tft.printf("    WATER SUPPLY    \n");        
         LCD_state.fgcolor = TFT_LIGHTGREY;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-
 
         t = data_json["pressure_bar"][0].as<float>();      
         tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
@@ -627,10 +639,12 @@ void loop(void) {
 
         const char * suspended = data_json["WP"].getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
         tft.printf("Susp: %s %s\n", suspended, TimeToString(data_json["WP"].getMember("t_susp").as<uint16_t>()));
+
         tft.printf("Susp tot: %s\n", TimeToString(data_json["WP"].getMember("t_susp_tot").as<uint16_t>()));
-
-      } else if(lcd_page_curr == MENU_PAGE_SYSTEM_STATS) {
-
+      }
+      break;
+      case MENU_PAGE_SYSTEM_STATS:
+      {
         tft.setTextSize(txtsize);
 
         if(LCD_state.bgcolor != TFT_WHITE) {
@@ -653,74 +667,63 @@ void loop(void) {
         tft.setTextWrap(true);
         //tft.printf("PROG: %u B\n", ESP.getSketchSize());
         tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
-        
       }
+      break;
+
+
+    }
   }
 
 }
 
 /**
- * Check button states, act accordingly
- * Run by ISR! No time consuming tasks here
+ * Check button states
  */
 void CheckButtons(void) {
-  volatile static uint32_t t_btn_up_pressed;
-  volatile static uint32_t t_btn_down_pressed;
+  //volatile static uint32_t t_btn_up_pressed;
+  //volatile static uint32_t t_btn_down_pressed;
+  BtnDOWN.read();
+  BtnUP.read();
 
-  if(digitalRead(PIN_SW_UP) == LOW) {
-    t_btn_up_pressed++;
-  } else {
+  //if(digitalRead(PIN_SW_UP) == LOW) {
+  //  t_btn_up_pressed++;
+  //} else {
 
-    //---------- TODO: REMOVE -----------------
-    if(t_btn_up_pressed > 2000) { // button was pressed > x ms
-      t_btn_up_pressed = 0;
 
-      Serial.println("WIFI DISC");
-      WiFi.disconnect();
+   
+    //if(t_btn_up_pressed > 10) { // button was pressed > x ms, goto next menu page index
+      //t_btn_up_pressed = 0;  
+    if(BtnUP.wasReleased()) {
+
+      if(menu_page_current == MENU_PAGE_MAX) {
+        menu_page_current = 0;
+      } else {
+        menu_page_current++;
+      }
+      LCD_state.clear = true;
+    } else if(BtnUP.pressedFor(LONG_PRESS)) {
+      Serial.println("BTNUP LONG PRESS");
+      //WiFi.disconnect();
       delay(5000);
     }
-    
-    if(t_btn_up_pressed > 10) { // button was pressed > x ms, goto next menu page index
-      t_btn_up_pressed = 0;  
+  //}
 
-      if(lcd_page_curr == MENU_PAGE_MAX) {
-        lcd_page_curr = 0;
-      } else {
-        lcd_page_curr++;
-      }
-      LCD_state.clear = true;
+
+
+  if(BtnDOWN.wasReleased()) {
+    if(menu_page_current == 0) {
+      menu_page_current = MENU_PAGE_MAX;
+    } else {
+      menu_page_current--;
     }
-  }
-
-  if(digitalRead(PIN_SW_DOWN) == LOW) {
-    t_btn_down_pressed++;
-  } else {
-
-    if(t_btn_down_pressed > 10) { // button was pressed > 5 ms, goto previous menu page index
-      t_btn_down_pressed = 0;
-
-      if(lcd_page_curr == 0) {
-        lcd_page_curr = MENU_PAGE_MAX;
-      } else {
-        lcd_page_curr--;
-      }
-      LCD_state.clear = true;
-    }
+    LCD_state.clear = true;
+  } else if(BtnDOWN.pressedFor(LONG_PRESS)) {
+      Serial.println("BTNDOWN LONG PRESS");
+      delay(5000);
   }
 
 }
-/*
-void makeCStringSpaces(char str[], int _len)// Simple C string function
-{
-  //char spaces[] = "                ";     // 16 spaces
-  //int end = strlen(str);
-  //strcat(str, &spaces[end]);
-  char bla[_len];
 
-memset(bla, ' ', sizeof bla - 1);
-bla[sizeof bla - 1] = '\0';
-}
-*/
 // t is time in seconds = millis()/1000;
 char * TimeToString(unsigned long t)
 {
