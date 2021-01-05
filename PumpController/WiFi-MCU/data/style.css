@@ -89,13 +89,18 @@ a:hover {
 
 #table_utility .td_value {
   text-align: left;
-  font-size: 4em;
+  font-size: 4.2em;
 }
 
 #table_pump .td_value {
   text-align: left;
   font-size: 3em;  
 }
+
+.td_value {
+  white-space: nowrap;
+}
+
 
 #table_main th, #table_pump th, #table_emon th {
   font-size: 2em;
@@ -110,7 +115,6 @@ a:hover {
   -webkit-transform: translate(1%, 0);
   transform: translate(1%, 0);
   width: 100%; 
-  xborder: 1px solid red;
   white-space: nowrap;
   border-spacing: 1px;
   margin: 0 auto;
@@ -119,6 +123,7 @@ a:hover {
   font-size: 2em;
   border-bottom: 3px dotted rgb(141, 118, 14);
 }
+
 
 .OK {
   color:rgb(19, 116, 0);
@@ -163,8 +168,12 @@ h1 {
     background-color: #f44336;
   }
   .units {
-    font-size: 2.2rem;
+    font-size: 1.1em;
    }
+   .units_xs {
+    font-size: 0.9em;
+   }
+
   .sensor-labels {
     font-size: 2.5rem;
     vertical-align:middle;
@@ -190,50 +199,48 @@ h1 {
   }
 
  
-  
-  @media screen and (max-width: 768px) {
-    body, .container {
-      font-size:0.7em;
+  @media only screen and (max-width: 992px) {
+    /* For tablets, landscape mobile phones: */
+    body {
+      font-size: 16px;
     }
 
+    *>*{
+        font-size:0.91em;
+    }
+
+    #table_utility td, #table_pump td, #table_emon_circuits td {
+      padding:0.2rem;
+    }
+
+    .units {
+      font-size:1.15rem;
+    }
     .container {
       justify-content:start;
+    }    
+  }
+
+  @media screen and (max-width: 768px) {
+    /* For mobile phones: */
+    body {
+      font-size: 12px;
     }
-    #table_main {
-      margin: 0.5em;
+
+    *>*{
+      font-size:0.91em; /*0.85em;*/
     }
+
     #table_utility td, #table_pump td, #table_emon_circuits td {
-      padding: 2px;
+      padding:0.2rem;
     }
 
-    #table_utility .td_title {
-      font-size: 0.6em;
-    }
-    #table_utility .td_value {
-      font-size: 0.8em;
-    }
-
-    #table_pump .td_title {
-      font-size: 0.6em;  
-    }
-    
-    #table_pump .td_value {
-      font-size: 0.7em;  
-    }
-
-    #alarms {
-      font-size: 0.8em;
-    }
     .units {
-      font-size: 0.8em;  
+      font-size:0.6rem;
     }
+    .container {
+      justify-content:start;
+    }    
 
-    #table_main th, #table_pump th, #table_emon th {
-      font-size: 0.7em;
-    }
-
-    #table_emon_circuits td {
-      font-size: 0.5em;
-    }
 
   }

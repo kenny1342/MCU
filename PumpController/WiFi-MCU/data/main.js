@@ -40,7 +40,7 @@ $('form').submit(function(e){
         setTimeout(function(){ 
           // TODO: check if responding or wait another few secs
           window.location.href = "/";
-        }, 30000);
+        }, 40000);
       },
         error: function (a, b, c) {
             $('#error').show();

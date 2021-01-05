@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>Home Controller</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" type="text/css" href="style.css">
   <script src='jquery.js'></script>
   <script src='main.js'></script>
@@ -10,7 +10,7 @@
   <h1>Home Controller v%FIRMWARE%</h1>
 
   JSON: <a href='/json/sensors'>Sensor</a>, <a href='/json/system'>System</a>  | <a href='/reset'>Reset settings</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
-  <br />
+ 
 
 <div class="container">
 
@@ -53,7 +53,7 @@
 
         <table id="table_emon">
           <tr>
-            <th>Circuit parameters</th>
+            <th>Circuits</th>
           </tr>          
           <tr>
             <td>
@@ -121,7 +121,7 @@
 
     <small>
       Uptime: <span id="uptime">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
-      <br /><br />
+      <br />
       Web Interface v%WEBIF_VERSION%<br />
       <hr />Made by %AUTHOR_TEXT%
     </small>
@@ -213,10 +213,10 @@
         $("#table_emon_circuits tbody").empty();
         for(var key in json.circuits) {
           markup ='<tr>'+
-            '<td>'+key+'</td>' +
-            '<td>' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units">A</sup></td>' +
-            '<td>' + json.circuits[key].P_a + '<sup class="units">W</sup></td>' +
-            '<td>' + json.circuits[key].PF + '<sup class="units">%</sup></td>' +
+            '<td class="td_title">'+key+'</td>' +
+            '<td class="td_value">' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
+            '<td class="td_value">' + json.circuits[key].P_a + '<sup class="units_xs">W</sup></td>' +
+            '<td class="td_value">' + json.circuits[key].PF + '<sup class="units_xs">%</sup></td>' +
           '</tr>"';
           $("#table_emon_circuits tbody").append(markup);
 
