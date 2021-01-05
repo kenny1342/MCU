@@ -69,7 +69,7 @@ Timemark tm_CheckConnections(120000);
 Timemark tm_CheckDataAge(1000); // 1sec 
 Timemark tm_PushToBlynk(500);
 Timemark tm_SerialDebug(10000);
-Timemark tm_MenuReturn(5000);
+Timemark tm_MenuReturn(30000);
 
 volatile int interruptCounter;
 
