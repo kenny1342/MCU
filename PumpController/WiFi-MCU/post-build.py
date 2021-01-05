@@ -27,8 +27,10 @@ spiffs_source = os.path.join(env.subst("$BUILD_DIR"), "spiffs.bin")
 def after_build(source, target, env):
     #print(firmware_source)
     #env.Execute("cp -f $BUILD_DIR/firmware.bin " + env['PROJECT_DIR'] + "/")
-    shutil.copy(firmware_source, 'bin/firmware.bin')
-    #env.Execute("pio run -t buildfs")
+    env.Execute("test -d bin/ || mkdir bin")
+    shutil.copy(firmware_source, 'bin/firmware.bin')    
+    
+    env.Execute("pio run -t buildfs")    
     shutil.copy(spiffs_source, 'bin/spiffs.bin')
 
 env.AddPostAction("buildprog", after_build)
