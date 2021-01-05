@@ -12,7 +12,7 @@
 #define STR(x) XSTR(x)
 
 
-#define FIRMWARE_VERSION    "2.63"
+#define FIRMWARE_VERSION    "2.65"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)

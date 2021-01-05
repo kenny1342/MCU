@@ -28,7 +28,8 @@
 #include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 #include <main.h>
 
-char WEBIF_VERSION[6] =     "0.00"; // read from file (/WEBIF_VERSION)
+char WEBIF_VERSION[6] = "N/A"; // read from file (/WEBIF_VERSION)
+char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
@@ -68,6 +69,7 @@ Timemark tm_CheckConnections(120000);
 Timemark tm_CheckDataAge(1000); // 1sec 
 Timemark tm_PushToBlynk(500);
 Timemark tm_SerialDebug(10000);
+Timemark tm_MenuReturn(5000);
 
 volatile int interruptCounter;
 
@@ -153,33 +155,26 @@ void setup(void) {
   Setup::FileSystem();
   delay(700);
 
+  Serial.print(F("reading /WEBIF_VERSION..."));
   if(SPIFFS.exists("/WEBIF_VERSION")) {
-
     File f = SPIFFS.open("/WEBIF_VERSION", "r");
     if(f && f.size() > 0) {
-      Serial.println("found /WEBIF_VERSION with data, reading");
       size_t filesize = f.size(); //the size of the file in bytes 
       if(filesize < sizeof(WEBIF_VERSION)) {
-        Serial.println("valid size");
-
-        //char string[filesize];   // + 1 for '\0' char at the end      
-
         f.read((uint8_t *)WEBIF_VERSION, sizeof(WEBIF_VERSION));  
         f.close(); 
         WEBIF_VERSION[filesize] = '\0';
-        //snprintf(WEBIF_VERSION, 4, string);
-        //strncpy(WEBIF_VERSION, string, 4);
-
+        Serial.printf("OK (%s)\n", WEBIF_VERSION);
       } else {
-        Serial.println("too big");
+        Serial.println(F("file too large!"));
       }
     } else {
-      Serial.println("/WEBIF_VERSION open failed/no data");
+      Serial.println(F("open failed or empty file"));
     }
   } else {
-    Serial.println("/WEBIF_VERSION NOT found");
+    Serial.println(F("not found!"));
   }
-
+  
 
   logger.print(F("Loading configuration from /config.json..."));
   Setup::GetConfig();
@@ -444,6 +439,10 @@ String HTMLProcessor(const String& var) {
   else if (var == "WEBIF_VERSION"){
     return String(WEBIF_VERSION);
   }
+  else if (var == "ADC_VERSION"){
+    //return data_json.getMember("firmware").as<String>();
+    return String(ADC_VERSION);
+  }
   else if (var == "AUTHOR_TEXT"){
     return String(AUTHOR_TEXT);
   }
@@ -547,6 +546,8 @@ void loop(void) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
     } else {
+      snprintf(ADC_VERSION, 6, "%s", (const char*)data_json.getMember("firmware"));      
+
       // Extract some values and push to Blynk server
       JsonVariant jsonVal;
       
@@ -560,17 +561,24 @@ void loop(void) {
       }      
       jsonVal = data_json.getMember("K2");
       if(!jsonVal.isNull()) {
-        Blynk.virtualWrite(V3, jsonVal["I"].as<float>());
-        Blynk.virtualWrite(V4, jsonVal["P_a"].as<long>());
+        Blynk.virtualWrite(V3, jsonVal.getMember("I").as<float>());
+        Blynk.virtualWrite(V4, jsonVal.getMember("P_a").as<long>());
       }
 
-      Blynk.virtualWrite(V0, data_json["pressure_bar"][0].as<float>());
-      Blynk.virtualWrite(V1, data_json["temp_c"][0].as<float>());      
+      Blynk.virtualWrite(V0, data_json.getMember("pressure_bar")[0].as<float>());
+      Blynk.virtualWrite(V1, data_json.getMember("temp_c")[0].as<float>());      
 
     } // RX
 
 
     //----------- Update OLED display ---------------
+    
+    // Automatically return to first menu page after set timeout
+    if(tm_MenuReturn.expired()) {
+      menu_page_current = 0;
+      LCD_state.clear = true;
+    }
+
     if(LCD_state.clear) {
       LCD_state.clear = false;
       tft.fillScreen(LCD_state.bgcolor);
@@ -591,14 +599,14 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("       SUMMARY      \n");
+        tft.printf("      SUMMARY       \n");
 
         LCD_state.fgcolor = TFT_GREEN;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         
         //tft.setCursor(0, TFT_LINE2);
         tft.printf("W Pump: ");
-        if(data_json["WP"].getMember("is_running").as<uint8_t>() == 1) {
+        if(data_json.getMember("WP").getMember("is_running").as<uint8_t>() == 1) {
           tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
           tft.printf("   RUNNING  ");
         } else {
@@ -611,25 +619,34 @@ void loop(void) {
         tft.printf("%-16s\n", " "); // EMPTY line
         
         tft.printf("WP:" );
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        t = data_json["pressure_bar"][0].as<float>();      
-        tft.printf("%d.%02d", (int)t, (int)(t*100)%100 );
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        t = data_json.getMember("pressure_bar")[0].as<float>();      
+        tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        tft.printf(" bar, ");
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        t = data_json["temp_c"][0].as<float>();
-        tft.printf("%d.%01d", (int)t, (int)(t*10)%10 );
+        //tft.printf(" bar, ");
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        t = data_json.getMember("temp_c")[0].as<float>();
+        tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        tft.printf(" %cC\n", (char)247);
+        //tft.printf(" %cC\n", (char)247);
                 
-        t = data_json["emon_vrms_L_N"].as<float>();
-        tft.printf("V(rms) L-N:  %d.%01d V\n", (int)t, (int)(t*10)%10);
-                
-        t = data_json["emon_vrms_L_PE"].as<float>();
-        tft.printf("V(rms) L-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);
+        t = data_json.getMember("emon_vrms_L_N").as<float>();
+        tft.printf("V(rms) L-N:  ");
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = data_json["emon_vrms_N_PE"].as<float>();
-        tft.printf("V(rms) N-PE: %d.%01d V\n", (int)t, (int)(t*10)%10);        
+        t = data_json.getMember("emon_vrms_L_PE").as<float>();
+        tft.printf("V(rms) L-PE: ");
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+
+        t = data_json.getMember("emon_vrms_N_PE").as<float>();
+        tft.printf("V(rms) N-PE: ");
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         JsonArray alarms = data_json.getMember("alarms");
         if(alarms.size() == 0) {
@@ -660,21 +677,21 @@ void loop(void) {
         LCD_state.fgcolor = TFT_LIGHTGREY;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = data_json["pressure_bar"][0].as<float>();      
+        t = data_json.getMember("pressure_bar")[0].as<float>();      
         tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
 
-        t = data_json["temp_c"][0].as<float>();
+        t = data_json.getMember("temp_c")[0].as<float>();
         tft.printf("Room temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
 
-        tft.printf("Start count: %u \n", data_json["WP"].getMember("cnt_starts").as<uint16_t>());
+        tft.printf("Start count: %u \n", data_json.getMember("WP").getMember("cnt_starts").as<uint16_t>());
 
-        const char * state = data_json["WP"].getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
-        tft.printf("%s: %s\n", state, TimeToString(data_json["WP"].getMember("t_state").as<uint16_t>()));
+        const char * state = data_json.getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
+        tft.printf("%s: %s\n", state, TimeToString(data_json.getMember("WP").getMember("t_state").as<uint16_t>()));
 
-        const char * suspended = data_json["WP"].getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
-        tft.printf("Susp: %s %s\n", suspended, TimeToString(data_json["WP"].getMember("t_susp").as<uint16_t>()));
+        const char * suspended = data_json.getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
+        tft.printf("Susp: %s %s\n", suspended, TimeToString(data_json.getMember("WP").getMember("t_susp").as<uint16_t>()));
 
-        tft.printf("Susp tot: %s\n", TimeToString(data_json["WP"].getMember("t_susp_tot").as<uint16_t>()));
+        tft.printf("Susp tot: %s\n", TimeToString(data_json.getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
       }
       break;
       case MENU_PAGE_SYSTEM_STATS:
@@ -706,23 +723,23 @@ void loop(void) {
       case MENU_PAGE_ABOUT:
         tft.setTextSize(txtsize);
         tft.setTextWrap(false);
-        if(LCD_state.bgcolor != TFT_DARKGREY) {
-          LCD_state.bgcolor = TFT_DARKGREY;
+        if(LCD_state.bgcolor != TFT_BLACK) {
+          LCD_state.bgcolor = TFT_BLACK;
           tft.fillScreen(LCD_state.bgcolor);
         }
         tft.setCursor(0, 0);
         LCD_state.fgcolor = TFT_GOLD;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         
-        tft.printf("  House-Controller  \n");        
+        tft.printf("      VERSIONS      \n");        
         LCD_state.fgcolor = TFT_ORANGE;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         tft.printf("\n");
-        tft.printf("Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
-        tft.printf("ADC-MCU: v%s\n",  data_json.getMember("firmware").as<String>().c_str());
-        tft.printf("Web-IF:  v%s\n", WEBIF_VERSION); //L5
+        tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
+        tft.printf(" ADC-MCU: v%s\n",  data_json.getMember("firmware").as<String>().c_str());
+        tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
         tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
-        tft.print(F("Ken-Roger Andersen  \n") );
+        tft.print(F(" Ken-Roger Andersen \n") );
         tft.print(F("ken.roger@gmail.com \n") );
         
         tft.setTextWrap(true);
@@ -742,37 +759,23 @@ void loop(void) {
  * Check button states
  */
 void CheckButtons(void) {
-  //volatile static uint32_t t_btn_up_pressed;
-  //volatile static uint32_t t_btn_down_pressed;
   BtnDOWN.read();
   BtnUP.read();
-
-  //if(digitalRead(PIN_SW_UP) == LOW) {
-  //  t_btn_up_pressed++;
-  //} else {
-
-
-   
-    //if(t_btn_up_pressed > 10) { // button was pressed > x ms, goto next menu page index
-      //t_btn_up_pressed = 0;  
-    if(BtnUP.wasReleased()) {
-
-      if(menu_page_current == MENU_PAGE_MAX) {
-        menu_page_current = 0;
-      } else {
-        menu_page_current++;
-      }
-      LCD_state.clear = true;
-    } else if(BtnUP.pressedFor(LONG_PRESS)) {
-      Serial.println("BTNUP LONG PRESS");
-      //WiFi.disconnect();
-      delay(5000);
+  if(BtnUP.wasReleased()) {
+    tm_MenuReturn.start();
+    if(menu_page_current == MENU_PAGE_MAX) {
+      menu_page_current = 0;
+    } else {
+      menu_page_current++;
     }
-  //}
-
-
+    LCD_state.clear = true;
+  } else if(BtnUP.pressedFor(LONG_PRESS)) {
+    Serial.println("BTNUP LONG PRESS");
+    delay(5000);
+  }
 
   if(BtnDOWN.wasReleased()) {
+    tm_MenuReturn.start();
     if(menu_page_current == 0) {
       menu_page_current = MENU_PAGE_MAX;
     } else {
