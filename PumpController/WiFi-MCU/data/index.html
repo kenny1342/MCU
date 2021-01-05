@@ -2,6 +2,8 @@
 <head>
   <title>Home Controller</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="cache-control" content="public, max-age=604800, immutable" />
+  <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
   <link rel="stylesheet" type="text/css" href="style.css">
   <script src='jquery.js'></script>
   <script src='main.js'></script>
@@ -141,13 +143,14 @@
       fetch('/json/sensors')
       .then(response => response.json())
       .then(data => {
-          console.log(data);
+          //console.log(data);
           localStorage.setItem('json', JSON.stringify(data));
           } // data =>
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"firmware":"2.11","pressure_bar":[4.132813],"temp_c":[22.74844],"alarms":[],"emon_vrms_L_N":229.6465,"emon_vrms_L_PE":130.0808,"emon_vrms_N_PE":120.427,"WP":{"t_state":26,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":1.004865,"P_a":230,"PF":0},"K3":{"I":0.225199,"P_a":51,"PF":0}}}');
+          json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+          //console.log(json);
           localStorage.setItem('json', JSON.stringify(json));
         }
       ); // fetch
@@ -161,7 +164,7 @@
       fetch('/json/system')
       .then(response => response.json())
       .then(data => {
-          console.log(data);
+          //console.log(data);
           localStorage.setItem('jsonsystem', JSON.stringify(data));
           } // data =>
       )
@@ -214,9 +217,9 @@
         for(var key in json.circuits) {
           markup ='<tr>'+
             '<td class="td_title">'+key+'</td>' +
-            '<td class="td_value">' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
+            '<td class="td_value"><small>I(rms)</small> ' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
             '<td class="td_value">' + json.circuits[key].P_a + '<sup class="units_xs">W</sup></td>' +
-            '<td class="td_value">' + json.circuits[key].PF + '<sup class="units_xs">%</sup></td>' +
+            '<td class="td_value"><small>PF:</small> ' + json.circuits[key].PF + '<sup class="units_xs">%</sup></td>' +
           '</tr>"';
           $("#table_emon_circuits tbody").append(markup);
 

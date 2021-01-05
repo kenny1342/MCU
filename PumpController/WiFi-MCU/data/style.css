@@ -37,9 +37,9 @@ a:hover {
 .container {
   display: -webkit-box;
   display: flex;
-  -webkit-box-pack: center;
-  justify-content: center;
-  -webkit-box-align: center;
+  -webkit-box-pack:start;
+  justify-content: flex-start;
+  -webkit-box-align:start;
   align-items: center;
   background-color: rgb(231, 231, 231);
   -webkit-box-orient: vertical;
@@ -224,11 +224,16 @@ h1 {
   @media screen and (max-width: 768px) {
     /* For mobile phones: */
     body {
-      font-size: 12px;
+      font-size: 13px;
     }
 
     *>*{
-      font-size:0.91em; /*0.85em;*/
+      font-size:0.88em;
+    }
+
+    small {
+      font-size:0.77em;
+      white-space: nowrap;
     }
 
     #table_utility td, #table_pump td, #table_emon_circuits td {

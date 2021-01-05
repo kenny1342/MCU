@@ -1,19 +1,28 @@
 <html>
 <head>
   <title>Water Pump Controller</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="public, max-age=604800, immutable" />
+  <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
-  <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
+  <script src='jquery.js'></script>
+  <!--<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>-->
 </head>
 <body>
   <h1>Firmware update</h1>
 
-  <h3>Current version: %FIRMWARE%</h3>
-  (%FIRMWARE_LONG%)
-
+  <h3>Frontend-MCU: v%FIRMWARE% <br />
+    <span style="font-size: 0.8rem;">(%FIRMWARE_LONG%)</small>
+  </h3>
+  <h3>ADC-MCU: v%ADC_VERSION%</h3>  
+  <h3>Web Interface v%WEBIF_VERSION%</h3>
   <hr />
-    Upload .bin (For filesystem image, name the file like *spiffs*.bin): <br /><br />
+  <div style="color:red;">
+    OBS! Naming of firmware files decides what module is being updated:<br /> 
+  </div>
+  - Frontend-MCU: *firmware*.bin.<br />
+  - Web Interface: *spiffs*.bin (FileSystem Image)<br /><br />
 
 <form method='POST' action='/update' enctype='multipart/form-data' id='upload_form'>
 <input type='file' name='update'>
@@ -26,6 +35,15 @@
 <div id='error' style='display:none;'>ERROR</div>
 
 <script src='/main.js'></script>
-
+<script>
+$(function() {
+  $('form').submit(function() {
+     if(!$("form input[type=file]").val()) {
+        alert('You must select a file!');
+        return false;
+     }
+  });
+});
+</script>
 </body>
 </html>
