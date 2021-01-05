@@ -419,11 +419,18 @@ void loop() // run over and over
     
   //static uint32_t previousMillis = 0;
   JsonArray data;
+  int pulsecount = 0;  
+  uint32_t duration = 0;
+  uint32_t currentMicros = 0;
+  int samples[250];
 
   wdt_reset();
 
   if (tm_DataTX.expired()) {
     
+  
+
+
     //previousMillis = millis();
     APPFLAGS.is_busy = 1;
     APPFLAGS.is_updating = 1;
@@ -435,6 +442,31 @@ void loop() // run over and over
     ModIO_Update();
 
     //----------- Update EMON data -------------
+
+    currentMicros = micros();
+    for(int c=0; c<250; c++){
+      samples[c] = analogRead(ADC_CH_VOLT_L_N);
+    }
+    duration = micros() - currentMicros;
+
+    for(int i=0;i<251;i++)
+    {
+      if(samples[i]<512 && samples[i+1]>=512) // if negative AC cycle but next is positive
+      {
+        while(samples[i+1] >= 512) // while next samlple is positive cycle 
+        {
+          pulsecount += 1;
+          i+=1;
+        }
+        break;
+      }
+    }
+    // Fixed sample time: it takes 28 milliseconds to take 250 samples. So, for one sample it takes 28/250 = 0.112 msec.
+    // float Freq = 1000/(2*pulsecount*0.112);
+    // Use actual sample time (more costly but also more accurate)
+    float t = duration / 250 / 1000.0; // us / samplecount / 1000.0 us
+    EMONMAINS.Freq = 1000/(2*pulsecount* t);
+
     EMONMAINS.Vrms_L_N = voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
@@ -508,6 +540,7 @@ void loop() // run over and over
       if(ALARMS_EMON.power_voltage) data.add(F("emon_voltage"));
     }
     
+    doc["emon_freq"] = EMONMAINS.Freq;
     doc["emon_vrms_L_N"] = EMONMAINS.Vrms_L_N;
     doc["emon_vrms_L_PE"] = EMONMAINS.Vrms_L_PE;
     doc["emon_vrms_N_PE"] = EMONMAINS.Vrms_N_PE;

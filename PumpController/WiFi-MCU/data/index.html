@@ -30,7 +30,7 @@
               Mains V(rms) (L/N)
             </td>
             <td class="td_value">
-              <span id="emon_vrms_L_N">-</span> <sup class="units">V</sup>
+              <span id="emon_vrms_L_N">-</span> <sup class="units">V</sup>/&nbsp;<span id="emon_freq">-</span> <sup class="units">Hz</sup>
             </td>
           </tr>
           <tr>
@@ -149,7 +149,7 @@
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+          json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
           //console.log(json);
           localStorage.setItem('json', JSON.stringify(json));
         }
@@ -195,10 +195,17 @@
       $("#wp_t_totruntime").empty().append( formatSecs(json.WP.t_totruntime) );
       $("#wp_t_susp").empty().append( formatSecs(json.WP.t_susp) );
 
-
+      $("#emon_freq").empty().append( parseFloat(json.emon_freq).toFixed(1) );
       $("#emon_vrms_L_N").empty().append( parseFloat(json.emon_vrms_L_N).toFixed(1) );
       $("#emon_vrms_L_PE").empty().append( parseFloat(json.emon_vrms_L_PE).toFixed(1) );
       $("#emon_vrms_N_PE").empty().append( parseFloat(json.emon_vrms_N_PE).toFixed(1) );
+
+      let emon_freq = json.emon_freq;
+      if(Math.abs(50.0 - emon_freq) > 1.0) {
+        $("#emon_freq").removeClass().addClass("ERR");
+      } else {
+        $("#emon_freq").removeClass().addClass("OK");
+      }
 
       let emon_vrms_L_PE = json.emon_vrms_L_PE;
       let emon_vrms_N_PE = json.emon_vrms_N_PE;

@@ -10,7 +10,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.12"
+#define FIRMWARE_VERSION            "2.13"
 #define JSON_SIZE                   768
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
@@ -57,7 +57,7 @@ typedef struct
   //uint8_t ADC_CH_CT_VGND;
   //double ICAL;
   uint16_t apparentPower;
-  //double Vrms;
+  //double Freq;
   double Irms;
   double PF;
   uint8_t error;
@@ -68,6 +68,7 @@ typedef struct
   double Vrms_L_N;
   double Vrms_L_PE;
   double Vrms_N_PE;
+  double Freq;
   uint8_t error;
 } emonvrms_type;
 
