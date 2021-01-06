@@ -27,3 +27,55 @@ if (typeof jQuery === "undefined") {
 
 //<script>window.jQuery || document.write('<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"><\/script>')</script> 
 //<script>window.jQuery || document.write('<script src="jquery.min.js"><\/script>')</script>
+
+
+jQuery(document).ready(function () {  
+
+
+  
+  $('form').submit(function(e){
+    e.preventDefault();
+
+
+    // Firmware Update
+    let form = $('#upload_form')[0];
+    let data = new FormData(form);
+
+    if(!$("#upload_form input[type=file]").val()) {
+      alert('You must select a file!');
+      return false;
+    }
+
+    $.ajax({
+      url: '/update',
+      type: 'POST',
+      data: data,
+      contentType: false,
+      processData:false,
+      xhr: function() {
+      var xhr = new window.XMLHttpRequest();
+      xhr.upload.addEventListener('progress', function(evt) {
+        if (evt.lengthComputable) {
+          var per = evt.loaded / evt.total;
+          $('#prg').html('Progress: ' + Math.round(per*100) + '%');
+        }
+      }, false);
+        return xhr;
+      },
+      success:function(d, s) {
+        console.log('success!');
+        $('#success').show();
+        setTimeout(function(){ 
+          // TODO: check if responding or wait another few secs
+          window.location.href = "/";
+        }, 40000);
+      },
+        error: function (a, b, c) {
+            $('#error').show();
+            console.log(a);
+            console.log(b);
+            console.log(c);
+        }
+    });
+  });
+}); // page loaded

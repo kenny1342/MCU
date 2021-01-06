@@ -23,63 +23,15 @@
   - Frontend-MCU: *firmware*.bin.<br />
   - Web Interface: *spiffs*.bin (FileSystem Image)<br /><br />
 
-<form method='POST' action='/update' enctype='multipart/form-data' id='upload_form'>
-<input type='file' name='update'>
-<input type='submit' value='Update'>
-</form>
+  <form method='POST' action='/update' enctype='multipart/form-data' id='upload_form'>
+  <input type='file' name='update'>
+  <input type='submit' value='Update'>
+  </form>
 
-<div id='prg'>progress: 0%</div>
+  <div id='prg'>Progress: 0%</div>
 
-<div id='success' style='display:none;'>Success, please wait while rebooting...</div>
-<div id='error' style='display:none;'>ERROR</div>
+  <div id='success' style='display:none;'>Success, please wait while rebooting...</div>
+  <div id='error' style='display:none;'>ERROR</div>
 
-
-<script>
-  
-jQuery(document).ready(function () {  
-  $('form').submit(function(e){
-    e.preventDefault();
-
-    if(!$("form input[type=file]").val()) {
-      alert('You must select a file!');
-      return false;
-    }
-
-    var form = $('#upload_form')[0];
-    var data = new FormData(form);
-    $.ajax({
-      url: '/update',
-      type: 'POST',
-      data: data,
-      contentType: false,
-      processData:false,
-      xhr: function() {
-      var xhr = new window.XMLHttpRequest();
-      xhr.upload.addEventListener('progress', function(evt) {
-        if (evt.lengthComputable) {
-          var per = evt.loaded / evt.total;
-          $('#prg').html('Progress: ' + Math.round(per*100) + '%');
-        }
-      }, false);
-        return xhr;
-      },
-      success:function(d, s) {
-        console.log('success!');
-        $('#success').show();
-        setTimeout(function(){ 
-          // TODO: check if responding or wait another few secs
-          window.location.href = "/";
-        }, 40000);
-      },
-        error: function (a, b, c) {
-            $('#error').show();
-            console.log(a);
-            console.log(b);
-            console.log(c);
-        }
-    });
-  });
-}); // page loaded
-</script>
 </body>
 </html>
