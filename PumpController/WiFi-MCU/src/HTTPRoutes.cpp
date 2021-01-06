@@ -13,6 +13,8 @@
 #include <HTTPRoutes.h>
 //#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 
+const char* recoveryHTML = "<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+
 Webserver::Webserver()
 {
     this->error = false;
@@ -128,11 +130,20 @@ void Webserver::AddRoutes() {
     delay(5000);  
   });
 
-// Simple Firmware Update Form
+  
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
-    //const char* updateHTML = "Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
-    //request->send(200, "text/html", updateHTML);
-    request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
+    if(SPIFFS.exists("/update.html")) {
+      request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
+    } else {
+      // FS is formatted/update.html missing, send a Simple Firmware Update Form html so we can upload new filesystem
+      request->send(200, "text/html", recoveryHTML);
+    }
+    
+  });
+
+  // for testing/dev
+  server.on("/recover", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(200, "text/html", recoveryHTML);    
   });
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
