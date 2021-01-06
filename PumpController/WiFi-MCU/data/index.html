@@ -198,8 +198,16 @@
       $("#emon_vrms_L_PE").empty().append( parseFloat(json.emon_vrms_L_PE).toFixed(1) );
       $("#emon_vrms_N_PE").empty().append( parseFloat(json.emon_vrms_N_PE).toFixed(1) );
 
+      let emon_vrms_L_N = json.emon_vrms_L_N;
+      // Forsyningskrav i Norge er nominell spenning 230V +/- 10%
+      if(emon_vrms_L_N > 253.0 || emon_vrms_L_N < 207.0) {
+        $("#emon_vrms_L_N").removeClass().addClass("ERR");
+      } else {
+        $("#emon_vrms_L_N").removeClass().addClass("OK");
+      }
+
       let emon_freq = json.emon_freq;
-      if(Math.abs(50.0 - emon_freq) > 1.0) {
+      if(Math.abs(50.0 - emon_freq) > 1.1) {
         $("#emon_freq").removeClass().addClass("ERR");
       } else {
         $("#emon_freq").removeClass().addClass("OK");
