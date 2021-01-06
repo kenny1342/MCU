@@ -446,6 +446,7 @@ void loop() // run over and over
     currentMicros = micros();
     for(int c=0; c<250; c++){
       samples[c] = analogRead(ADC_CH_VOLT_L_N);
+      _delay_us(10); // get a higher resolution delay
     }
     duration = micros() - currentMicros;
 
