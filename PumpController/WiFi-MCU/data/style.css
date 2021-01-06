@@ -213,6 +213,10 @@ h1 {
       padding:0.2rem;
     }
 
+    #table_emon_circuits tbody {
+      font-size:0.5rem;
+    }
+
     .units {
       font-size:1.15rem;
     }
@@ -238,6 +242,12 @@ h1 {
 
     #table_utility td, #table_pump td, #table_emon_circuits td {
       padding:0.2rem;
+    }
+    #table_utility .td_title {
+      font-size:0.8rem;
+    }
+    #table_emon_circuits tbody {
+      font-size:0.5rem;
     }
 
     .units {
