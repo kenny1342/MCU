@@ -10,7 +10,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.13"
+#define FIRMWARE_VERSION            "2.15"
 #define JSON_SIZE                   768
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
@@ -28,12 +28,13 @@
 #define CONF_RELAY_12VBUS           3 // MOD-IO relay controlling 12v bus (sensors, mains relays etc)
 #define CONF_RELAY_WP               2 // MOD-IO relay controlling water pump
 
+#define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
+#define VDD_ADC_CT_CALIB            4.45 // VDD calibrated (5.0*some factor) for current calc
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
-#define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 #define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
-#define ADC_CH_CT_K2                A2 // ADC connected to current sensor K2 (living room) Input
+#define ADC_CH_CT_K2                A8 // ADC connected to current sensor K2 (living room) Input
 #define ADC_CH_CT_K3                A6 // ADC connected to current sensor K3 (kitchen) Input
 #define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_L_PE            A4 // ADC connected to ZMPT101B voltage sensor
@@ -45,6 +46,7 @@
 #define DEF_CONF_WP_UPPER           4.20 // water pressure upper threshold (bar*100) before stopping pump
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
+#define DEF_CONF_WP_RUNTIME_ACC_ALARM  15    // if we run shorter than this we raise accumulator/low air pressure alarm
 #define DEF_CONF_MIN_TEMP_PUMPHOUSE 10L   // minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
 
@@ -77,9 +79,10 @@ typedef struct
 {
   uint16_t wp_max_runtime;
   uint16_t wp_suspendtime;
+  uint8_t wp_runtime_accumulator_alarm;
   double wp_lower;
   double wp_upper;
-  uint8_t  min_temp_pumphouse;
+  uint8_t  min_temp_pumphouse;  
 } appconfig_type;
 /*
 typedef union {
@@ -121,6 +124,8 @@ typedef struct
 
 } sensors_type;
 */
+enum { PRESSURE_LOW=0, PRESSURE_OK=1, PRESSURE_HIGH=2 };
+
 typedef struct
 {
   uint8_t is_running;
@@ -133,6 +138,9 @@ typedef struct
   uint32_t  total_runtime;
   double temp_pumphouse_val;
   double water_pressure_bar_val;  
+  uint8_t pressure_state;
+  uint16_t pressure_state_t;
+  bool accumulator_ok;
 } waterpump_type;
 
 //Flags,  Use each bit in a byte as a flag bit
@@ -169,7 +177,7 @@ typedef union {
   byte allBits;
   struct {
     byte waterpump_runtime:1 ;
-    byte b1:1;
+    byte accumulator_low_air:1;
     byte b2:1;
     byte temperature_pumphouse:1; // should never be below 0C/freezing
     byte b4:1;
@@ -198,6 +206,7 @@ typedef union {
 #define LED_OFF(pin) digitalWrite(pin, 1)
 #define LED_TOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
 
+float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange);
 bool getAlarmStatus_SYS(uint8_t Alarm);
 bool getAlarmStatus_WP(uint8_t Alarm);
 bool getAlarmStatus_EMON(uint8_t Alarm);

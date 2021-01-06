@@ -12,7 +12,7 @@
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
-#include <EmonLib.h>
+//#include <EmonLib.h>
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
 #include <Timemark.h>
@@ -33,8 +33,8 @@ static adc_avg ADC_waterpressure;
 StaticJsonDocument<JSON_SIZE> doc;
 //JsonObject json;
 
-EnergyMonitor EMON_K2;  // instance used for calcIrms()
-EnergyMonitor EMON_K3;  // instance used for calcIrms()
+//EnergyMonitor EMON_K2;  // instance used for calcIrms()
+//EnergyMonitor EMON_K3;  // instance used for calcIrms()
 
 ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
@@ -54,7 +54,7 @@ volatile alarm_BitField_SYS ALARMS_SYS;   // local system/MCU alarms
 
 Timemark tm_blinkAlarm(200);
 Timemark tm_blinkWarning(500);
-Timemark tm_counterWP_runtime(1000);
+Timemark tm_WP_seconds_counter(1000);
 Timemark tm_counterWP_suspend_1sec(1000);
 Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
@@ -114,11 +114,15 @@ void setup()
   APPCONFIG.wp_suspendtime = DEF_CONF_WP_SUSPENDTIME;
   APPCONFIG.wp_lower = DEF_CONF_WP_LOWER;
   APPCONFIG.wp_upper = DEF_CONF_WP_UPPER;
+  APPCONFIG.wp_runtime_accumulator_alarm = DEF_CONF_WP_RUNTIME_ACC_ALARM;
   APPCONFIG.min_temp_pumphouse = DEF_CONF_MIN_TEMP_PUMPHOUSE;
+
+  WATERPUMP.pressure_state = PRESSURE_OK;
+  WATERPUMP.accumulator_ok = true;
 
   // set the data rate for the SoftwareSerial port
   Serial_Wifi.begin(115200);
-  Serial_Wifi.println(F("uno initializing..."));
+  Serial_Wifi.println(F("ADC initializing..."));
 
   // initialize all ADC readings to 0:
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
@@ -164,8 +168,8 @@ void setup()
   Serial.println(F("ISR's enabled"));
   delay(500);
   
-  EMON_K2.current(ADC_CH_CT_K2, DEF_EMON_ICAL_K2);
-  EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
+  //EMON_K2.current(ADC_CH_CT_K2, DEF_EMON_ICAL_K2);
+  //EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
   
   Wire.begin(); // Initiate the Wire library
   Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
@@ -191,7 +195,7 @@ void setup()
   tm_blinkAlarm.start();
   tm_blinkWarning.start();
   tm_counterWP_suspend_1sec.start();
-  tm_counterWP_runtime.start();
+  tm_WP_seconds_counter.start();
   tm_100ms_setAlarms.start();
   tm_DataTX.start();
 
@@ -211,7 +215,9 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
 
-  /**** Water pump state logic ****/
+
+
+/*
   if(!WATERPUMP.is_running) {
     if(WATERPUMP.water_pressure_bar_val <= APPCONFIG.wp_lower && ADC_waterpressure.average > 0) { // startbelow lower threshold AND valid ADC reading (if we get here before alarm ISR has updated alarms)
       if(!IS_ACTIVE_ALARMS_WP()) { // Do not start if any of these alarms are active
@@ -232,6 +238,7 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
       WATERPUMP.state_age=0; //reset state age
     }
   }
+*/
 
 }
 
@@ -258,16 +265,8 @@ ISR (TIMER2_COMPA_vect)
   digitalWrite(LED_BUSY, !APPFLAGS.is_busy);
 
   if(!ADC_waterpressure.ready || !ADC_temp_1.ready || millis() < 5000) return; // just powered up, let things stabilize
-  
-  if(tm_counterWP_runtime.expired()) {
-    WATERPUMP.state_age++; 
-    if(WATERPUMP.is_running) {
-      WATERPUMP.total_runtime++; 
-    }
 
-  }
-
-  // --------- Control Warning and Alarm LEDs -------------
+  // --------- Set LEDs and buzzer state -------------
   if( (IS_ACTIVE_ALARMS_WP() /*|| WATERPUMP.is_suspended*/)) { // Water pump related is critical/Alarm LED
       if(tm_blinkAlarm.expired()) {
         LED_TOGGLE(LED_ALARM);
@@ -370,6 +369,12 @@ ISR (TIMER2_COMPA_vect)
       }
 
       /////// Water pump and related alarms ///////
+      if(WATERPUMP.accumulator_ok) {
+        ALARMS_WP.accumulator_low_air = 0;
+      } else {
+        ALARMS_WP.accumulator_low_air = 1;
+      }
+
       if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
         ALARMS_WP.temperature_pumphouse = 1;
       } else {    
@@ -388,29 +393,100 @@ ISR (TIMER2_COMPA_vect)
       }
 
       /*** SET/CLEAR ALARMS DONE ***/
-    }
+    } // if(!APPFLAGS.is_updating)
+  } // tm_100ms_setAlarms
 
-    /*** Update WP suspension timer (Note: every time an ALARMBITS_WATERPUMP_PROTECTION alarm is cleared, we RESTART suspension period, this is intended design) ***/
-    if(!IS_ACTIVE_ALARMS_WP()) { // No active WP alarms, it's ok to start or continue suspension period
 
-      if(start_wp_suspension) {// we just cleared an WP alarm, start suspension timer from 1  
-        WATERPUMP.suspend_timer = 1; 
-        WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
-      } else { // see if we should increase or disable suspension timer
+  // --------- Water pump suspension logic -------------  
+  if(IS_ACTIVE_ALARMS_WP()) { 
+    WATERPUMP.is_suspended = 0;
+  } else {  // No active WP alarms, it's ok to start or continue suspension period
 
-        if(WATERPUMP.suspend_timer > 0 && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
-          if(tm_counterWP_suspend_1sec.expired() ) { 
-            WATERPUMP.suspend_timer++; 
-            WATERPUMP.suspend_timer_total++;
-          }
-        } else if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
-            WATERPUMP.suspend_timer = 0; // disable suspension timer
-        }
+    if(start_wp_suspension) {// we just cleared an WP alarm, start suspension timer
+      WATERPUMP.is_suspended = 1;
+      WATERPUMP.suspend_timer = 0; 
+      WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
+    } else { // see if we should increase or disable suspension timer
+
+      if(WATERPUMP.is_suspended && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
+
+      } else if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
+        WATERPUMP.is_suspended = 0;
+        WATERPUMP.suspend_timer = 0;
       }
     }
-    WATERPUMP.is_suspended = WATERPUMP.suspend_timer != 0 ? true : false; // if suspend_timer != 0, we are suspended, update flag
-
   }
+
+  // --------- Water pump second counters -------------  
+  if(tm_WP_seconds_counter.expired()) {
+    WATERPUMP.state_age++; 
+    WATERPUMP.pressure_state_t++;
+    if(WATERPUMP.is_running) {
+      WATERPUMP.total_runtime++; 
+    }
+    if(WATERPUMP.is_suspended) {
+      WATERPUMP.suspend_timer++; 
+      WATERPUMP.suspend_timer_total++;
+    }
+  }
+
+  // --------- Water pump state logic -------------
+  if(WATERPUMP.water_pressure_bar_val <= APPCONFIG.wp_lower && ADC_waterpressure.average > 0) {
+    if(WATERPUMP.pressure_state != PRESSURE_LOW) { // Pressure State has changed!
+      WATERPUMP.pressure_state_t = 0;  // Reset state time (inc in timer2)
+      WATERPUMP.pressure_state = PRESSURE_LOW;
+    }
+  } else if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper && ADC_waterpressure.average > 0) {
+    if(WATERPUMP.pressure_state != PRESSURE_OK) { // Pressure State has changed!
+      WATERPUMP.pressure_state_t = 0;  // Reset state time (inc in timer2)
+      WATERPUMP.pressure_state = PRESSURE_OK;
+    }
+  }
+
+  if(WATERPUMP.pressure_state == PRESSURE_LOW) {
+    if(WATERPUMP.is_running) {
+      
+    } else {
+      if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
+        if(WATERPUMP.state_age > 5) {  // always wait minimum 5 sec after stop before we start again, no hysterese...
+          WATERPUMP.is_running = 1;
+          WATERPUMP.state_age=0; //reset state age
+          WATERPUMP.start_counter++; // increase the start counter 
+        }
+
+      } else {
+        //not turning on yet, pressure_state_t < 5 sec
+      }
+    }
+  } else { // PRESSURE_OK
+    if(WATERPUMP.is_running) {
+      // check if runtime too short, it indicates too low air pressure in accumulator tank
+      if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
+        WATERPUMP.accumulator_ok = false;
+      } else {
+        WATERPUMP.accumulator_ok = true;
+      }
+      WATERPUMP.is_running = 0;
+      WATERPUMP.state_age=0; //reset state age
+      
+      
+    } else {
+      
+    }
+  }
+
+  /*if(WATERPUMP.total_runtime < APPCONFIG.wp_runtime_accumulator_alarm) {
+    WATERPUMP.accumulator_ok = true; // no alarm until we actually have a run cycle (after bootup)
+  }*/
+
+  // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
+  if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
+    WATERPUMP.is_running = 0;
+  }
+
+
+
+
 }
 
 
@@ -441,7 +517,7 @@ void loop() // run over and over
     
     ModIO_Update();
 
-    //----------- Update EMON data -------------
+    //----------- Update EMON Frequency data -------------
 
     currentMicros = micros();
     for(int c=0; c<250; c++){
@@ -468,13 +544,17 @@ void loop() // run over and over
     float t = duration / 250 / 1000.0; // us / samplecount / 1000.0 us
     EMONMAINS.Freq = 1000/(2*pulsecount* t);
 
+    //----------- Update EMON Voltage data -------------
+
     EMONMAINS.Vrms_L_N = voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
     
-    EMONDATA_K2.Irms = EMON_K2.calcIrms(500);
+    //----------- Update EMON Current data -------------
+
+    EMONDATA_K2.Irms = readACCurrentValue(ADC_CH_CT_K2, 20); // EMON_K2.calcIrms(500);
     EMONDATA_K2.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
-    EMONDATA_K3.Irms = EMON_K3.calcIrms(500);
+    EMONDATA_K3.Irms = readACCurrentValue(ADC_CH_CT_K3, 20);
     EMONDATA_K3.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K3.Irms);
 
     //----------- Update WATER PRESSURE data -------------
@@ -529,11 +609,12 @@ void loop() // run over and over
     data.add(WATERPUMP.temp_pumphouse_val);
     data = doc.createNestedArray("alarms");
 
-    if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits)) { // any alarm bit set?
+    if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
       if(ALARMS_EMON.emon_K2) data.add(F("K2"));
       if(ALARMS_EMON.emon_K3) data.add(F("K3"));
       if(ALARMS_SYS.low_memory) data.add(F("lowmem"));
       if(ALARMS_WP.waterpump_runtime) data.add(F("wpruntime"));
+      if(ALARMS_WP.accumulator_low_air) data.add(F("wp_accumulator"));
       if(ALARMS_WP.temperature_pumphouse) data.add(F("temp_pumphouse"));
       if(ALARMS_WP.sensor_error) data.add(F("sensor_wp"));
       if(ALARMS_EMON.sensor_error) data.add(F("sensor_emon"));
@@ -558,6 +639,8 @@ void loop() // run over and over
     json["t_susp"] = WATERPUMP.suspend_timer;
     json["t_susp_tot"] = WATERPUMP.suspend_timer_total;
     json["t_totruntime"] = WATERPUMP.total_runtime;
+    json["t_press_st"] = WATERPUMP.pressure_state_t;
+    json["press_st"] = WATERPUMP.pressure_state;
 
     JsonObject circuits = root.createNestedObject("circuits");
     json = circuits.createNestedObject("K2");
@@ -588,6 +671,34 @@ void loop() // run over and over
   }
 
 }
+
+float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange)
+{
+  uint8_t readcount = 50;
+  float ACCurrtntValue = 0;
+  float peakVoltage = 0;  
+  float voltageVirtualValue = 0;  //Vrms
+
+  if(ACTectionRange == 0) {
+    ACTectionRange = 20; // Default AC Current Sensor tection range (5A,10A,20A)
+  }
+
+  for (int i = 0; i < readcount; i++)
+  {
+    peakVoltage += analogRead(pin);   //read peak voltage
+    _delay_us(10);
+  }
+  peakVoltage = peakVoltage / readcount;   
+  voltageVirtualValue = peakVoltage * 0.707;    //change the peak voltage to the Virtual Value of voltage
+
+  /*The circuit is amplified by 2 times, so it is divided by 2.*/
+  voltageVirtualValue = (voltageVirtualValue / 1024 * VDD_ADC_CT_CALIB ) / 2;  
+
+  ACCurrtntValue = voltageVirtualValue * ACTectionRange;
+
+  return ACCurrtntValue;
+}
+
 
 /**
 * check if an alarm bit is set or not

@@ -39,8 +39,11 @@ void Webserver::AddRoutes() {
   server.on("/jquery.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/jquery.js", "application/x-javascript");
   });
-  server.on("/main.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/main.js", "application/x-javascript");
+  server.on("/update.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/update.js", "application/x-javascript");
+  });
+  server.on("/index.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.js", "application/x-javascript");
   });
 
   // GET command routes
@@ -151,7 +154,7 @@ void Webserver::AddRoutes() {
     AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
     response->addHeader("Connection", "close");
     request->send(response);
-    delay(800);
+    delay(2000);
     ESP.restart();
     
   },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
@@ -161,8 +164,6 @@ void Webserver::AddRoutes() {
         
         // if filename includes littlefs, update the littlefs partition
         int cmd = (filename.indexOf("spiffs") >= 0) ? U_SPIFFS : U_FLASH; 
-        
-
 
         if(cmd == U_FLASH) {
             Serial.printf("Firmware Update Start: %s\n", filename.c_str());
