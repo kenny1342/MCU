@@ -231,6 +231,8 @@ void setup() {
 }
 
 
+char buffer[1];
+
 void loop() 
 {  
 #ifdef OTA_HANDLER  
@@ -261,9 +263,6 @@ void loop()
         if (!TCPClient[num][i] || !TCPClient[num][i].connected()){
           if(TCPClient[num][i]) TCPClient[num][i].stop();
           TCPClient[num][i] = server[num]->available();
-          //if(debug) COM[DEBUG_COM]->print("New client for COM"); 
-          //if(debug) COM[DEBUG_COM]->print(num); 
-          //if(debug) COM[DEBUG_COM]->println(i);
           continue;
         }
       }
@@ -282,26 +281,17 @@ void loop()
       {               
         if(TCPClient[num][cln]) 
         {
-          //if(debug) COM[DEBUG_COM]->print("New client for COM"); 
-          //if(debug) COM[DEBUG_COM]->print(num); 
-          //if(debug) COM[DEBUG_COM]->println(cln);
+          if(TCPClient[num][cln].available()) {
+            
+            while(TCPClient[num][cln].available())
+            {
+              TCPClient[num][cln].readBytesUntil('\n', buffer, sizeof(buffer));
+              COM[num]->write(buffer);
+              COM[DEBUG_COM]->write(buffer);              
+            } 
+            COM[DEBUG_COM]->write('\n');
 
-          while(TCPClient[num][cln].available())
-          {
-            buf1[num][i1[num]] = TCPClient[num][cln].read(); // read char from client (LK8000 app)
-            if(i1[num]<bufferSize-1) i1[num]++;
-          } 
-
-          COM[num]->write(buf1[num], i1[num]); // now send to UART(num):
-          COM[num]->print("\n");
-          if(debug) COM[DEBUG_COM]->write(buf1[num], i1[num]);
-          if(debug) COM[DEBUG_COM]->print("\n");
-          i1[num] = 0;
-
-          //if(debug) COM[DEBUG_COM]->printf("RX %s->COM%u[%u]:", TCPClient[num][cln].remoteIP().toString().c_str(), num, cln);
-          //if(debug) COM[DEBUG_COM]->printf("%s\n", buf1[num]);
-          //if(debug) COM[DEBUG_COM]->printf("%s\n", buf1[num]);
-          
+          }
         }
       }
   

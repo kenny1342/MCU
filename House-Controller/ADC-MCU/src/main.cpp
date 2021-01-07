@@ -25,7 +25,7 @@ const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
-char serial_input_string[JSON_SIZE];
+
 
 static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
@@ -496,6 +496,7 @@ ISR (TIMER2_COMPA_vect)
 }
 
 
+
 void loop() // run over and over
 {
     
@@ -505,19 +506,44 @@ void loop() // run over and over
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
+  char buffer_sensorhub[JSON_SIZE] = {0};
+  char json[JSON_SIZE];
 
   wdt_reset();
-
+//char *ptr = json;
   // Simply forward data received from Sensor-Hub (sensors connected via wifi) to the Frontend
-  if (readline(Serial_SensorHub.read(), serial_input_string, JSON_SIZE) > 0) {
-    Serial.print("FWD:");
-    Serial.print(serial_input_string);
-    Serial.println("END");
-    
-    Serial_Frontend.println(serial_input_string);
-    *serial_input_string = '\0';
-  }
   
+  //if(Serial_SensorHub.available()) {
+    
+    while(Serial_SensorHub.available()) {
+      Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
+    }
+    // Extract JSON string and forward to Frontend serial
+    if(strlen(buffer_sensorhub) > 0) {
+      Serial.print("FWD:");
+      sscanf(buffer_sensorhub, "\\{%s\\}", json);    
+      
+      Serial_Frontend.write('{');
+      Serial_Frontend.write(json);
+      Serial_Frontend.write('\n');
+      
+      Serial.write('{');
+      Serial.write(json);
+      Serial.write("\n");
+    }
+
+  //}
+  
+  /*
+  if (readline(Serial_SensorHub.read(), buffer_sensorhub, JSON_SIZE) > 0) {
+    
+
+    sscanf(buffer_sensorhub, "{%s}", json);
+    Serial.print("FWD:");
+    Serial.print(json);
+    Serial.print("END\n");
+  }
+  */
   //if (Serial_SensorHub.available() > 0) {  
   //}
 
@@ -618,7 +644,7 @@ void loop() // run over and over
     doc.clear();
     JsonObject root = doc.to<JsonObject>();
     
-    root["cmd"] = 0x10; // ADCDATA
+    root["cmd"] = 0x10; // ADCEMONDATA
 
      root["firmware"] = FIRMWARE_VERSION;
 

@@ -115,7 +115,7 @@ void loop()
      doc.clear();
     JsonObject root = doc.to<JsonObject>();
     
-    root["cmd"] = 0x45; // NEW DATA READY
+    root["cmd"] = 0x45; // REMOTE_SENSOR_DATA
     root["id"] = 0x01; // this sensor's ID
     root["firmware"] = FIRMWARE_VERSION;
     root["IP"] = WiFi.localIP().toString();

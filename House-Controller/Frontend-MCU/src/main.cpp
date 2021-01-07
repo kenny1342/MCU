@@ -37,6 +37,8 @@ const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
 char data_string[JSON_SIZE];
+const char* data_string_ptr = data_string;
+
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
@@ -51,9 +53,11 @@ Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable i
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
-StaticJsonDocument<JSON_SIZE> data_json;
-uint32_t previousMillis = 0; 
-uint32_t previousMillis_200 = 0; 
+StaticJsonDocument<JSON_SIZE> tmp_json;
+StaticJsonDocument<JSON_SIZE> data_json_adcemon;
+StaticJsonDocument<JSON_SIZE> data_json_sensors;
+//uint32_t previousMillis = 0; 
+//uint32_t previousMillis_200 = 0; 
 uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
@@ -68,7 +72,7 @@ Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(1000); // 1sec 
 Timemark tm_PushToBlynk(500);
-Timemark tm_SerialDebug(10000);
+Timemark tm_SerialDebug(2000);
 Timemark tm_MenuReturn(30000);
 
 volatile int interruptCounter;
@@ -422,10 +426,10 @@ int readline(int readch, char *buffer, int len) {
 String HTMLProcessor(const String& var) {
   Serial.println(var);
   if (var == "TEMPERATURE"){
-    return String(data_json["temp_c"][0].as<String>());
+    return String(data_json_adcemon.getMember("temp_c")[0].as<String>());
   }
   else if (var == "WATERPRESSURE"){
-    return String(data_json["pressure_bar"][0].as<String>() );
+    return String(data_json_adcemon.getMember("pressure_bar")[0].as<String>() );
   }
   else if (var == "UPTIMESECS"){
     return String(millis() / 1000);
@@ -455,6 +459,7 @@ void saveConfigCallback () {
   Serial.println("Should save config");
   shouldSaveConfig = true;
 }
+
 
 void loop(void) {
   unsigned long currentMillis = millis();
@@ -525,48 +530,95 @@ void loop(void) {
 
   }
 
+
+
+/*    
+  while(Serial_DATA.available()) {
+    Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
+  }
+  // Extract JSON string and forward to Frontend serial
+  if(strlen(data_string) > 0) {
+    bool doSerialDebug = tm_SerialDebug.expired();
+    dataAge = millis();
+
+
+    //Serial.print("buffer_datain: ");
+    //Serial.write(buffer_datain); 
+    //Serial.write("\n");
+  
+  //  sscanf(buffer_datain, "{%s}", data_string);    
+
+    Serial.print("data_string: ");
+    Serial.write(data_string); 
+    Serial.write("\n");
+*/
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
   //
+  
   if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
     bool doSerialDebug = tm_SerialDebug.expired();
     dataAge = millis();
 
     if(doSerialDebug) {
-      Serial.print("rcvd: ");
+      Serial.print("data_string: ");
       Serial.println(data_string); 
     } else {
       Serial.print(".");
     }
 
-    // Deserialize the JSON document (zero-copy method)
-    DeserializationError error = deserializeJson(data_json, data_string);
-
-    // Test if parsing succeeds.
+    // Deserialize the JSON document     
+    tmp_json.clear();
+    //DeserializationError error = deserializeJson(tmp_json, buffer_datain); // writeable (zero-copy method)
+    DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
     if (error) {
+    //if(false) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
     } else {
-      snprintf(ADC_VERSION, 6, "%s", (const char*)data_json.getMember("firmware"));      
 
-      // Extract some values and push to Blynk server
       JsonVariant jsonVal;
       
-      jsonVal = data_json.getMember("pressure_bar");
-      if(!jsonVal.isNull()) {
-        Blynk.virtualWrite(V0, jsonVal[0].as<float>());
-      }      
-      jsonVal = data_json.getMember("temp_c");
-      if(!jsonVal.isNull()) {
-        Blynk.virtualWrite(V1, jsonVal[0].as<float>());
-      }      
-      jsonVal = data_json.getMember("K2");
-      if(!jsonVal.isNull()) {
-        Blynk.virtualWrite(V3, jsonVal.getMember("I").as<float>());
-        Blynk.virtualWrite(V4, jsonVal.getMember("P_a").as<long>());
+      jsonVal = tmp_json.getMember("cmd");
+      uint8_t cmd = jsonVal.as<uint8_t>();
+      //uint8_t cmd = 0x10;
+
+      if(doSerialDebug) {
+        Serial.printf("RX cmd=%u\n", cmd);
+        //Serial.println(data_string); 
       }
 
-      Blynk.virtualWrite(V0, data_json.getMember("pressure_bar")[0].as<float>());
-      Blynk.virtualWrite(V1, data_json.getMember("temp_c")[0].as<float>());      
+      switch(cmd) {
+        case 0x10: // ADCEMONDATA
+          //error = deserializeJson(data_json, data_string);
+          data_json_adcemon.clear();
+          data_json_adcemon = tmp_json;
+          snprintf(ADC_VERSION, 6, "%s", (const char*)data_json_adcemon.getMember("firmware"));      
+          jsonVal = data_json_adcemon.getMember("pressure_bar");
+          if(!jsonVal.isNull()) {
+            Blynk.virtualWrite(V0, jsonVal[0].as<float>());
+          }      
+          jsonVal = data_json_adcemon.getMember("temp_c");
+          if(!jsonVal.isNull()) {
+            Blynk.virtualWrite(V1, jsonVal[0].as<float>());
+          }      
+          jsonVal = data_json_adcemon.getMember("K2");
+          if(!jsonVal.isNull()) {
+            Blynk.virtualWrite(V3, jsonVal.getMember("I").as<float>());
+            Blynk.virtualWrite(V4, jsonVal.getMember("P_a").as<long>());
+          }
+
+          Blynk.virtualWrite(V0, data_json_adcemon.getMember("pressure_bar")[0].as<float>());
+          Blynk.virtualWrite(V1, data_json_adcemon.getMember("temp_c")[0].as<float>());      
+
+        break;
+        case 0x45: // REMOTE_SENSOR_DATA
+          data_json_sensors.clear();
+          data_json_sensors = tmp_json;
+          
+        break;
+        default: Serial.printf("Unknown CMD in JSON: %u", cmd);
+
+      }
 
     } // RX
 
@@ -606,7 +658,7 @@ void loop(void) {
         
         //tft.setCursor(0, TFT_LINE2);
         tft.printf("W Pump: ");
-        if(data_json.getMember("WP").getMember("is_running").as<uint8_t>() == 1) {
+        if(data_json_adcemon.getMember("WP").getMember("is_running").as<uint8_t>() == 1) {
           tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
           tft.printf("   RUNNING  ");
         } else {
@@ -620,35 +672,35 @@ void loop(void) {
         
         tft.printf("WP:" );
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-        t = data_json.getMember("pressure_bar")[0].as<float>();      
+        t = data_json_adcemon.getMember("pressure_bar")[0].as<float>();      
         tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         //tft.printf(" bar, ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-        t = data_json.getMember("temp_c")[0].as<float>();
+        t = data_json_adcemon.getMember("temp_c")[0].as<float>();
         tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         //tft.printf(" %cC\n", (char)247);
                 
-        t = data_json.getMember("emon_vrms_L_N").as<float>();
+        t = data_json_adcemon.getMember("emon_vrms_L_N").as<float>();
         tft.printf("V(rms) L-N:  ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = data_json.getMember("emon_vrms_L_PE").as<float>();
+        t = data_json_adcemon.getMember("emon_vrms_L_PE").as<float>();
         tft.printf("V(rms) L-PE: ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = data_json.getMember("emon_vrms_N_PE").as<float>();
+        t = data_json_adcemon.getMember("emon_vrms_N_PE").as<float>();
         tft.printf("V(rms) N-PE: ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
-        JsonArray alarms = data_json.getMember("alarms");
+        JsonArray alarms = data_json_adcemon.getMember("alarms");
         if(alarms.size() == 0) {
           tft.printf("     No alarms      ");
         } else {
@@ -677,21 +729,21 @@ void loop(void) {
         LCD_state.fgcolor = TFT_LIGHTGREY;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = data_json.getMember("pressure_bar")[0].as<float>();      
+        t = data_json_adcemon.getMember("pressure_bar")[0].as<float>();      
         tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
 
-        t = data_json.getMember("temp_c")[0].as<float>();
+        t = data_json_adcemon.getMember("temp_c")[0].as<float>();
         tft.printf("Room temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
 
-        tft.printf("Start count: %u \n", data_json.getMember("WP").getMember("cnt_starts").as<uint16_t>());
+        tft.printf("Start count: %u \n", data_json_adcemon.getMember("WP").getMember("cnt_starts").as<uint16_t>());
 
-        const char * state = data_json.getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
-        tft.printf("%s: %s\n", state, TimeToString(data_json.getMember("WP").getMember("t_state").as<uint16_t>()));
+        const char * state = data_json_adcemon.getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
+        tft.printf("%s: %s\n", state, TimeToString(data_json_adcemon.getMember("WP").getMember("t_state").as<uint16_t>()));
 
-        const char * suspended = data_json.getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
-        tft.printf("Susp: %s %s\n", suspended, TimeToString(data_json.getMember("WP").getMember("t_susp").as<uint16_t>()));
+        const char * suspended = data_json_adcemon.getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
+        tft.printf("Susp: %s %s\n", suspended, TimeToString(data_json_adcemon.getMember("WP").getMember("t_susp").as<uint16_t>()));
 
-        tft.printf("Susp tot: %s\n", TimeToString(data_json.getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
+        tft.printf("Susp tot: %s\n", TimeToString(data_json_adcemon.getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
       }
       break;
       case MENU_PAGE_SYSTEM_STATS:
@@ -736,7 +788,7 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         tft.printf("\n");
         tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
-        tft.printf(" ADC-MCU: v%s\n",  data_json.getMember("firmware").as<String>().c_str());
+        tft.printf(" ADC-MCU: v%s\n",  data_json_adcemon.getMember("firmware").as<String>().c_str());
         tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
         tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
         tft.print(F(" Ken-Roger Andersen \n") );

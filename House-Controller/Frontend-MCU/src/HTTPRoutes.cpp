@@ -47,7 +47,7 @@ void Webserver::AddRoutes() {
   });
 
   // GET command routes
-
+/*
   // return data fields from json as requested in /sensordata?fieldname
   server.on("/sensordata", HTTP_GET, [](AsyncWebServerRequest *request){
     int paramsNr = request->params();
@@ -76,17 +76,28 @@ void Webserver::AddRoutes() {
     }    
     request->send(200, "text/plain", F("Unknown parameter"));
   });
+*/
 
-  server.on("/json/sensors", HTTP_GET, [](AsyncWebServerRequest *request){
-    //request->send(200, "application/json", json_output);
-    
-    //String output = "";
-    char output[512] = { 0 };
-    serializeJson(data_json, output);
+  // cmd 0x10 = ADCEMONDATA (from ADC-MCU)
+  server.on("/json/0x10", HTTP_GET, [](AsyncWebServerRequest *request){
+    char output[JSON_SIZE] = { 0 };
+    serializeJson(data_json_adcemon, output);
     request->send(200, "application/json", output);
   });
 
-  
+  // cmd 0x45 = REMOTE_SENSOR_DATA (fex from Sensor-PumpHouse)
+  server.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
+    char output[JSON_SIZE] = { 0 };
+    serializeJson(data_json_sensors, output);
+    request->send(200, "application/json", output);
+  });
+
+  server.on("/json/TEST", HTTP_GET, [](AsyncWebServerRequest *request){
+    char output[JSON_SIZE] = { 0 };
+    serializeJson(tmp_json, output);
+    request->send(200, "application/json", output);
+  });
+
   server.on("/json/system", HTTP_GET, [](AsyncWebServerRequest *request){
     String output;
     StaticJsonDocument<150> doc;
