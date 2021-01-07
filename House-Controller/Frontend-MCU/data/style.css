@@ -1,0 +1,261 @@
+@import "https://fonts.googleapis.com/css?family=Raleway:100,300";
+@import "https://fonts.googleapis.com/css?family=Open+Sans:300,400,700,800";
+@import "https://fonts.googleapis.com/css?family=Josefin+Sans|Pacifico";
+
+html,
+body,
+.container {
+  height: 100%;
+}
+
+body {
+  /*font-family: "Open Sans", sans-serif;*/
+  font-family: "Josefin Sans", "Raleway", "avenir next", avenir, helvetica,
+    "helvetica neue", arial;
+  font-size: 18px;
+  overflow-x: hidden !important;
+  perspective: 1px;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  background-color: rgb(218, 218, 218);
+  text-align: center;
+  white-space: nowrap;
+}
+
+a {
+  color: rgb(222, 68, 21);
+  text-decoration: none;
+}
+
+a:hover {
+  color: rgb(0, 116, 217);
+}
+
+.container {
+  display: -webkit-box;
+  display: flex;
+  -webkit-box-pack:start;
+  justify-content: flex-start;
+  -webkit-box-align:start;
+  align-items: center;
+  background-color: rgb(231, 231, 231);
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  flex-direction: column;
+  background: linear-gradient(rgba(235, 241, 235, 0.25), rgba(2, 192, 176, 0.25))
+}
+
+#table_main{
+  -webkit-transform: translate(1%, 0);
+  transform: translate(1%, 0);
+  width: 99%; 
+  xborder: 1px solid red;
+  white-space: nowrap;
+  border-spacing: 1px;
+  margin: 1em 1em 1em 1em;
+}
+
+#table_main td {
+  vertical-align: top;
+}
+#table_main_td1 {
+  text-align: left;
+}
+#table_main_td2 {
+  text-align: right;  
+}
+
+#table_utility td {
+  padding: 20px;
+}
+#table_pump td, #table_emon td {
+  padding: 10px;
+}
+
+.td_title {
+  color: rgb(73, 73, 73);
+}
+#table_utility .td_title {
+  text-align: left;
+  font-size: 3em;
+}
+#table_pump .td_title {
+  text-align: left;
+  font-size: 2em;  
+}
+
+#table_utility .td_value {
+  text-align: left;
+  font-size: 4.2em;
+}
+
+#table_pump .td_value {
+  text-align: left;
+  font-size: 3em;  
+}
+
+.td_value {
+  white-space: nowrap;
+}
+
+
+#table_main th, #table_pump th, #table_emon th {
+  font-size: 2em;
+  color:rgb(148, 122, 5);
+}
+
+#table_emon {
+  width: 99%; 
+}
+
+#table_emon_circuits {
+  -webkit-transform: translate(1%, 0);
+  transform: translate(1%, 0);
+  width: 100%; 
+  white-space: nowrap;
+  border-spacing: 1px;
+  margin: 0 auto;
+}
+#table_emon_circuits td {
+  font-size: 2em;
+  border-bottom: 3px dotted rgb(141, 118, 14);
+}
+
+
+.OK {
+  color:rgb(19, 116, 0);
+}
+.ERR {
+  color:rgb(219, 45, 1);
+}
+
+h1 {
+    color: #0F3376;
+    padding: 2vh;
+  }
+
+  p {
+    font-size: 2.5rem;
+    color: rgb(51, 51, 51);
+  }
+
+
+  #alarms {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: red;
+  }
+
+  
+
+  .button {
+    display: inline-block;
+    background-color: #008CBA;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 16px 40px;
+    text-decoration: none;
+    font-size: 30px;
+    margin: 2px;
+    cursor: pointer;
+  }
+  .button2 {
+    background-color: #f44336;
+  }
+  .units {
+    font-size: 2.2rem;
+   }
+   .units_xs {
+    font-size: 0.9em;
+   }
+
+  .sensor-labels {
+    font-size: 2.5rem;
+    vertical-align:middle;
+    padding-bottom: 15px;
+  }
+
+  #success {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: rgb(255, 255, 255);  
+    background-color: rgb(3, 99, 0);  
+    padding: 1em;
+  }
+
+  #error {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: red;    
+    background-color: rgb(0, 0, 0);  
+    padding: 1em;
+  }
+
+ 
+  @media only screen and (max-width: 992px) {
+    /* For tablets, landscape mobile phones: */
+    body {
+      font-size: 16px;
+    }
+
+    *>*{
+        font-size:0.91em;
+    }
+
+    #table_utility td, #table_pump td, #table_emon_circuits td {
+      padding:0.2rem;
+    }
+
+    #table_emon_circuits tbody {
+      font-size:0.5rem;
+    }
+
+    .units {
+      font-size:1.15rem;
+    }
+    .container {
+      justify-content:start;
+    }    
+  }
+
+  @media screen and (max-width: 768px) {
+    /* For mobile phones: */
+    body {
+      font-size: 13px;
+    }
+
+    *>*{
+      font-size:0.88em;
+    }
+
+    small {
+      font-size:0.77em;
+      white-space: nowrap;
+    }
+
+    #table_utility td, #table_pump td, #table_emon_circuits td {
+      padding:0.2rem;
+    }
+    #table_utility .td_title {
+      font-size:0.8rem;
+    }
+    #table_emon_circuits tbody {
+      font-size:0.5rem;
+    }
+
+    .units {
+      font-size:0.6rem;
+    }
+    .container {
+      justify-content:start;
+    }    
+
+
+  }
