@@ -77,6 +77,7 @@ Timemark tm_CheckDataAge(1000); // 1sec
 Timemark tm_PushToBlynk(500);
 Timemark tm_SerialDebug(900);
 Timemark tm_MenuReturn(30000);
+Timemark tm_UpdateDisplay(2000);
 
 volatile int interruptCounter;
 
@@ -336,6 +337,7 @@ void setup(void) {
   tm_CheckDataAge.start();
   tm_PushToBlynk.start();
   tm_SerialDebug.start();
+  tm_UpdateDisplay.start();
 
   logger.println(F("Setup completed! Waiting for data..."));
   
@@ -494,11 +496,6 @@ void loop(void) {
     Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
   }
 
-  if(tm_ClearDisplay.expired()) {
-      tft.fillScreen(LCD_state.bgcolor);
-      //Serial.println("ISR CLEAR LCD");
-  }
-
   if(tm_CheckConnections.expired()) {
     if (!WiFi.isConnected())
     {
@@ -543,8 +540,8 @@ void loop(void) {
     Serial.write("\n");
 
   // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
-  //
-/*  
+    //
+  /*  
   if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
     bool doSerialDebug = tm_SerialDebug.expired();
     dataAge = millis();
@@ -555,7 +552,7 @@ void loop(void) {
     } else {
       Serial.print(".");
     }
-*/
+    */
     // Deserialize the JSON document     
     tmp_json.clear();
     //DeserializationError error = deserializeJson(tmp_json, buffer_datain); // writeable (zero-copy method)
@@ -612,23 +609,26 @@ void loop(void) {
         break;
         default: Serial.printf("Unknown CMD in JSON: %u", cmd);
 
-      }
+      } // switch
 
-    } // RX
+    } // not error
 
+  } // RX
 
-    //----------- Update OLED display ---------------
-    
-    // Automatically return to first menu page after set timeout
-    if(tm_MenuReturn.expired()) {
-      menu_page_current = 0;
-      LCD_state.clear = true;
-    }
+  //----------- Update OLED display ---------------
 
-    if(LCD_state.clear) {
-      LCD_state.clear = false;
+  if(tm_ClearDisplay.expired() || LCD_state.clear) {
       tft.fillScreen(LCD_state.bgcolor);
-    }
+      //Serial.println("ISR or told to CLEAR LCD");
+  }
+
+  // Automatically return to first menu page after set timeout
+  if(tm_MenuReturn.expired()) {
+    menu_page_current = 0;
+    LCD_state.clear = true;
+  }
+
+  if(tm_UpdateDisplay.expired()) {
 
     switch(menu_page_current)
     {
@@ -795,11 +795,9 @@ void loop(void) {
       break;
 
       default: menu_page_current = 0;
-
-    }
-  }
-
-}
+    } // switch()
+  } // tm_UpdateDisplay.expired()
+} // loop()
 
 /**
  * Check button states
