@@ -151,12 +151,14 @@ void setup() {
   #ifdef MODE_AP 
    if(debug) COM[DEBUG_COM]->println("Open ESP Access Point mode");
   //AP mode (phone connects directly to ESP) (no router)
+  
   WiFi.mode(WIFI_AP);
    
   WiFi.softAP(ssid, pw); // configure ssid and password for softAP
   delay(2000); // VERY IMPORTANT
   WiFi.softAPConfig(ip, ip, netmask); // configure ip address for softAP
 
+  Serial.printf("AP SSID:%s, key:%s, IP:%s\n", ssid, pw, ip.toString().c_str());
   #endif
 
 

@@ -32,9 +32,9 @@ extern AsyncWebServer server;
 extern bool shouldReboot;
 extern bool shouldSaveConfig;
 extern const char* _def_hostname;
-extern StaticJsonDocument<JSON_SIZE> data_json_adcemon;
-extern StaticJsonDocument<JSON_SIZE> data_json_sensors;
-extern StaticJsonDocument<JSON_SIZE> tmp_json;
+//extern StaticJsonDocument<JSON_SIZE> data_json_adcemon;
+//extern StaticJsonDocument<JSON_SIZE> data_json_sensors;
+extern StaticJsonDocument<JSON_SIZE> JSON_DOCS[4];
 
 void onRequest(AsyncWebServerRequest *request);
 void onNotFound(AsyncWebServerRequest *request);

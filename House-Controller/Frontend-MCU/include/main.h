@@ -12,7 +12,7 @@
 #define STR(x) XSTR(x)
 
 
-#define FIRMWARE_VERSION    "2.73"
+#define FIRMWARE_VERSION    "2.74"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -29,6 +29,11 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v"
 #define PIN_LED_1           37
 #define PIN_RXD2 25
 #define PIN_TXD2 26
+
+#define JSON_DOC_ADCSYSDATA         0
+#define JSON_DOC_ADCEMONDATA        1
+#define JSON_DOC_ADCWATERPUMPDATA   2
+#define JSON_DOC_ADCREMOTEDATA      3
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
 

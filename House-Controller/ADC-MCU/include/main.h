@@ -10,7 +10,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.16"
+#define FIRMWARE_VERSION            "2.17"
 #define JSON_SIZE                   768
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
@@ -33,7 +33,7 @@
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
-#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
+//#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
 #define ADC_CH_CT_K2                A8 // ADC connected to current sensor K2 (living room) Input
 #define ADC_CH_CT_K2_VDD_CALIB      4.45 // VDD calibrated (5.0*some factor) for current calc
 #define ADC_CH_CT_K3                A6 // ADC connected to current sensor K3 (kitchen) Input
@@ -49,7 +49,7 @@
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
 #define DEF_CONF_WP_RUNTIME_ACC_ALARM  6    // if we run shorter than this we raise accumulator/low air pressure alarm
-#define DEF_CONF_MIN_TEMP_PUMPHOUSE 10L   // minimum temp pumphouse in degrees C*10 before raising alarm
+#define DEF_CONF_MIN_TEMP_PUMPHOUSE 4L   // minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
 
 

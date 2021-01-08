@@ -31,11 +31,35 @@ jQuery(document).ready(function () {
     // Get data from JSON
     setInterval(function ( ) {
 
-      fetch('/json/0x10') //ADCEMONDATA
+      fetch('/json/0x10') //ADCSYSDATA
       .then(response => response.json())
       .then(data => {
           console.log(data);
-          localStorage.setItem('json', JSON.stringify(data));
+          localStorage.setItem('json0x10', JSON.stringify(data));
+          } // data =>
+      )
+      .catch(error => {
+          //console.error('Error:', error);
+          if($("#chktestdata").is(":checked")){
+            localStorage.setItem('json0x10', JSON.stringify("{}"));
+          } else {
+            //console.log("NOT using test data");
+            localStorage.setItem('json0x10', JSON.stringify("{}"));
+          }
+        }
+      ); // fetch
+
+
+    }, 2500 ) ;
+
+
+    setInterval(function ( ) {
+
+      fetch('/json/0x11') //ADCEMONDATA
+      .then(response => response.json())
+      .then(data => {
+          console.log(data);
+          localStorage.setItem('json0x11', JSON.stringify(data));
           } // data =>
       )
       .catch(error => {
@@ -44,16 +68,45 @@ jQuery(document).ready(function () {
             console.log("using test data");
             json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
             console.log(json);
-            localStorage.setItem('json', JSON.stringify(json));
+            localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
             //console.log("NOT using test data");
-            localStorage.setItem('json', JSON.stringify("{}"));
+            localStorage.setItem('json0x11', JSON.stringify("{}"));
           }
         }
       ); // fetch
 
 
     }, 2000 ) ;
+
+
+    setInterval(function ( ) {
+
+      fetch('/json/0x12') //ADCWATERPUMPDATA
+      .then(response => response.json())
+      .then(data => {
+          console.log(data);
+          localStorage.setItem('json0x12', JSON.stringify(data));
+          } // data =>
+      )
+      .catch(error => {
+          //console.error('Error:', error);
+          if($("#chktestdata").is(":checked")){
+            //console.log("using test data");
+            //json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+            //console.log(json);
+            //localStorage.setItem('json0x12', JSON.stringify(json));
+            localStorage.setItem('json0x12', JSON.stringify("{}"));
+          } else {
+            //console.log("NOT using test data");
+            localStorage.setItem('json0x12', JSON.stringify("{}"));
+          }
+        }
+      ); // fetch
+
+
+    }, 2000 ) ;
+
 
     // Get remote sensor data from JSON
     setInterval(function ( ) {
@@ -62,7 +115,7 @@ jQuery(document).ready(function () {
       .then(response => response.json())
       .then(data => {
           console.log(data);
-          localStorage.setItem('jsonremote', JSON.stringify(data));
+          localStorage.setItem('json0x45', JSON.stringify(data));
           } // data =>
       )
       .catch(error => {
@@ -71,10 +124,10 @@ jQuery(document).ready(function () {
             console.log("using test data");
             json = JSON.parse('{"cmd":69,"id":1,"firmware":"0.00","IP":"192.168.255.255","port":2323,"uptime_sec":18124,"data":[0.0001,0.0001,0.0001],"units":["DEGREES_C","DEGREES_C","PERCENT"],"text":[]}');
             console.log(json);
-            localStorage.setItem('jsonremote', JSON.stringify(json));
+            localStorage.setItem('json0x45', JSON.stringify(json));
           } else {
             //console.log("NOT using test data");
-            localStorage.setItem('jsonremote', JSON.stringify("{}"));
+            localStorage.setItem('json0x45', JSON.stringify("{}"));
           }
         }
       ); // fetch
@@ -124,9 +177,32 @@ jQuery(document).ready(function () {
           return;
       }
 
-      // -------------- EMON ---------------------------------
+
+      // -------------- ADCSYS ---------------------------------
       try {
-        json = JSON.parse(localStorage.getItem('json')); 
+        json = JSON.parse(localStorage.getItem('json0x10')); 
+        if(Object.keys(json).length < 1) {
+          console.log("invalid data, len=" + Object.keys(json).length);
+          return;
+        }
+
+        $("#alarms").empty();
+        if(Object.keys(json.alarms).length > 0) {
+          $("#alarms").append("ALARMS: ");
+          for(var key in json.alarms) {
+            $("#alarms").append(json.alarms[key] + "&nbsp;");
+          }
+        }
+
+      } catch(e) {
+        let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
+        console.log(str);
+        return;
+      }
+
+      // -------------- WATERPUMP ---------------------------------
+      try {
+        json = JSON.parse(localStorage.getItem('json0x12')); 
         if(Object.keys(json).length < 1) {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
@@ -141,6 +217,20 @@ jQuery(document).ready(function () {
         $("#wp_cnt_susp").empty().append( json.WP.cnt_susp );
         $("#wp_t_totruntime").empty().append( formatSecs(json.WP.t_totruntime) );
         $("#wp_t_susp_tot").empty().append( formatSecs(json.WP.t_susp_tot) );
+      } catch(e) {
+        let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
+        console.log(str);
+        return;
+      }
+
+
+      // -------------- EMON ---------------------------------
+      try {
+        json = JSON.parse(localStorage.getItem('json0x11')); 
+        if(Object.keys(json).length < 1) {
+          console.log("invalid data, len=" + Object.keys(json).length);
+          return;
+        }
 
         $("#emon_freq").empty().append( parseFloat(json.emon_freq).toFixed(1) );
         $("#emon_vrms_L_N").empty().append( parseFloat(json.emon_vrms_L_N).toFixed(1) );
@@ -188,13 +278,6 @@ jQuery(document).ready(function () {
           }
         }
 
-        $("#alarms").empty();
-        if(Object.keys(json.alarms).length > 0) {
-          $("#alarms").append("ALARMS: ");
-          for(var key in json.alarms) {
-            $("#alarms").append(json.alarms[key] + "&nbsp;");
-          }
-        }
       } catch(e) {
         let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);
@@ -203,7 +286,7 @@ jQuery(document).ready(function () {
 
       // -------------- REMOTE SENSORS ---------------------------------
       try {
-        json = JSON.parse(localStorage.getItem('jsonremote'));
+        json = JSON.parse(localStorage.getItem('json0x45'));
         if(Object.keys(json).length < 1) {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;

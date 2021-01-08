@@ -27,13 +27,14 @@ String dataString = "no data";
 
 
 
-static adc_avg ADC_temp_1;
+//static adc_avg ADC_temp_1;
 static adc_avg ADC_waterpressure;
 //SoftwareSerial Serial_Frontend(2, 3); // RX, TX
 #define Serial_Frontend Serial1
 #define Serial_SensorHub Serial2
 
 StaticJsonDocument<JSON_SIZE> doc;
+StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
 //JsonObject json;
 
 //EnergyMonitor EMON_K2;  // instance used for calcIrms()
@@ -62,6 +63,7 @@ Timemark tm_counterWP_suspend_1sec(1000);
 Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
+Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
 
 void setup()
 {
@@ -132,7 +134,7 @@ void setup()
 
   // initialize all ADC readings to 0:
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    ADC_temp_1.readings[thisReading] = 0;
+    //ADC_temp_1.readings[thisReading] = 0;
     ADC_waterpressure.readings[thisReading] = 0;
   }
 
@@ -220,32 +222,6 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
-
-
-
-/*
-  if(!WATERPUMP.is_running) {
-    if(WATERPUMP.water_pressure_bar_val <= APPCONFIG.wp_lower && ADC_waterpressure.average > 0) { // startbelow lower threshold AND valid ADC reading (if we get here before alarm ISR has updated alarms)
-      if(!IS_ACTIVE_ALARMS_WP()) { // Do not start if any of these alarms are active
-        if(WATERPUMP.suspend_timer == 0 || WATERPUMP.suspend_timer > APPCONFIG.wp_suspendtime) { // Do not start if still suspended after prev alarams
-          WATERPUMP.is_running = 1; // START waterpump in main loop if not running
-          WATERPUMP.state_age=0; //reset state age
-          WATERPUMP.start_counter++; // increase the start counter 
-        } else 
-          Serial.println(F("SUSP: NOT starting WP"));
-      } else
-        Serial.println(F("ALARMS: NOT starting WP"));
-    }
-
-  } else { // is running
-    if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper || IS_ACTIVE_ALARMS_WP() ) { // stop if reached upper threshold OR alarms active     
-      WATERPUMP.is_running = 0; // STOP waterpump in main loop if running
-      //TODO: check if runtime too short, indicate too low air pressure in accumulator tank
-      WATERPUMP.state_age=0; //reset state age
-    }
-  }
-*/
-
 }
 
 
@@ -270,7 +246,7 @@ ISR (TIMER2_COMPA_vect)
 
   digitalWrite(LED_BUSY, !APPFLAGS.is_busy);
 
-  if(!ADC_waterpressure.ready || !ADC_temp_1.ready || millis() < 5000) return; // just powered up, let things stabilize
+  if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
   // --------- Set LEDs and buzzer state -------------
   if( (IS_ACTIVE_ALARMS_WP() /*|| WATERPUMP.is_suspended*/)) { // Water pump related is critical/Alarm LED
@@ -361,12 +337,21 @@ ISR (TIMER2_COMPA_vect)
 
       /////// WATER PUMP Sensor alarms ////////////////
       ALARMS_WP.sensor_error = 0;
-
+/*
       if(ADC_temp_1.average < 350 || ADC_temp_1.average > 700) { // if sensor (LM335) is disconnected ADC gives very high readings
         ALARMS_WP.sensor_error = 1;
       } else {    
          if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
       }
+*/
+
+      // TODO: check data age
+      if(WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
+        ALARMS_WP.sensor_error = 1;
+      } else {    
+         if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+      }
+
 
       if(ADC_waterpressure.average == 0) {
         ALARMS_WP.sensor_error = 1;
@@ -507,45 +492,66 @@ void loop() // run over and over
   uint32_t currentMicros = 0;
   int samples[250];
   char buffer_sensorhub[JSON_SIZE] = {0};
-  char json[JSON_SIZE];
+  const char* buffer_sensorhub_ptr = buffer_sensorhub;
+  //char json[JSON_SIZE];
 
   wdt_reset();
 //char *ptr = json;
-  // Simply forward data received from Sensor-Hub (sensors connected via wifi) to the Frontend
-  
-  //if(Serial_SensorHub.available()) {
-    
+  // forward data received from Sensor-Hub (sensors connected via wifi) to the Frontend
+     
     while(Serial_SensorHub.available()) {
       Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
     }
     // Extract JSON string and forward to Frontend serial
     if(strlen(buffer_sensorhub) > 0) {
       Serial.print("FWD:");
-      sscanf(buffer_sensorhub, "\\{%s\\}", json);    
+      //sscanf(buffer_sensorhub, "\\{%s\\}", json);    
       
-      Serial_Frontend.write('{');
-      Serial_Frontend.write(json);
+      //Serial_Frontend.write('{');
+      Serial_Frontend.write(buffer_sensorhub);
       Serial_Frontend.write('\n');
       
-      Serial.write('{');
-      Serial.write(json);
+      //Serial.write('{');
+      Serial.write(buffer_sensorhub);
       Serial.write("\n");
+
+      // TODO: parse JSON, process data from REMOTE_PROBES 
+      // Temp Pumphouse: if cmd=0x45 and devid=50406 and sid=1 read data("value") into WATERPUMP.temp_pumphouse_val
+      
+      
+
+      // Deserialize the JSON document     
+      tmp_json.clear();
+      DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub_ptr); // read-only input (duplication)
+      if (error) {
+      //if(false) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+      } else {
+
+        JsonVariant jsonVal;
+        
+        //jsonVal = tmp_json.getMember("cmd");
+        //uint8_t cmd = jsonVal.as<uint8_t>();
+
+        if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
+          Serial.println("this is SENSOR_DATA");
+          if(tmp_json.getMember("devid").as<String>() == "50406") { // Water pump probe
+            Serial.println("this is devid 50406");
+            if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
+            Serial.println("this is sid 1 pump room temp sensor");
+              WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
+              tm_DataStale_50406_1.start(); // restart "old data" timer
+            }
+          }
+        }
+      }
     }
 
-  //}
-  
-  /*
-  if (readline(Serial_SensorHub.read(), buffer_sensorhub, JSON_SIZE) > 0) {
-    
-
-    sscanf(buffer_sensorhub, "{%s}", json);
-    Serial.print("FWD:");
-    Serial.print(json);
-    Serial.print("END\n");
+  // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
+  if(tm_DataStale_50406_1.expired()) {
+    WATERPUMP.temp_pumphouse_val = -99.0;
   }
-  */
-  //if (Serial_SensorHub.available() > 0) {  
-  //}
 
   if (tm_DataTX.expired()) {
     
@@ -619,39 +625,20 @@ void loop() // run over and over
     WATERPUMP.water_pressure_bar_val = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
     WATERPUMP.water_pressure_bar_val += (double)CORR_FACTOR_PRESSURE_SENSOR;
 
-    //------------- Update TEMPERATURE data ***********
-    ADC_temp_1.total -= ADC_temp_1.readings[ADC_temp_1.readIndex];
-    ADC_temp_1.readings[ADC_temp_1.readIndex] = analogRead(ADC_CH_TEMP_1); //On ATmega based boards (UNO, Nano, Mini, Mega), it takes about 100 microseconds (0.0001 s) to read an analog input, so the maximum reading rate is about 10,000 times a second.
-    ADC_temp_1.total += ADC_temp_1.readings[ADC_temp_1.readIndex];
-    ADC_temp_1.readIndex += 1;
-
-    if (ADC_temp_1.readIndex >= numReadings) {
-      ADC_temp_1.readIndex = 0;
-      ADC_temp_1.ready = 1;
-    }
-
-    ADC_temp_1.average = ADC_temp_1.total / numReadings;
-    //Serial.println(ADC_temp_1.average);
-
-    // LM335 outputs mv/Kelvin, convert ADC to millivold and subtract Kelvin zero (273.15) to get Celsius
-    WATERPUMP.temp_pumphouse_val = (double) (((5000.0 * (double)ADC_temp_1.average) / 1024L) / 10L) - 273.15; // as float value
-
     APPFLAGS.is_updating = 0;
 
-    //------------ Create JSON doc ----------------    
-    // TODO: Split up EMON and WP data into separate JSON strings and TX one by one to reduze string/memory footprint
+    //------------ Create JSON doc ----------------
+    LED_ON(PIN_LED_WHITE);
 
     doc.clear();
     JsonObject root = doc.to<JsonObject>();
-    
-    root["cmd"] = 0x10; // ADCEMONDATA
 
-     root["firmware"] = FIRMWARE_VERSION;
+    // ---------------- SEND ADCSYSDATA --------------------
+    root.clear();
+    root["cmd"] = 0x10; // ADCSYSDATA
+    root["firmware"] = FIRMWARE_VERSION;
+    root["uptime_sec"] = (uint32_t) millis() / 1000;
 
-    data = doc.createNestedArray("pressure_bar");
-    data.add(WATERPUMP.water_pressure_bar_val);
-    data = doc.createNestedArray("temp_c");
-    data.add(WATERPUMP.temp_pumphouse_val);
     data = doc.createNestedArray("alarms");
 
     if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
@@ -666,12 +653,47 @@ void loop() // run over and over
       if(ALARMS_EMON.power_groundfault) data.add(F("groundfault"));
       if(ALARMS_EMON.power_voltage) data.add(F("emon_voltage"));
     }
-    
+
+    dataString = "";
+    serializeJson(root, dataString);
+    Serial.println(dataString);
+    Serial_Frontend.println(dataString);
+
+    // ---------------- SEND ADCEMONDATA --------------------
+    root.clear();
+    root["cmd"] = 0x11; // ADCEMONDATA
+
     doc["emon_freq"] = EMONMAINS.Freq;
     doc["emon_vrms_L_N"] = EMONMAINS.Vrms_L_N;
     doc["emon_vrms_L_PE"] = EMONMAINS.Vrms_L_PE;
     doc["emon_vrms_N_PE"] = EMONMAINS.Vrms_N_PE;
 
+    JsonObject circuits = root.createNestedObject("circuits");
+    JsonObject circuit = circuits.createNestedObject("K2");
+    //json = root.createNestedObject("K2");
+    circuit["I"] = EMONDATA_K2.Irms;
+    circuit["P_a"] = EMONDATA_K2.apparentPower;
+    circuit["PF"] = EMONDATA_K2.PF;
+    
+    circuit = circuits.createNestedObject("K3");
+    //json = root.createNestedObject("K3");
+    circuit["I"] = EMONDATA_K3.Irms;
+    circuit["P_a"] = EMONDATA_K3.apparentPower;
+    circuit["PF"] = EMONDATA_K3.PF;
+
+    dataString = "";
+    serializeJson(root, dataString);
+    Serial.println(dataString);
+    Serial_Frontend.println(dataString);
+
+    // ---------------- SEND ADCWATERPUMPDATA --------------------
+    root.clear();
+    root["cmd"] = 0x12; // ADCWATERPUMPDATA
+
+    data = doc.createNestedArray("pressure_bar");
+    data.add(WATERPUMP.water_pressure_bar_val);
+    data = doc.createNestedArray("temp_c"); // TODO: LEGACY, Frontend should read from REMOTE_SENSORS
+    data.add(WATERPUMP.temp_pumphouse_val);
     
 
     JsonObject json = root.createNestedObject("WP");
@@ -687,31 +709,13 @@ void loop() // run over and over
     json["t_press_st"] = WATERPUMP.pressure_state_t;
     json["press_st"] = WATERPUMP.pressure_state;
 
-    JsonObject circuits = root.createNestedObject("circuits");
-    json = circuits.createNestedObject("K2");
-    //json = root.createNestedObject("K2");
-    json["I"] = EMONDATA_K2.Irms;
-    json["P_a"] = EMONDATA_K2.apparentPower;
-    json["PF"] = EMONDATA_K2.PF;
-    
-    json = circuits.createNestedObject("K3");
-    //json = root.createNestedObject("K3");
-    json["I"] = EMONDATA_K3.Irms;
-    json["P_a"] = EMONDATA_K3.apparentPower;
-    json["PF"] = EMONDATA_K3.PF;
-
     dataString = "";
-    // Generate the minified JSON
-    LED_ON(PIN_LED_WHITE);
     serializeJson(root, dataString);
-    // Outputs something like:
-    // {"sensor":"pumphouse","id":"1","firmware":"2.01","pressure_bar":[3.966797],"temp_c":[25.67813],"alarms":[],"WP":{"t_state":32,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":1,"t_susp":0,"t_totruntime":0},"K2":{"I":29.6936,"P_a":0,"P_r":0,"V":230,"PF":0},"K3":{"I":21.15884,"P_a":0,"P_r":0,"V":230,"PF":0}}
-
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
-    LED_OFF(PIN_LED_WHITE);
-    //tone(PIN_BUZZER, 1000, 100);
 
+
+    LED_OFF(PIN_LED_WHITE);
     APPFLAGS.is_busy = 0;
   }
 
