@@ -1,8 +1,9 @@
 /**
- * This is code on ESP8266 WiFi module on the board, it reads a JSON encoded string from serial and makes it available via HTTP http://my.ip/json
- * We also parse out the temperature value (celsius) and display it as html on the web root (/)
+ * Frontend - ESP32 webserver/TFT display. Reads a JSON encoded string from serial and makes it available via HTTP + TFT.
  * 
- * Connect TX/RX to the controller MCU's (Uno) SW serial pins
+ * Connect TX/RX to ADC-MCU (Mega2560) Serial2 pins
+ * 
+ * * TODO: replace serial link to ADC-MCU with SPI
  * 
  * Kenny Dec 19, 2020
  */
@@ -36,8 +37,8 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
-char data_string[JSON_SIZE];
-const char* data_string_ptr = data_string;
+//char data_string[JSON_SIZE];
+//const char* data_string_ptr = data_string;
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
@@ -53,14 +54,12 @@ Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable i
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
-StaticJsonDocument<JSON_SIZE> tmp_json;
-//StaticJsonDocument<JSON_SIZE> data_json_adcemon;
-//StaticJsonDocument<JSON_SIZE> data_json_sensors;
+//StaticJsonDocument<JSON_SIZE> tmp_json;
 
-StaticJsonDocument<JSON_SIZE> JSON_DOCS[4];
+//StaticJsonDocument<JSON_SIZE> JSON_DOCS[4];
 
-//uint32_t previousMillis = 0; 
-//uint32_t previousMillis_200 = 0; 
+char JSON_STRINGS[JSON_DOC_COUNT][JSON_SIZE] = {0};
+
 uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
@@ -74,10 +73,13 @@ Logger logger = Logger(&tft);
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(1000); // 1sec 
-Timemark tm_PushToBlynk(500);
-Timemark tm_SerialDebug(900);
+Timemark tm_PushToBlynk(1500);
+Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
-Timemark tm_UpdateDisplay(2000);
+Timemark tm_UpdateDisplay(1000);
+const uint8_t NUM_TIMERS = 7;
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay };
 
 volatile int interruptCounter;
 
@@ -114,7 +116,7 @@ void setup(void) {
   BtnUP.begin();    // This also sets pinMode
   BtnDOWN.begin();  // This also sets pinMode
   
-  Serial_DATA.begin(115200, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
+  Serial_DATA.begin(57600, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
   Serial_DATA.println("WiFi-MCU booting up...");
 
   Serial.begin(115200);
@@ -126,7 +128,7 @@ void setup(void) {
   logger.println("");
   logger.println(F("To reset, press button for 5+ secs while powering on"));
   logger.println("");
-  delay(1000);
+  if(!DEBUG) delay(1000);
 
 
   tft.init();
@@ -140,14 +142,14 @@ void setup(void) {
   tft.setSwapBytes(true);
   //tft.pushImage(0, 0,  240, 135, ttgo);
   tft.pushImage(0, 0,  240, 135, kra_tech);
-  delay(10000);
+  if(!DEBUG) delay(10000);
 
   tft.fillScreen(TFT_RED);
-  delay(300);
+  if(!DEBUG) delay(300);
   tft.fillScreen(TFT_BLUE);
-  delay(300);
+  if(!DEBUG) delay(300);
   tft.fillScreen(TFT_GREEN);
-  delay(300);
+  if(!DEBUG) delay(300);
 
   tft.setTextWrap(true);
 
@@ -157,11 +159,11 @@ void setup(void) {
 
   tft.println("\n\n   Starting...  ");
   tft.setTextSize(txtsize);
-  delay(700);
+  if(!DEBUG) delay(700);
 
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
-  delay(700);
+  if(!DEBUG) delay(700);
 
   Serial.print(F("reading /WEBIF_VERSION..."));
   if(SPIFFS.exists("/WEBIF_VERSION")) {
@@ -187,7 +189,7 @@ void setup(void) {
   logger.print(F("Loading configuration from /config.json..."));
   Setup::GetConfig();
 
-  delay(500);
+  if(!DEBUG) delay(500);
   logger.println(F("Starting WiFi..."));
 /*
   WiFi.mode(WIFI_AP_STA);
@@ -332,18 +334,23 @@ void setup(void) {
   //timerAlarmWrite(timer, 6000000, true); // 6000000us=60sec
   timerAlarmEnable(timer);
 
+  for(int t=0; t<NUM_TIMERS; t++){
+    Timers[t]->start();
+  }
+  /*
   tm_ClearDisplay.start();
   tm_CheckConnections.start();
   tm_CheckDataAge.start();
   tm_PushToBlynk.start();
   tm_SerialDebug.start();
   tm_UpdateDisplay.start();
-
+*/
   logger.println(F("Setup completed! Waiting for data..."));
   
-  delay(2000);
+  //delay(2000);
   tft.setTextWrap(false);
-  tft.fillScreen(TFT_BLACK);
+  //tft.fillScreen(TFT_BLACK);
+  LCD_state.clear = 1;
 }
 
 //gets called when WiFiManager enters configuration mode
@@ -459,11 +466,17 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
+//char data_string[JSON_SIZE] = "";
 
 void loop(void) {
   unsigned long currentMillis = millis();
   //int wifitries = 0;
   double t = 0;
+  char data_string[JSON_SIZE] = "";
+  const char* data_string_ptr = data_string;
+
+  //const size_t JSON_SIZE = JSON_OBJECT_SIZE(20) + 25; // json with 20 elements, 30 chars
+  //StaticJsonDocument<JSON_SIZE> tmp_json;
 
   Blynk.run();
   CheckButtons();
@@ -492,11 +505,11 @@ void loop(void) {
     }    
   }
 
-  if(tm_PushToBlynk.expired()) {
+  if(Timers[TM_PushToBlynk]->expired()) {
     Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
   }
 
-  if(tm_CheckConnections.expired()) {
+  if(Timers[TM_CheckConnections]->expired()) {
     if (!WiFi.isConnected())
     {
         delay(5000);
@@ -508,8 +521,8 @@ void loop(void) {
           if (reconnects_wifi == 20)
           {
             Serial.println(F("Too many failures, rebooting..."));          
-            reconnects_wifi = 0; //TODO: comment
-            ESP.restart(); //TODO: uncomment
+            //reconnects_wifi = 0;
+            ESP.restart();
             return;
           }
         }
@@ -524,67 +537,57 @@ void loop(void) {
 
   }
 
-
-
-    
-  while(Serial_DATA.available()) {
-    Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
+  if(Serial_DATA.available())
+  {
+        Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
   }
-  // Extract JSON string and forward to Frontend serial
+    
+  
   if(strlen(data_string) > 0) {
-    bool doSerialDebug = tm_SerialDebug.expired();
-    dataAge = millis();
-
-    Serial.print("data_string: ");
-    Serial.write(data_string); 
-    Serial.write("\n");
-
-  // read line (JSON) from hw serial RX (patched to UNO sw serial TX), then store it in data var, and resend it on hw TX for debug    
-    //
-  /*  
-  if (readline(Serial_DATA.read(), data_string, JSON_SIZE) > 0) {
-    bool doSerialDebug = tm_SerialDebug.expired();
+    // Forward data to Frontend, then parse JSON string into document tmp_json  
+    
+    bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
     if(doSerialDebug) {
-      Serial.print("data_string: ");
+      Serial.print("\nRX:");
       Serial.println(data_string); 
     } else {
       Serial.print(".");
     }
-    */
-    // Deserialize the JSON document     
-    tmp_json.clear();
+    
+    
+    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+    
     //DeserializationError error = deserializeJson(tmp_json, buffer_datain); // writeable (zero-copy method)
     DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
+    
     if (error) {
-    //if(false) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
+        Serial.print("\n");
+        Serial.print(data_string);
+        Serial.print(F("^JSON_ERR"));
+        Serial.println(error.f_str());
     } else {
 
       JsonVariant jsonVal;
       
       jsonVal = tmp_json.getMember("cmd");
       uint8_t cmd = jsonVal.as<uint8_t>();
-      //uint8_t cmd = 0x10;
 
-      if(doSerialDebug) {
-        Serial.printf("RX cmd=%u\n", cmd);
-        //Serial.println(data_string); 
-      }
+      //Serial.printf("cmd=%u\n", cmd);
 
       switch(cmd) {
         case 0x10: // ADCSYSDATA          
-          JSON_DOCS[JSON_DOC_ADCSYSDATA].clear();
-          JSON_DOCS[JSON_DOC_ADCSYSDATA] = tmp_json;
-          snprintf(ADC_VERSION, 6, "%s", (const char*)JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("firmware"));      
+  
+          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
+
+          snprintf(ADC_VERSION, 6, "%s", (const char*)tmp_json.getMember("firmware"));      
         break;
         case 0x11: // ADCEMONDATA
-          JSON_DOCS[JSON_DOC_ADCEMONDATA].clear();
-          JSON_DOCS[JSON_DOC_ADCEMONDATA] = tmp_json;
+          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
+
           // TESTING - send some circuit data to Blynk
-          jsonVal = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("K2");
+          jsonVal = tmp_json.getMember("K2");
           if(!jsonVal.isNull()) {
             Blynk.virtualWrite(V3, jsonVal.getMember("I").as<float>());
             Blynk.virtualWrite(V4, jsonVal.getMember("P_a").as<long>());
@@ -592,20 +595,52 @@ void loop(void) {
           
         break;        
         case 0x12: // ADCWATERPUMPDATA
-          JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].clear();
-          JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA] = tmp_json;        
+   
+          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
+
           // TESTING - send some circuit data to Blynk
-          Blynk.virtualWrite(V0, JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("pressure_bar")[0].as<float>());
-          Blynk.virtualWrite(V1, JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("temp_c")[0].as<float>());      
+          Blynk.virtualWrite(V0, tmp_json.getMember("pressure_bar").as<float>());
+          Blynk.virtualWrite(V1, tmp_json.getMember("temp_c").as<float>());      
           
         break;        
-
         case 0x45: // REMOTE_SENSOR_DATA
-        // TODO: Create array REMOTE_SENSORS[devid][sid] = ...
-        // Webif must be able to access a specific device->sensor
-          JSON_DOCS[JSON_DOC_ADCREMOTEDATA].clear();
-          JSON_DOCS[JSON_DOC_ADCREMOTEDATA] = tmp_json;        
+        /*
+        {
+          //JSON_DOCS[JSON_DOC_ADCREMOTEDATA].garbageCollect();
+          JsonVariant json_devid;
           
+          json_devid = tmp_json.getMember("devid");
+          uint16_t devid = json_devid.as<uint16_t>();
+          Serial.printf("GOT 0x45, devid=%u\n", devid);        
+
+          if(devid > 0) {
+            
+            // TODO: check if array with this devid already exists, clear if so
+            //if(JSON_DOCS[JSON_DOC_ADCREMOTEDATA].containsJey( tmp_json.getMember("devid").as<char*>() ))
+            
+            //JSON_DOCS[JSON_DOC_ADCREMOTEDATA].remove( String(devid) ); // remove if exists?
+            JSON_DOCS[JSON_DOC_ADCREMOTEDATA].getMember( String(devid) ).clear();
+            JsonObject root_sensor = JSON_DOCS[JSON_DOC_ADCREMOTEDATA].createNestedObject(String(devid)); // TODO: no String
+            
+            char jsonString[JSON_SIZE] = "";
+            //const char * p = jsonString;
+            //serializeJson(tmp_json, Serial);
+            Serial.print("jsonString:");
+            serializeJson(tmp_json, Serial);
+            Serial.write('\n');
+
+            serializeJson(tmp_json, jsonString, sizeof(jsonString));
+            //root_sensor.getOrAddMember("json").set()
+            root_sensor["json"] = jsonString;
+            
+
+            root_sensor["ts_epoch"] = millis() / 1000;
+
+
+            //JSON_DOCS[JSON_DOC_ADCREMOTEDATA] = tmp_json;        
+          }
+        }
+        */
         break;
         default: Serial.printf("Unknown CMD in JSON: %u", cmd);
 
@@ -615,20 +650,42 @@ void loop(void) {
 
   } // RX
 
+
   //----------- Update OLED display ---------------
 
-  if(tm_ClearDisplay.expired() || LCD_state.clear) {
+  if(Timers[TM_ClearDisplay]->expired() || LCD_state.clear) {
+      LCD_state.clear = 0;
       tft.fillScreen(LCD_state.bgcolor);
       //Serial.println("ISR or told to CLEAR LCD");
   }
 
   // Automatically return to first menu page after set timeout
-  if(tm_MenuReturn.expired()) {
+  if(Timers[TM_MenuReturn]->expired()) {
     menu_page_current = 0;
     LCD_state.clear = true;
   }
 
-  if(tm_UpdateDisplay.expired()) {
+  if(Timers[TM_UpdateDisplay]->expired()) {
+
+    // First we parse the JSON strings into objects so we can easily access the data
+    
+    DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+  
+    for(int x=0; x<JSON_DOC_COUNT; x++) {
+      
+      const char * p = JSON_STRINGS[x];
+      DeserializationError error = deserializeJson(JSON_DOCS[x], p); // read-only input (duplication)
+      JSON_DOCS[x].shrinkToFit();
+      if (error) {
+        Serial.print("\n");
+        Serial.print(JSON_STRINGS[x]);
+        Serial.print(F("^JSON_ERR"));
+        Serial.println(error.f_str());
+      }
+    }
+
+    
+
 
     switch(menu_page_current)
     {
@@ -657,7 +714,7 @@ void loop(void) {
           tft.printf("   RUNNING  ");
         } else {
           tft.setTextColor(TFT_WHITE, TFT_RED); 
-          tft.printf("     OFF    ");
+          tft.printf("   STOPPED  ");
         }
         tft.printf("\n");
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
@@ -666,12 +723,12 @@ void loop(void) {
         
         tft.printf("WP:" );
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar")[0].as<float>();      
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar").as<float>();      
         tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         //tft.printf(" bar, ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c")[0].as<float>();
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
         tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         //tft.printf(" %cC\n", (char)247);
@@ -723,10 +780,10 @@ void loop(void) {
         LCD_state.fgcolor = TFT_LIGHTGREY;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar")[0].as<float>();      
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar").as<float>();      
         tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c")[0].as<float>();
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
         tft.printf("Room temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
 
         tft.printf("Start count: %u \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());

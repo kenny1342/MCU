@@ -1,109 +1,37 @@
 /**
- * ESP32 WiFi <-> 3x UART Bridge
- * WiFi sensor connects to this AP. Their (JSON) data is received via TCP and relayed to Frontend via serial.
+ * ESP32 WiFi <-> 3x UART + SPI Bridge
+ * WiFi sensors connects to this AP. Their (JSON) data is received via TCP and forwarded out on SPI and Serial.
+ * No data/JSON manipulation takes place in this module, just a simple transparent bridge.
+ * Currently ADC-MCU is SPI slave and listens only for SPI, Serial not used.
  */
 
 #include <Arduino.h>
 #include "config.h"
 #include <esp_wifi.h>
 #include <WiFi.h>
+#include <SPI.h>
 
+SPIClass SPI1(HSPI);
+#define SS 15
 
-/* BETTER/SIMPLER EXAMPLE - PORT TO ESP32!!!
+/*
+HSPI and VSPI pins can be redefined or defaults used.
 
-#include <ESP8266WiFi.h>
+I like using HSPI.
 
-//how many clients should be able to telnet to this ESP8266
-#define MAX_SRV_CLIENTS 1
-#define TCP_PORT (23)           // Choose any port you want
-WiFiServer tcpServer(TCP_PORT);
-WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
+The default pins for SPI on the ESP32.
+HSPI
+MOSI = GPIO13
+MISO = GPIO12
+CLK = GPIO14
+CD = GPIO15
 
-IPAddress apIP(192, 168, 1, 1);
-const char SSID[] = "KRATECH-UART-HUB";  // Choose any SSID
-const char PASSWORD[] = "12345678"; // minimum 8 characters. !!!CHANGE THIS!!!
-
-#define SerialDebug Serial1   // Debug goes out on GPIO02
-#define SerialGPS   Serial    // GPS or other device connected to the ESP UART
-
-#ifndef min
-#define min(x,y)  ((x)<(y)?(x):(y))
-#endif
-
-void setup() {
-  // !!! Debug output goes to GPIO02 !!!
-  SerialDebug.begin(115200);
-  SerialDebug.println("TCP <-> UART bridge");
-
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP(SSID, PASSWORD);
-
-  //start UART. Be sure to set the speed to match the speed of whatever is
-  //connected  to the UART.
-  SerialGPS.begin(9600);
-
-  // Start TCP listener on port TCP_PORT
-  tcpServer.begin();
-  tcpServer.setNoDelay(true);
-  SerialDebug.print("Ready! Use 'telnet or nc ");
-  SerialDebug.print(WiFi.localIP());
-  SerialDebug.print(' ');
-  SerialDebug.print(TCP_PORT);
-  SerialDebug.println("' to connect");
-}
-
-void loop() {
-  uint8_t i;
-  char buf[1024];
-  int bytesAvail, bytesIn;
-
-  //check if there are any new clients
-  if (tcpServer.hasClient()) {
-    for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-      //find free/disconnected spot
-      if (!tcpServerClients[i] || !tcpServerClients[i].connected()) {
-        if (tcpServerClients[i]) tcpServerClients[i].stop();
-        tcpServerClients[i] = tcpServer.available();
-        SerialDebug.print("New client: "); SerialDebug.print(i);
-        continue;
-      }
-    }
-    //no free/disconnected spot so reject
-    WiFiClient tcpServerClient = tcpServer.available();
-    tcpServerClient.stop();
-  }
-
-  //check clients for data
-  for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-    if (tcpServerClients[i] && tcpServerClients[i].connected()) {
-      //get data from the telnet client and push it to the UART
-      while ((bytesAvail = tcpServerClients[i].available()) > 0) {
-        bytesIn = tcpServerClients[i].readBytes(buf, min(sizeof(buf), bytesAvail));
-        if (bytesIn > 0) {
-          SerialGPS.write(buf, bytesIn);
-          delay(0);
-        }
-      }
-    }
-  }
-
-  //check UART for data
-  while ((bytesAvail = SerialGPS.available()) > 0) {
-    bytesIn = SerialGPS.readBytes(buf, min(sizeof(buf), bytesAvail));
-    if (bytesIn > 0) {
-      //push UART data to all connected telnet clients
-      for (i = 0; i < MAX_SRV_CLIENTS; i++) {
-        if (tcpServerClients[i] && tcpServerClients[i].connected()) {
-          tcpServerClients[i].write((uint8_t*)buf, bytesIn);
-          delay(0);
-        }
-      }
-    }
-  }
-}
+VSPI
+MOSI = GPIO23
+MISO = GPIO19
+CLK/SCK = GPIO18
+CS/SS = GPIO5
 */
-
 #ifdef BLUETOOTH
 #include <BluetoothSerial.h>
 BluetoothSerial SerialBT; 
@@ -143,6 +71,12 @@ void setup() {
 
   delay(500);
   
+  pinMode(53, OUTPUT); // set the SS pin as an output
+  SPI1.begin();         // initialize the SPI library
+  SPI1.setClockDivider(SPI_CLOCK_DIV128);
+  digitalWrite(SS,HIGH); // set the SS pin HIGH since we didn’t start any transfer to slave
+
+
   COM[0]->begin(UART_BAUD0, SERIAL_PARAM0, SERIAL0_RXPIN, SERIAL0_TXPIN);
   COM[1]->begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
   COM[2]->begin(UART_BAUD2, SERIAL_PARAM2, SERIAL2_RXPIN, SERIAL2_TXPIN);
@@ -237,6 +171,7 @@ char buffer[1];
 
 void loop() 
 {  
+
 #ifdef OTA_HANDLER  
   ArduinoOTA.handle();
 #endif // OTA_HANDLER
@@ -284,14 +219,33 @@ void loop()
         if(TCPClient[num][cln]) 
         {
           if(TCPClient[num][cln].available()) {
-            
-            while(TCPClient[num][cln].available())
-            {
-              TCPClient[num][cln].readBytesUntil('\n', buffer, sizeof(buffer));
-              COM[num]->write(buffer);
-              COM[DEBUG_COM]->write(buffer);              
-            } 
-            COM[DEBUG_COM]->write('\n');
+            bool txok = true;
+            COM[DEBUG_COM]->print("TX:");
+
+            digitalWrite(SS, LOW);
+            //  delay(10);
+            SPI1.transfer(0x10); // ADC devid / START marker
+
+            while(TCPClient[num][cln].available()) {
+
+              char c = TCPClient[num][cln].read();
+              //const char *p =c;
+              char ret = SPI1.transfer(c);//SPI transfer is byte-by-byte
+              if(ret != c) {
+                // oops, we got something else back than what we sent!
+                txok = false;
+                //COM[DEBUG_COM]->printf("ERR[%c!=%c]", ret, c);
+                //COM[DEBUG_COM]->printf("%c-%c ", ret, c);
+              }
+
+              COM[num]->write(c);
+              COM[DEBUG_COM]->write(c);
+            }
+            SPI1.transfer(0xFE); // END  
+            //COM[DEBUG_COM]->write('>');
+            COM[num]->write('\n');
+            COM[DEBUG_COM]->printf(" [OK=%u]\n", txok);
+            digitalWrite(SS, HIGH);
 
           }
         }

@@ -66,7 +66,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             console.log("using test data");
-            json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+            json = JSON.parse('{"firmware":"2.11","pressure_bar":0.000001,"temp_c":0.00001,"hum_room_pct":0.0001,temp_motor_c:0.0001,"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
             console.log(json);
             localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
@@ -93,7 +93,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             //console.log("using test data");
-            //json = JSON.parse('{"firmware":"2.11","pressure_bar":[0.000001],"temp_c":[0.00001],"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+            json = JSON.parse('{"firmware":"2.11","pressure_bar":0.000001,"temp_c":0.00001,"hum_room_pct":0.0001,temp_motor_c:0.0001,"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
             //console.log(json);
             //localStorage.setItem('json0x12', JSON.stringify(json));
             localStorage.setItem('json0x12', JSON.stringify("{}"));
@@ -167,7 +167,7 @@ jQuery(document).ready(function () {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
         }
-          $("#uptime").empty().append( formatSecs(json.ESP.uptimesecs) );
+          $("#uptime_sys").empty().append( formatSecs(json.ESP.uptimesecs) );
           $("#heap").empty().append( json.ESP.heap );
           $("#freq").empty().append( json.ESP.freq  + ' Mhz');
           $("#chipid").empty().append( json.ESP.chipid );
@@ -185,7 +185,7 @@ jQuery(document).ready(function () {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
         }
-
+        $("#uptime_adc").empty().append( formatSecs(json.uptimesecs) );
         $("#alarms").empty();
         if(Object.keys(json.alarms).length > 0) {
           $("#alarms").append("ALARMS: ");
@@ -208,8 +208,10 @@ jQuery(document).ready(function () {
           return;
         }
 
-        $("#temperature").empty().append(parseFloat(json.temp_c[0]).toFixed(1));
-        $("#waterpressure").empty().append(parseFloat(json.pressure_bar[0]).toFixed(2));
+        $("#temperature").empty().append(parseFloat(json.temp_c).toFixed(1));
+        $("#temperature_motor").empty().append(parseFloat(json.temp_motor_c).toFixed(1));
+        $("#hum_room_pct").empty().append(parseFloat(json.hum_room_pct).toFixed(1));
+        $("#waterpressure").empty().append(parseFloat(json.pressure_bar).toFixed(2));
         $("#wp_is_running").empty().append( json.WP.is_running ? "ON" : "OFF");
         $("#wp_is_suspended").empty().append( json.WP.is_suspended ? "YES" : "NO");
         $("#wp_t_state").empty().append( formatSecs(json.WP.t_state) );
@@ -291,7 +293,7 @@ jQuery(document).ready(function () {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
         }
-          $("#temperature_motor").empty().append(parseFloat(json.data[0]).toFixed(1));
+          $("#fridge_temp").empty().append(parseFloat(json["50406"]["1"].toFixed(1))); // fridge wifi sensor - devid=50406, sid=1
       } catch(e) {
         let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);

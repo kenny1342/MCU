@@ -2,6 +2,7 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
+#define ENABLE_BUZZER               0
 // Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
 // note down the values and define them in ZERO_POINT_...
 //#define DO_VOLTAGE_CALIBRATION
@@ -10,16 +11,18 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.17"
-#define JSON_SIZE                   768
+#define FIRMWARE_VERSION            "2.18"
+#define JSON_SIZE                   1024
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
+#define PIN_MISO                    50  // SPI  Master-In-Slave-Out
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
 #define PIN_LED_YELLOW               11 // YELLOW, LED ON of we have active alarms
 #define PIN_LED_BLUE                9 // BLUE
 #define PIN_LED_WHITE               7 // WHITE, 
 #define PIN_BUZZER                  8
 #define PIN_ModIO_Reset             4
-
+#define PIN_AM2320_SDA_PUMPROOM     2
+#define PIN_AM2320_SCL_PUMPROOM     3
 #define LED_BUSY                    PIN_LED_BLUE
 #define LED_ALARM                   PIN_LED_RED
 #define LED_WARNING                 PIN_LED_YELLOW
@@ -29,6 +32,9 @@
 #define CONF_RELAY_WP               2 // MOD-IO relay controlling water pump
 
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
+
+#define Serial_Frontend             Serial1
+//#define Serial_SensorHub            Serial2 // TO BE REMOVED AFTER SPI
 
 #define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
@@ -139,6 +145,8 @@ typedef struct
   uint32_t suspend_timer_total;
   uint32_t  total_runtime;
   double temp_pumphouse_val;
+  double hum_pumphouse_val;
+  double temp_motor_val;
   double water_pressure_bar_val;  
   uint8_t pressure_state;
   uint16_t pressure_state_t;

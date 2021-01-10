@@ -1,7 +1,9 @@
 /**
- * This is code on Atmel768P (Arduino Uno) module on the board, it reads temperature from LM335 on ADC0, encodes a JSON string and sends it via SW serial to ESP8266
+ * ADC-MCU - collect data and process alarms and relays/outputs. Also send data to Frontend (ESP32 webserver+TFT display) via serial
  * 
- * Connect the SW TX/RX pins to the ESP8266 HW serial pins
+ * Connect the SW TX/RX pins to the ESP32 HW serial pins
+ * 
+ * TODO: replace serial link to Frontend with SPI
  * 
  * Kenny Dec 19, 2020
  */
@@ -9,10 +11,13 @@
 #include <main.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+//#include <SoftWire.h>
+#include <SPI.h>
+#include <AM2320.h>
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
-//#include <EmonLib.h>
+
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
 #include <Timemark.h>
@@ -25,26 +30,23 @@ const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
+// For SPI data processing/ISR
+volatile byte indx;
+volatile bool SPI_dataready = false;
+char buffer_sensorhub[JSON_SIZE] = "";
 
+AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
 
-//static adc_avg ADC_temp_1;
-static adc_avg ADC_waterpressure;
-//SoftwareSerial Serial_Frontend(2, 3); // RX, TX
-#define Serial_Frontend Serial1
-#define Serial_SensorHub Serial2
 
 StaticJsonDocument<JSON_SIZE> doc;
 StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
-//JsonObject json;
-
-//EnergyMonitor EMON_K2;  // instance used for calcIrms()
-//EnergyMonitor EMON_K3;  // instance used for calcIrms()
 
 ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
 // Structs
+adc_avg ADC_waterpressure;
 volatile Buzzer buzzer;
 emonvrms_type EMONMAINS; // Vrms values (phases/gnd)
 emondata_type EMONDATA_K2;   // Livingroom values
@@ -64,6 +66,12 @@ Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
 Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
+/* TODO make ENUM/pointer, see Frontend code
+const uint8_t NUM_TIMERS = 7;
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay };
+*/
+
 
 void setup()
 {
@@ -76,7 +84,18 @@ void setup()
   pinMode(PIN_LED_WHITE, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_ModIO_Reset, INPUT); // need to float
+  pinMode(PIN_MISO,OUTPUT); // MISO as OUTPUT (Have to Send data to Master IN). So data is sent via MISO of Slave Arduino.
+
+  //SPI.begin(); // Only when Master!
+  SPI.setClockDivider(SPI_CLOCK_DIV128);
   
+
+  //Now Turn on SPI in Slave Mode by using SPI Control Register
+  SPCR |= _BV(SPE); // turn on SPI in slave mode
+  indx = 0; // buffer empty
+  //SPI_dataready = false;
+  SPI.attachInterrupt(); // turn on interrupt
+
   LED_ON(PIN_LED_RED);
   delay(300);
   LED_ON(PIN_LED_YELLOW);
@@ -126,9 +145,9 @@ void setup()
   WATERPUMP.accumulator_ok = true;
 
   // set the data rate for the ports
-  Serial_Frontend.begin(115200);
+  Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
-  Serial_SensorHub.begin(115200);
+  //Serial_SensorHub.begin(57600);
   
   //Serial_SensorHub.println(F("ADC initializing..."));
 
@@ -176,9 +195,6 @@ void setup()
   Serial.println(F("ISR's enabled"));
   delay(500);
   
-  //EMON_K2.current(ADC_CH_CT_K2, DEF_EMON_ICAL_K2);
-  //EMON_K3.current(ADC_CH_CT_K3, DEF_EMON_ICAL_K3);
-  
   Wire.begin(); // Initiate the Wire library
   Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
 
@@ -212,16 +228,36 @@ void setup()
   wdt_enable(WDTO_4S);
 
   APPFLAGS.is_busy = 0;
-  
-  //LED_ON(PIN_LED_RED);
-
+ 
 }
+
+
+ISR (SPI_STC_vect)
+{
+  byte c= SPDR; // read byte from SPI Data Register
+
+  if(c == 0x10) {// START - my devid
+    indx = 0;
+    return;
+  }
+  if (indx < sizeof buffer_sensorhub) {
+    buffer_sensorhub [indx++] = c; // save data in the next index in the array buff
+    if (c == 0xFE) { //check for the end of the word
+      buffer_sensorhub[strlen(buffer_sensorhub)-1] = '\0'; // strip END terminator char
+      SPI_dataready = true;
+      SPDR = 0x05; // send ACK
+    }
+  }
+}
+
+
 
 ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
+  //SPDR = 0x90; // send testdata to master
 }
 
 
@@ -235,13 +271,15 @@ ISR (TIMER2_COMPA_vect)
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
   
-  if(tm_buzzer.expired()) {
-    tm_buzzer.stop();
-    digitalWrite(PIN_BUZZER, 0);
-  } else {
-    if(tm_buzzer.running()) {
-      digitalWrite(PIN_BUZZER, !digitalRead(PIN_BUZZER));
-    }    
+  if(ENABLE_BUZZER) {
+    if(tm_buzzer.expired()) {
+      tm_buzzer.stop();
+      digitalWrite(PIN_BUZZER, 0);
+    } else {
+      if(tm_buzzer.running()) {
+        digitalWrite(PIN_BUZZER, !digitalRead(PIN_BUZZER));
+      }    
+    }
   }
 
   digitalWrite(LED_BUSY, !APPFLAGS.is_busy);
@@ -337,13 +375,6 @@ ISR (TIMER2_COMPA_vect)
 
       /////// WATER PUMP Sensor alarms ////////////////
       ALARMS_WP.sensor_error = 0;
-/*
-      if(ADC_temp_1.average < 350 || ADC_temp_1.average > 700) { // if sensor (LM335) is disconnected ADC gives very high readings
-        ALARMS_WP.sensor_error = 1;
-      } else {    
-         if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
-      }
-*/
 
       // TODO: check data age
       if(WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
@@ -466,20 +497,12 @@ ISR (TIMER2_COMPA_vect)
     }
   }
 
-  /*if(WATERPUMP.total_runtime < APPCONFIG.wp_runtime_accumulator_alarm) {
-    WATERPUMP.accumulator_ok = true; // no alarm until we actually have a run cycle (after bootup)
-  }*/
-
   // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
   if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
     WATERPUMP.is_running = 0;
   }
 
-
-
-
 }
-
 
 
 void loop() // run over and over
@@ -491,62 +514,53 @@ void loop() // run over and over
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
-  char buffer_sensorhub[JSON_SIZE] = {0};
   const char* buffer_sensorhub_ptr = buffer_sensorhub;
-  //char json[JSON_SIZE];
 
   wdt_reset();
-//char *ptr = json;
-  // forward data received from Sensor-Hub (sensors connected via wifi) to the Frontend
-     
-    while(Serial_SensorHub.available()) {
-      Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
-    }
-    // Extract JSON string and forward to Frontend serial
-    if(strlen(buffer_sensorhub) > 0) {
-      Serial.print("FWD:");
-      //sscanf(buffer_sensorhub, "\\{%s\\}", json);    
-      
-      //Serial_Frontend.write('{');
-      Serial_Frontend.write(buffer_sensorhub);
-      Serial_Frontend.write('\n');
-      
-      //Serial.write('{');
+
+  
+  //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
+  //if(strlen(buffer_sensorhub) > 0) {
+  if(SPI_dataready) {
+    indx= 0; //reset button to zero  
+    SPI_dataready = false; //flag that we handled the data
+
+    Serial.print("SPI RX: ");
+    Serial.println (buffer_sensorhub); //print the array on serial monitor    
+
+    // Send to Frontend unchanged via serial
+    // TODO: change to SPI
+    Serial_Frontend.write(buffer_sensorhub);
+    Serial_Frontend.write('\n');
+  
+    // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
+    tmp_json.clear();
+    DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub_ptr); // read-only input (duplication)
+    
+    if (error) {
       Serial.write(buffer_sensorhub);
-      Serial.write("\n");
-
-      // TODO: parse JSON, process data from REMOTE_PROBES 
-      // Temp Pumphouse: if cmd=0x45 and devid=50406 and sid=1 read data("value") into WATERPUMP.temp_pumphouse_val
+      Serial.print(F("\n^JSON_ERR:"));
+      Serial.println(error.f_str());
       
-      
+    } else {
 
-      // Deserialize the JSON document     
-      tmp_json.clear();
-      DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub_ptr); // read-only input (duplication)
-      if (error) {
-      //if(false) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-      } else {
+      JsonVariant jsonVal;
 
-        JsonVariant jsonVal;
-        
-        //jsonVal = tmp_json.getMember("cmd");
-        //uint8_t cmd = jsonVal.as<uint8_t>();
+      // TODO: rewrite with switch(cmd), no String (const char)
 
-        if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-          Serial.println("this is SENSOR_DATA");
-          if(tmp_json.getMember("devid").as<String>() == "50406") { // Water pump probe
-            Serial.println("this is devid 50406");
-            if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
-            Serial.println("this is sid 1 pump room temp sensor");
-              WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-              tm_DataStale_50406_1.start(); // restart "old data" timer
-            }
+      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
+        //Serial.println("this is SENSOR_DATA");
+        if(tmp_json.getMember("devid").as<String>() == "50406") { // Water pump probe
+          //Serial.println("this is devid 50406");
+          if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
+          //Serial.println("this is sid 1 pump motor sensor");
+            WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();
+            tm_DataStale_50406_1.start(); // restart "old data" timer
           }
         }
       }
     }
+  } // SPI_dataready
 
   // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
   if(tm_DataStale_50406_1.expired()) {
@@ -563,6 +577,27 @@ void loop() // run over and over
       if(!ModIO_SetRelayState(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) ModIO_Reset();
     
     ModIO_Update();
+
+    //----------- Update Water Pump temps -------------
+    switch(am2320_pumproom.Read()) {
+      case 2:
+        Serial.println("CRC failed");
+        WATERPUMP.temp_pumphouse_val = -99;
+        break;
+      case 1:
+        Serial.println("am2320_pumproom offline");
+        WATERPUMP.temp_pumphouse_val = -99;
+        break;
+      case 0:
+        WATERPUMP.temp_pumphouse_val = am2320_pumproom.t;
+        WATERPUMP.hum_pumphouse_val = am2320_pumproom.h;
+        //Serial.print("Humidity: ");
+        //Serial.print(am2320_pumproom.h);
+        //Serial.print("%\t Temperature: ");
+        //Serial.print(am2320_pumproom.t);
+        //Serial.println("*C");
+        break;
+    }    
 
     //----------- Update EMON (Mains) AC Frequency data -------------
 
@@ -636,8 +671,9 @@ void loop() // run over and over
     // ---------------- SEND ADCSYSDATA --------------------
     root.clear();
     root["cmd"] = 0x10; // ADCSYSDATA
+    root["devid"] = 0x10;
     root["firmware"] = FIRMWARE_VERSION;
-    root["uptime_sec"] = (uint32_t) millis() / 1000;
+    root["uptimesecs"] = (uint32_t) millis() / 1000;
 
     data = doc.createNestedArray("alarms");
 
@@ -658,10 +694,12 @@ void loop() // run over and over
     serializeJson(root, dataString);
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
+    delay(500);
 
     // ---------------- SEND ADCEMONDATA --------------------
     root.clear();
     root["cmd"] = 0x11; // ADCEMONDATA
+    root["devid"] = 0x10;
 
     doc["emon_freq"] = EMONMAINS.Freq;
     doc["emon_vrms_L_N"] = EMONMAINS.Vrms_L_N;
@@ -685,16 +723,16 @@ void loop() // run over and over
     serializeJson(root, dataString);
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
+    delay(500);
 
     // ---------------- SEND ADCWATERPUMPDATA --------------------
     root.clear();
     root["cmd"] = 0x12; // ADCWATERPUMPDATA
-
-    data = doc.createNestedArray("pressure_bar");
-    data.add(WATERPUMP.water_pressure_bar_val);
-    data = doc.createNestedArray("temp_c"); // TODO: LEGACY, Frontend should read from REMOTE_SENSORS
-    data.add(WATERPUMP.temp_pumphouse_val);
-    
+    root["devid"] = 0x10;
+    root["temp_c"] = WATERPUMP.temp_pumphouse_val; // TODO: rename to temp_room_c
+    root["temp_motor_c"] = WATERPUMP.temp_motor_val;
+    root["hum_room_pct"] = WATERPUMP.hum_pumphouse_val;
+    root["pressure_bar"] = WATERPUMP.water_pressure_bar_val;
 
     JsonObject json = root.createNestedObject("WP");
 

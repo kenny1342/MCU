@@ -6,13 +6,13 @@
 #include <TFT_eSPI.h>
 #include <setup.h>
 
-
 // Helpers to read strings from build options macros
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
+#define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "2.74"
+#define FIRMWARE_VERSION    "2.80"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -20,7 +20,7 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v"
 
 #define HOSTNAME            "websrv-mcu"
 #define PORT                "80"
-#define JSON_SIZE           1024
+#define JSON_SIZE           512
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
@@ -33,7 +33,8 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v"
 #define JSON_DOC_ADCSYSDATA         0
 #define JSON_DOC_ADCEMONDATA        1
 #define JSON_DOC_ADCWATERPUMPDATA   2
-#define JSON_DOC_ADCREMOTEDATA      3
+//#define JSON_DOC_ADCREMOTEDATA      3
+#define JSON_DOC_COUNT              3
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
 

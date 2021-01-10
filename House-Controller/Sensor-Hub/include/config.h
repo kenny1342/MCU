@@ -29,7 +29,7 @@ IPAddress netmask(255, 255, 255, 0);
 #define NUM_COM   3                 // total number of COM Ports
 #define DEBUG_COM 0                 // debug output to COM2
 /*************************  COM Port 0 *******************************/
-#define UART_BAUD0 115200            // Baudrate UART0
+#define UART_BAUD0 57600            // Baudrate UART0
 #define SERIAL_PARAM0 SERIAL_8N1    // Data/Parity/Stop UART0
 #define SERIAL0_RXPIN 21            // receive Pin UART0 
 #define SERIAL0_TXPIN 1             // transmit Pin UART0

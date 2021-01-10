@@ -82,15 +82,15 @@
             <th colspan="2">Water Pump</th>
           </tr>
           <tr style="font-size: 1.3em;">
-            <td class="td_title">Water Pressure</td>
-            <td class="td_value"><span id="waterpressure">%WATERPRESSURE%</span> &nbsp;<sup class="units">bar</sup></td>
+            <td class="td_title">Pressure</td>
+            <td class="td_value"><span id="waterpressure">-</span> &nbsp;<sup class="units">bar</sup></td>
           </tr>
           <tr>
-            <td class="td_title">Room Temp</td>
-            <td class="td_value"><span id="temperature">%TEMPERATURE%</span>&nbsp;<sup class="units">&deg;C</sup></td>
+            <td class="td_title">Room</td>
+            <td class="td_value"><span id="temperature">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="hum_room_pct">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>          
           <tr>
-            <td class="td_title">Motor Temp</td>
+            <td class="td_title">Motor</td>
             <td class="td_value"><span id="temperature_motor">-</span>&nbsp;<sup class="units">&deg;C</sup></td>
           </tr>          
           <tr>
@@ -126,7 +126,7 @@
     <hr /> 
 
     <small>
-      Uptime: <span id="uptime">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
+      Uptime Frontend/ADC/Hub: <span id="uptime_sys">-</span>/<span id="uptime_adc">-</span>/<span id="uptime_hub">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
       <br />
       Web Interface v%WEBIF_VERSION% <input type="checkbox" id="chktestdata" />Use test data
       <hr />Made by %AUTHOR_TEXT%

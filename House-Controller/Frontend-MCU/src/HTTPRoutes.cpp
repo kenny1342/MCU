@@ -80,29 +80,32 @@ void Webserver::AddRoutes() {
 
   // cmd 0x10 = ADCSYSDATA (from ADC-MCU)
   server.on("/json/0x10", HTTP_GET, [](AsyncWebServerRequest *request){
-    char output[JSON_SIZE] = { 0 };
-    serializeJson(JSON_DOCS[JSON_DOC_ADCSYSDATA], output);
-    request->send(200, "application/json", output);
+    //char output[JSON_SIZE] = { 0 };
+    //serializeJson(JSON_DOCS[JSON_DOC_ADCSYSDATA], output);
+    //request->send(200, "application/json", output);
+    request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
   });
 
   // cmd 0x11 = ADCEMONDATA (from ADC-MCU)
   server.on("/json/0x11", HTTP_GET, [](AsyncWebServerRequest *request){
-    char output[JSON_SIZE] = { 0 };
-    serializeJson(JSON_DOCS[JSON_DOC_ADCEMONDATA], output);
-    request->send(200, "application/json", output);
+    //char output[JSON_SIZE] = { 0 };
+    //serializeJson(JSON_DOCS[JSON_DOC_ADCEMONDATA], output);
+    //request->send(200, "application/json", output);
+    request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
   });
 
   // cmd 0x11 = ADCWATERPUMPDATA (from ADC-MCU)
   server.on("/json/0x12", HTTP_GET, [](AsyncWebServerRequest *request){
-    char output[JSON_SIZE] = { 0 };
-    serializeJson(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA], output);
-    request->send(200, "application/json", output);
+    //char output[JSON_SIZE] = { 0 };
+    //serializeJson(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA], output);
+    //request->send(200, "application/json", output);
+    request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
   });
 
   // cmd 0x45 = REMOTE_SENSOR_DATA (fex from Sensor-PumpHouse)
   server.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
-    char output[JSON_SIZE] = { 0 };
-    serializeJson(JSON_DOCS[JSON_DOC_ADCREMOTEDATA], output);
+    char output[JSON_SIZE] = "NOT IMPLEMENTED";
+    //serializeJson(JSON_DOCS[JSON_DOC_ADCREMOTEDATA], output);
     request->send(200, "application/json", output);
   });
 
@@ -229,7 +232,7 @@ void onRequest(AsyncWebServerRequest *request){
 
 void onNotFound(AsyncWebServerRequest *request){
   //Handle Unknown Request
-  Serial.printf("onNotFound: HTTP/404 - %s\n", request->url().c_str());
+  Serial.printf("onNotFound: HTTP/404 - %s,%s\n", request->url().c_str(), request->client()->remoteIP().toString().c_str());
   request->send(404);
 }
 
