@@ -210,13 +210,25 @@ jQuery(document).ready(function () {
         $("#temperature_motor").empty().append(parseFloat(json.temp_motor_c).toFixed(1));
         $("#hum_room_pct").empty().append(parseFloat(json.hum_room_pct).toFixed(1));
         $("#waterpressure").empty().append(parseFloat(json.pressure_bar).toFixed(2));
-        $("#wp_is_running").empty().append( json.WP.is_running ? "ON" : "OFF");
-        $("#wp_is_suspended").empty().append( json.WP.is_suspended ? "YES" : "NO");
+        //$("#wp_is_running").empty().append( json.WP.is_running ? "ON" : "OFF");
+        $("#wp_status").empty().append( json.WP.status);
+        //$("#wp_is_suspended").empty().append( json.WP.is_suspended ? "YES" : "NO");
         $("#wp_t_state").empty().append( formatSecs(json.WP.t_state) );
         $("#wp_cnt_starts").empty().append( json.WP.cnt_starts );
         $("#wp_cnt_susp").empty().append( json.WP.cnt_susp );
         $("#wp_t_totruntime").empty().append( formatSecs(json.WP.t_totruntime) );
         $("#wp_t_susp_tot").empty().append( formatSecs(json.WP.t_susp_tot) );
+
+        let wp_status = json.WP.status;
+        
+        if(wp_status == "RUNNING") {
+          $("#wp_status").removeClass().addClass("SUSPENDED");
+        } else if(wp_status == "RUNNING") {
+          $("#wp_status").removeClass().addClass("RUNNING");
+        } else {
+          $("#wp_status").removeClass().addClass("STOPPED");
+        }
+
       } catch(e) {
         let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);

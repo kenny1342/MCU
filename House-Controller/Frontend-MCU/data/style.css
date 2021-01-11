@@ -96,6 +96,9 @@ a:hover {
   text-align: left;
   font-size: 3em;  
 }
+#table_pump .small {
+  font-size: 1.7rem;
+}
 
 .td_value {
   white-space: nowrap;
@@ -130,6 +133,18 @@ a:hover {
 }
 .ERR {
   color:rgb(219, 45, 1);
+}
+
+.SUSPENDED {
+  color:rgb(219, 45, 1);
+}
+.RUNNING {
+  color:rgb(0, 61, 141);
+  font-style: oblique;
+}
+.STOPPED {
+  color:rgb(13, 145, 1);
+  
 }
 
 h1 {

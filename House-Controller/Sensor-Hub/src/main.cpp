@@ -10,9 +10,8 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <SPI.h>
+#include <Timemark.h>
 
-SPIClass SPI1(HSPI);
-#define SS 15
 
 /*
 HSPI and VSPI pins can be redefined or defaults used.
@@ -32,6 +31,10 @@ MISO = GPIO19
 CLK/SCK = GPIO18
 CS/SS = GPIO5
 */
+
+Timemark tm_SendData(5000);
+Timemark tm_reboot(3600000);
+
 #ifdef BLUETOOTH
 #include <BluetoothSerial.h>
 BluetoothSerial SerialBT; 
@@ -66,14 +69,28 @@ uint16_t i2[NUM_COM]={0,0,0};
 uint8_t BTbuf[bufferSize];
 uint16_t iBT =0;
 
+char JSON_STRINGS[NUM_COM][bufferSize] = {0};
+
+#define NUM_FIELDS  6
+byte VALUES[NUM_COM][NUM_FIELDS] = {0,0,0,0,0,0}; //ADC devid, cmd, devid, data1,data2,data3
+
+
+#define SS 15
+
+SPIClass SPI1(HSPI);
+//SPIClass SPI1(VSPI);
 
 void setup() {
 
   delay(500);
   
-  pinMode(53, OUTPUT); // set the SS pin as an output
-  SPI1.begin();         // initialize the SPI library
+  pinMode(SS, OUTPUT); //VSPI SS set slave select pins as output
+
+  SPI1.begin(14, 12, 13, 15); //SCLK, MISO, MOSI, SS
+  //SPI1.begin();         // initialize the SPI library (Master only)
   SPI1.setClockDivider(SPI_CLOCK_DIV128);
+
+  // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
   digitalWrite(SS,HIGH); // set the SS pin HIGH since we didn’t start any transfer to slave
 
 
@@ -163,16 +180,71 @@ void setup() {
   server[2]->setNoDelay(true);
   #endif
 
+  digitalWrite(SS, HIGH); // disable Slave Select
+  SPI1.begin();
+  SPI1.setClockDivider(SPI_CLOCK_DIV64);
+
+
+  tm_SendData.start();
+  tm_reboot.start();
+
   //esp_err_t esp_wifi_set_max_tx_power(50);  //lower WiFi Power
 }
 
 
-char buffer[1];
+/**
+ * Send JSON strings to SPI 
+ */
+void SendData() {
 
+  SPI.beginTransaction (SPISettings (1000000, LSBFIRST, SPI_MODE0));  // 1 MHz clock
+  digitalWrite(SS, LOW); // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
+  delay(50);
+    
+  SPI1.write(0x10); // ADC devid / START marker
+  SPI1.transfer('<'); delay(10);
+  delayMicroseconds(50);
+
+  COM[DEBUG_COM]->print("SPITX-START:\n");
+
+  for(int num=0; num<NUM_COM; num++) {    
+    uint8_t i = 0;
+    while (JSON_STRINGS[num][i] != 0x00)
+    {
+        SPI1.write(JSON_STRINGS[num][i]);
+        delayMicroseconds(50);
+        COM[DEBUG_COM]->write(JSON_STRINGS[num][i]);
+        i++;
+    }    
+  }
+
+  SPI1.transfer(0x0F); // END    
+  SPI1.endTransaction();
+  digitalWrite(SS, HIGH); // disable Slave Select
+
+  COM[DEBUG_COM]->print("\nSPITX-END:\n");
+
+}
+
+char buffer[1];
+uint16_t cnt;
 void loop() 
 {  
+  if(tm_SendData.expired()) {
+    SendData();   
+    cnt++;
+    COM[DEBUG_COM]->printf("CNT: %u\n", cnt);
+    delay(100);
+  }
 
-#ifdef OTA_HANDLER  
+  if(tm_reboot.expired()) {
+    COM[DEBUG_COM]->print("\n*** SCHEDULED DEBUG REBOOT....\n");
+    delay(1000); 
+    ESP.restart();
+  }
+
+
+  #ifdef OTA_HANDLER  
   ArduinoOTA.handle();
 #endif // OTA_HANDLER
   
@@ -219,34 +291,16 @@ void loop()
         if(TCPClient[num][cln]) 
         {
           if(TCPClient[num][cln].available()) {
-            bool txok = true;
-            COM[DEBUG_COM]->print("TX:");
+            // We got TCP data (normally JSON string) from client, update the JSON_STRINGS char array with the new data, + write to UART
+            COM[DEBUG_COM]->print("RXTCP-START:\n");
 
-            digitalWrite(SS, LOW);
-            //  delay(10);
-            SPI1.transfer(0x10); // ADC devid / START marker
-
-            while(TCPClient[num][cln].available()) {
-
-              char c = TCPClient[num][cln].read();
-              //const char *p =c;
-              char ret = SPI1.transfer(c);//SPI transfer is byte-by-byte
-              if(ret != c) {
-                // oops, we got something else back than what we sent!
-                txok = false;
-                //COM[DEBUG_COM]->printf("ERR[%c!=%c]", ret, c);
-                //COM[DEBUG_COM]->printf("%c-%c ", ret, c);
-              }
-
-              COM[num]->write(c);
-              COM[DEBUG_COM]->write(c);
+            while(TCPClient[num][cln].available()) {              
+              TCPClient[num][cln].readBytesUntil('\n', JSON_STRINGS[num], sizeof(JSON_STRINGS[num]));
             }
-            SPI1.transfer(0xFE); // END  
-            //COM[DEBUG_COM]->write('>');
+            COM[DEBUG_COM]->write(JSON_STRINGS[num]);
+            COM[DEBUG_COM]->print("\nRXTCP-END\n");
+            COM[num]->write(JSON_STRINGS[num]);
             COM[num]->write('\n');
-            COM[DEBUG_COM]->printf(" [OK=%u]\n", txok);
-            digitalWrite(SS, HIGH);
-
           }
         }
       }

@@ -10,6 +10,7 @@ uint8_t relayState = 0x00;
 
 // Instead of Macro
 void ModIO_Reset(void) {  
+
     Serial.println(F("RST MODIO...")); 
     pinMode(PIN_ModIO_Reset, OUTPUT); 
     delay(5); 
@@ -29,7 +30,6 @@ void ModIO_Init() {
  */
 uint8_t ModIO_Update()
 {
-  //uint8_t ack;
   
   //Serial.print("MOD-IO: "); Serial.print(CONF_I2C_ID_MODIO_BOARD, HEX); Serial.print("="); Serial.println(relayState, BIN);
   
@@ -37,11 +37,11 @@ uint8_t ModIO_Update()
   //Serial.println("MOD-IO write 0x10"); 
   Wire.write(0x10); // cmd to set relays
   Wire.write(relayState);                       
-  return (uint8_t) Wire.endTransmission(1); // 0=do not send stop (no-block)
+  //Serial.println("MOD-IO end"); 
+  return (uint8_t) Wire.endTransmission(0); // 0=do not send stop (no-block)
 }
 
 uint8_t ModIO_SetRelayState(unsigned char relay, unsigned char mode) {
-    
     // Setting the nth bit to either 1 or 0 can be achieved with the following:
     // number ^= (-x ^ number) & (1 << n);
     //Serial.print(F("relay ")); Serial.print(relay); Serial.print(F("=")); Serial.println(mode);

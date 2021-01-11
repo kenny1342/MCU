@@ -11,10 +11,13 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.18"
+#define FIRMWARE_VERSION            "2.19"
 #define JSON_SIZE                   1024
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
+#define PIN_MOSI                    51
+#define PIN_SCK                     52
+#define PIN_SS                      53  // SPI  Slave-Select
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
 #define PIN_LED_YELLOW               11 // YELLOW, LED ON of we have active alarms
 #define PIN_LED_BLUE                9 // BLUE
@@ -92,26 +95,9 @@ typedef struct
   double wp_upper;
   uint8_t  min_temp_pumphouse;  
 } appconfig_type;
-/*
-typedef union {
-  byte allBits;
-  struct {
-    byte OLD__2sec:1 ;
-    byte OLD_1sec:1 ;
-    byte OLD_500ms:1 ; 
-    byte OLD_200ms:1 ;
-    byte OLD_100ms:1;
-    byte bitFive:1;
-    byte bitSix:1;
-    byte bitSeven:1; 
-  };
-} intervals_type;
-*/
+
 typedef struct {
   uint8_t pin = 8;
-  //bool state = 0;
-  //uint16_t duration = 1000;
-  //uint16_t _mscnt = 0;
 } Buzzer;
 
 typedef struct
@@ -122,25 +108,19 @@ typedef struct
   uint16_t average = 0;                // the average
   uint8_t ready = 0;                // set to 1 after boot when numReadings is reached
 } adc_avg;
-/*
-typedef struct
-{
-  //char temp_pumphouse[5];
-  //char water_pressure_bar[4];
-  double temp_pumphouse_val;
-  double water_pressure_bar_val;
 
-} sensors_type;
-*/
 enum { PRESSURE_LOW=0, PRESSURE_OK=1, PRESSURE_HIGH=2 };
 
+enum { STOPPED=0, RUNNING=1, SUSPENDED=2 };
+
 typedef struct
 {
-  uint8_t is_running;
+  uint8_t status; // enum
+  //uint8_t is_running;
   uint32_t state_age; // seconds since is_running was changed (avoid too frequent start/stops) (uint32_t = 0-4294967295)
   uint16_t start_counter; // increases +1 every time we start the waterpump (volatile, #nr of starts since boot)
   uint16_t suspend_timer; // seconds to wait after alarms are cleared before we start pump again
-  bool is_suspended; // 1 if we have a suspension period after alarms before we can run again
+  //bool is_suspended; // 1 if we have a suspension period after alarms before we can run again
   uint8_t suspend_count; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
   uint32_t suspend_timer_total;
   uint32_t  total_runtime;

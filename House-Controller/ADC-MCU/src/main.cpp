@@ -23,17 +23,22 @@
 #include <Timemark.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
-const char string_0[] PROGMEM = "PumpController (MCU AT328p) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 //const int interval = 800;   // interval at which to send data (millisecs)
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
+char lastAlarm[20] = "-";
+
 // For SPI data processing/ISR
-volatile byte indx;
+volatile uint16_t indx;
 volatile bool SPI_dataready = false;
-char buffer_sensorhub[JSON_SIZE] = "";
+volatile char buffer_sensorhub[JSON_SIZE];
+//const char * buffer_sensorhub_ptr = buffer_sensorhub;
+
+//volatile byte VALUES[4] = {0,0,0,0}; // negative (0/1), whole, part, unit (char)
 
 AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
 
@@ -66,6 +71,9 @@ Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
 Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
+Timemark tm_test(2000);
+
+
 /* TODO make ENUM/pointer, see Frontend code
 const uint8_t NUM_TIMERS = 7;
 enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
@@ -75,6 +83,7 @@ Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_Che
 
 void setup()
 {
+  wdt_enable(WDTO_4S);
 
   APPFLAGS.is_busy = 1;
 
@@ -84,17 +93,20 @@ void setup()
   pinMode(PIN_LED_WHITE, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_ModIO_Reset, INPUT); // need to float
-  pinMode(PIN_MISO,OUTPUT); // MISO as OUTPUT (Have to Send data to Master IN). So data is sent via MISO of Slave Arduino.
+  pinMode(PIN_MISO,OUTPUT); // Slave, MISO as OUTPUT (Have to Send data to Master IN). So data is sent via MISO of Slave Arduino.
+  pinMode(PIN_SCK,INPUT);
+  pinMode(PIN_MOSI,INPUT);
+  pinMode(PIN_SS,INPUT);
 
   //SPI.begin(); // Only when Master!
+
+//  SPCR = 0x40;  // Enable SPI in slave mode
   SPI.setClockDivider(SPI_CLOCK_DIV128);
-  
 
   //Now Turn on SPI in Slave Mode by using SPI Control Register
   SPCR |= _BV(SPE); // turn on SPI in slave mode
-  indx = 0; // buffer empty
-  //SPI_dataready = false;
   SPI.attachInterrupt(); // turn on interrupt
+
 
   LED_ON(PIN_LED_RED);
   delay(300);
@@ -196,7 +208,7 @@ void setup()
   delay(500);
   
   Wire.begin(); // Initiate the Wire library
-  Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
+  //Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
 
   Serial.println(F("ModIO_Init..."));
   ModIO_Init();
@@ -225,39 +237,57 @@ void setup()
 
   buzzer_on(PIN_BUZZER, 200);
 
-  wdt_enable(WDTO_4S);
+  
 
   APPFLAGS.is_busy = 0;
- 
+  tm_test.start();
+  Serial.println(F("Init done!"));
 }
 
+//char * ptr = buffer_sensorhub;
 
 ISR (SPI_STC_vect)
 {
-  byte c= SPDR; // read byte from SPI Data Register
+  byte c = SPDR;
+  
+//Serial.write(c);
+//SPDR = 0x00;
+//return;
 
-  if(c == 0x10) {// START - my devid
-    indx = 0;
-    return;
-  }
-  if (indx < sizeof buffer_sensorhub) {
-    buffer_sensorhub [indx++] = c; // save data in the next index in the array buff
-    if (c == 0xFE) { //check for the end of the word
-      buffer_sensorhub[strlen(buffer_sensorhub)-1] = '\0'; // strip END terminator char
-      SPI_dataready = true;
-      SPDR = 0x05; // send ACK
-    }
-  }
+if(c == 0x10) { // our address
+  SPDR = c;
+  return;
 }
 
+  if(c == '<' || indx >= JSON_SIZE-1) { // Start marker
+    indx =0;
+    memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
+    buffer_sensorhub[0] = 0;
 
+    //Serial.print("SPISTART\n");
+    return;
+  } 
+
+  if(c == 0x0F) { // End marker
+    indx = 0;
+    //Serial.write(c);
+    SPI_dataready = true;
+    //Serial.print("SPIEND\n");
+    return;
+  }
+
+  if(c != 0x00) {
+    buffer_sensorhub[indx] = c; // read byte from SPI Data Register
+    indx++;
+    buffer_sensorhub[indx] = '\0';
+  }
+
+}
 
 ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
-
-  //SPDR = 0x90; // send testdata to master
 }
 
 
@@ -296,7 +326,7 @@ ISR (TIMER2_COMPA_vect)
     LED_OFF(LED_ALARM);
   }
 
-  if(WATERPUMP.is_suspended) { // if WP is suspended, turn on Warning LED to indicate
+  if(WATERPUMP.status == SUSPENDED) { // if WP is suspended, turn on Warning LED to indicate
     LED_ON(LED_WARNING);
     if(tm_blinkWarning.expired()) { // TODO create dedicated tm_ for this buzzer
       buzzer_on(PIN_BUZZER, 10);
@@ -406,7 +436,7 @@ ISR (TIMER2_COMPA_vect)
       }
         
 
-      if(WATERPUMP.is_running && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
+      if(WATERPUMP.status == RUNNING && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
         ALARMS_WP.waterpump_runtime = 1;
       } else {    
         if(ALARMS_WP.waterpump_runtime) start_wp_suspension = 1; // was active until now, start suspension period
@@ -421,19 +451,22 @@ ISR (TIMER2_COMPA_vect)
 
   // --------- Water pump suspension logic -------------  
   if(IS_ACTIVE_ALARMS_WP()) { 
-    WATERPUMP.is_suspended = 0;
+    //WATERPUMP.is_suspended = 0;
+    WATERPUMP.status = SUSPENDED;
   } else {  // No active WP alarms, it's ok to start or continue suspension period
 
-    if(start_wp_suspension) {// we just cleared an WP alarm, start suspension timer
-      WATERPUMP.is_suspended = 1;
+    if(WATERPUMP.status != SUSPENDED && start_wp_suspension) {// not suspended and we just cleared an WP alarm, start suspension timer
+      //WATERPUMP.is_suspended = 1;
+      WATERPUMP.status = SUSPENDED;
       WATERPUMP.suspend_timer = 0; 
       WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
     } else { // see if we should increase or disable suspension timer
 
-      if(WATERPUMP.is_suspended && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
+      if(WATERPUMP.status == SUSPENDED && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
 
       } else if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
-        WATERPUMP.is_suspended = 0;
+        //WATERPUMP.is_suspended = 0;
+        WATERPUMP.status = STOPPED;
         WATERPUMP.suspend_timer = 0;
       }
     }
@@ -443,10 +476,11 @@ ISR (TIMER2_COMPA_vect)
   if(tm_WP_seconds_counter.expired()) {
     WATERPUMP.state_age++; 
     WATERPUMP.pressure_state_t++;
-    if(WATERPUMP.is_running) {
+    if(WATERPUMP.status == RUNNING) {
       WATERPUMP.total_runtime++; 
     }
-    if(WATERPUMP.is_suspended) {
+    //if(WATERPUMP.is_suspended) {
+    if(WATERPUMP.status == SUSPENDED) {
       WATERPUMP.suspend_timer++; 
       WATERPUMP.suspend_timer_total++;
     }
@@ -466,12 +500,14 @@ ISR (TIMER2_COMPA_vect)
   }
 
   if(WATERPUMP.pressure_state == PRESSURE_LOW) {
-    if(WATERPUMP.is_running) {
+    //if(WATERPUMP.is_running) {
+    if(WATERPUMP.status == RUNNING) {
       
     } else {
       if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
         if(WATERPUMP.state_age > 5) {  // always wait minimum 5 sec after stop before we start again, no hysterese...
-          WATERPUMP.is_running = 1;
+          //WATERPUMP.is_running = 1;
+          WATERPUMP.status = RUNNING;
           WATERPUMP.state_age=0; //reset state age
           WATERPUMP.start_counter++; // increase the start counter 
         }
@@ -481,14 +517,16 @@ ISR (TIMER2_COMPA_vect)
       }
     }
   } else { // PRESSURE_OK
-    if(WATERPUMP.is_running) {
+    //if(WATERPUMP.is_running) {
+    if(WATERPUMP.status == RUNNING) {
       // check if runtime too short, it indicates too low air pressure in accumulator tank
       if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
         WATERPUMP.accumulator_ok = false;
       } else {
         WATERPUMP.accumulator_ok = true;
       }
-      WATERPUMP.is_running = 0;
+      //WATERPUMP.is_running = 0;
+      WATERPUMP.status = STOPPED;
       WATERPUMP.state_age=0; //reset state age
       
       
@@ -498,8 +536,10 @@ ISR (TIMER2_COMPA_vect)
   }
 
   // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
-  if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
-    WATERPUMP.is_running = 0;
+  //if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
+  if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.status == SUSPENDED) {
+    //WATERPUMP.is_running = 0;
+    WATERPUMP.status = STOPPED;
   }
 
 }
@@ -514,35 +554,49 @@ void loop() // run over and over
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
-  const char* buffer_sensorhub_ptr = buffer_sensorhub;
-
+  //const char* buffer_sensorhub_ptr = buffer_sensorhub;
+  char SPIData[JSON_SIZE]; // local copy
+  //uint16_t _indx;
   wdt_reset();
 
+  bool NewSPIData;
   
+  noInterrupts();
+  strcpy(SPIData, (char *)buffer_sensorhub);
+  NewSPIData=SPI_dataready;
+  SPI_dataready = false;  
+  interrupts();
+
+
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
   //if(strlen(buffer_sensorhub) > 0) {
-  if(SPI_dataready) {
-    indx= 0; //reset button to zero  
-    SPI_dataready = false; //flag that we handled the data
+  
 
-    Serial.print("SPI RX: ");
-    Serial.println (buffer_sensorhub); //print the array on serial monitor    
+  if(NewSPIData) {
+    //indx= 0; //reset button to zero  
+    //SPI_dataready = false; //flag that we handled the data
+
+    //Serial.print("SPIRX OK: ");
+    Serial.print (SPIData); //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
     // TODO: change to SPI
-    Serial_Frontend.write(buffer_sensorhub);
+    Serial_Frontend.write(SPIData);
     Serial_Frontend.write('\n');
   
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
     tmp_json.clear();
-    DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub_ptr); // read-only input (duplication)
+    const char* p = SPIData;
+    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
     
     if (error) {
-      Serial.write(buffer_sensorhub);
+      Serial.write(SPIData);
       Serial.print(F("\n^JSON_ERR:"));
       Serial.println(error.f_str());
       
     } else {
+      //Serial.print("SPIRX OK: ");
+      //Serial.print (SPIData); //print the array on serial monitor    
 
       JsonVariant jsonVal;
 
@@ -560,7 +614,8 @@ void loop() // run over and over
         }
       }
     }
-  } // SPI_dataready
+  } // NewSPIData
+
 
   // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
   if(tm_DataStale_50406_1.expired()) {
@@ -573,16 +628,22 @@ void loop() // run over and over
     APPFLAGS.is_updating = 1;
 
     // Control MOD-IO board relays
-    if(ModIO_GetRelayState(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
-      if(!ModIO_SetRelayState(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) ModIO_Reset();
+    //if(ModIO_GetRelayState(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
+    //  if(!ModIO_SetRelayState(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) ModIO_Reset();
+    if(ModIO_GetRelayState(CONF_RELAY_WP) != (WATERPUMP.status == RUNNING)) // flag set in ISR, control relay if needed
+      if(!ModIO_SetRelayState(CONF_RELAY_WP, (WATERPUMP.status == RUNNING)) == MODIO_ACK_OK) ModIO_Reset();
     
     ModIO_Update();
-
+  /*while(1) {
+    delay(1000);
+    Serial.println("ok...");
+    wdt_reset();
+  }*/
     //----------- Update Water Pump temps -------------
     switch(am2320_pumproom.Read()) {
       case 2:
         Serial.println("CRC failed");
-        WATERPUMP.temp_pumphouse_val = -99;
+        WATERPUMP.temp_pumphouse_val = -98;
         break;
       case 1:
         Serial.println("am2320_pumproom offline");
@@ -591,11 +652,6 @@ void loop() // run over and over
       case 0:
         WATERPUMP.temp_pumphouse_val = am2320_pumproom.t;
         WATERPUMP.hum_pumphouse_val = am2320_pumproom.h;
-        //Serial.print("Humidity: ");
-        //Serial.print(am2320_pumproom.h);
-        //Serial.print("%\t Temperature: ");
-        //Serial.print(am2320_pumproom.t);
-        //Serial.println("*C");
         break;
     }    
 
@@ -677,18 +733,21 @@ void loop() // run over and over
 
     data = doc.createNestedArray("alarms");
 
+
+    // TODO: smarten up....
     if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
-      if(ALARMS_EMON.emon_K2) data.add(F("K2"));
-      if(ALARMS_EMON.emon_K3) data.add(F("K3"));
-      if(ALARMS_SYS.low_memory) data.add(F("lowmem"));
-      if(ALARMS_WP.waterpump_runtime) data.add(F("wpruntime"));
-      if(ALARMS_WP.accumulator_low_air) data.add(F("wp_accumulator"));
-      if(ALARMS_WP.temperature_pumphouse) data.add(F("temp_pumphouse"));
-      if(ALARMS_WP.sensor_error) data.add(F("sensor_wp"));
-      if(ALARMS_EMON.sensor_error) data.add(F("sensor_emon"));
-      if(ALARMS_EMON.power_groundfault) data.add(F("groundfault"));
-      if(ALARMS_EMON.power_voltage) data.add(F("emon_voltage"));
+      if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.emon_K3) { data.add(F("K3")); strncpy(lastAlarm, "K3", sizeof(lastAlarm)); }
+      if(ALARMS_SYS.low_memory) { data.add(F("lowmem")); strncpy(lastAlarm, "lowmem", sizeof(lastAlarm)); }
+      if(ALARMS_WP.waterpump_runtime) { data.add(F("wpruntime")); strncpy(lastAlarm, "wpruntime", sizeof(lastAlarm)); }
+      if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
+      if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
+      if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
     }
+    root["lastAlarm"] = lastAlarm;
 
     dataString = "";
     serializeJson(root, dataString);
@@ -736,9 +795,17 @@ void loop() // run over and over
 
     JsonObject json = root.createNestedObject("WP");
 
+    switch(WATERPUMP.status) {
+      case RUNNING: json["status"] = "RUNNING"; break;
+      case STOPPED: json["status"] = "STOPPED"; break;
+      case SUSPENDED: json["status"] = "SUSPENDED"; break;
+      default: json["status"] = WATERPUMP.status;
+    }
+    
     json["t_state"] = WATERPUMP.state_age;
-    json["is_running"] = WATERPUMP.is_running;
-    json["is_suspended"] = WATERPUMP.is_suspended;
+    //json["is_running"] = WATERPUMP.is_running;
+    //json["is_running"] = WATERPUMP.status == RUNNING ? 1 : 0;
+    //json["is_suspended"] = WATERPUMP.is_suspended;
     json["cnt_starts"] = WATERPUMP.start_counter;
     json["cnt_susp"] = WATERPUMP.suspend_count;
     json["t_susp"] = WATERPUMP.suspend_timer;

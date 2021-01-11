@@ -11,7 +11,7 @@
 <body>
   <h1>Home Controller v%FIRMWARE%</h1>
 
-  JSON: <a href='/json/0x10'>ADC</a> - <a href='/json/0x11'>EMON</a> - <a href='/json/0x12'>Water</a> - <a href='/json/0x45'>Remote</a> - <a href='/json/system'>System</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
+  <a href='/json/0x10'>ADC</a> | <a href='/json/0x11'>EMON</a> | <a href='/json/0x12'>Water</a> | <a href='/json/0x45'>Remote</a> | <a href='/json/system'>System</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
  
 
 <div class="container">
@@ -95,20 +95,12 @@
           </tr>          
           <tr>
             <td  class="td_title">Status</td>
-            <td class="td_value"> <span id="wp_is_running">-</span></td>
+            <td class="td_value"> <span id="wp_status" class="RUNNING">AAAAAA</span><br /> <span class="small" id="wp_t_state">00:00:00</span></td>
           </tr>
-          <tr>
+          <!--<tr>
             <td class="td_title">Status duration</td>
-            <td class="td_value"> <span id="wp_t_state">-</span></td>
-          </tr>
-          <tr>
-            <td class="td_title">Suspended</td>
-            <td class="td_value"> <span id="wp_is_suspended"></span> (<span id="wp_cnt_susp"></span> times)</td>
-          </tr>
-          <tr>
-            <td class="td_title">Suspended duration</td>
-            <td class="td_value"> <span id="wp_t_susp_tot"></span></td>
-          </tr>
+            <td class="td_value"> </td>
+          </tr>-->
           <tr>
             <td class="td_title">Starts #</td>
             <td class="td_value"> <span id="wp_cnt_starts">-</span></td>
@@ -117,6 +109,11 @@
             <td class="td_title">Total Runtime</td>
             <td class="td_value"> <span id="wp_t_totruntime">-</span></td>
           </tr>
+          <tr>
+            <td class="td_title small">Suspended</td>
+            <td class="td_value small"> <span id="wp_cnt_susp">0</span> times<br /><span id="wp_t_susp_tot">00:00:00</span></small></td>
+          </tr>
+
         </table>
     
       </td>
