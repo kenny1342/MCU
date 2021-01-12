@@ -847,7 +847,7 @@ void loop(void) {
 
     if(tm_CheckDataAge.expired()) {
 
-      if(currentMillis - dataAge > 10000 && dataAge > 0L) {
+      if(millis() - dataAge > 10000 && dataAge > 0L) {
               
         tft.setTextSize(3);
         tft.setCursor(0, 0);
