@@ -48,6 +48,12 @@ a:hover {
   background: linear-gradient(rgba(235, 241, 235, 0.25), rgba(2, 192, 176, 0.25))
 }
 
+#author {
+  position: absolute;
+  margin: 0 auto;
+  top: 1rem;
+  right: 1rem;
+}
 #table_main{
   -webkit-transform: translate(1%, 0);
   transform: translate(1%, 0);
@@ -138,18 +144,18 @@ a:hover {
 .SUSPENDED {
   color:rgb(219, 45, 1);
 }
-.RUNNING {
+.RUN {
   color:rgb(0, 61, 141);
   font-style: oblique;
 }
-.STOPPED {
+.STOP {
   color:rgb(13, 145, 1);
   
 }
 
 h1 {
     color: #0F3376;
-    padding: 2vh;
+    padding: 1.5vh;
   }
 
   p {

@@ -184,6 +184,7 @@ jQuery(document).ready(function () {
           return;
         }
         $("#uptime_adc").empty().append( formatSecs(json.uptimesecs) );
+        $("#lastAlarm").empty().append(json.lastAlarm);
         $("#alarms").empty();
         if(Object.keys(json.alarms).length > 0) {
           $("#alarms").append("ALARMS: ");
@@ -224,9 +225,9 @@ jQuery(document).ready(function () {
         if(wp_status == "SUSPENDED") {
           $("#wp_status").removeClass().addClass("SUSPENDED");
         } else if(wp_status == "RUN") {
-          $("#wp_status").removeClass().addClass("RUNNING");
+          $("#wp_status").removeClass().addClass("RUN");
         } else {
-          $("#wp_status").removeClass().addClass("STOPPED");
+          $("#wp_status").removeClass().addClass("STOP");
         }
 
       } catch(e) {

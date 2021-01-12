@@ -10,7 +10,7 @@
 </head>
 <body>
   <h1>Home Controller v%FIRMWARE%</h1>
-
+  <span id="author">Made by %AUTHOR_TEXT%</span>
   <a href='/json/0x10'>ADC</a> | <a href='/json/0x11'>EMON</a> | <a href='/json/0x12'>Water</a> | <a href='/json/0x45'>Remote</a> | <a href='/json/system'>System</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
  
 
@@ -106,12 +106,12 @@
             <td class="td_value"> <span id="wp_cnt_starts">-</span></td>
           </tr>
           <tr>
-            <td class="td_title">Total Runtime</td>
-            <td class="td_value"> <span id="wp_t_totruntime">-</span></td>
+            <td class="td_title small">Total Runtime</td>
+            <td class="td_value small"> <span id="wp_t_totruntime">-</span></td>
           </tr>
           <tr>
             <td class="td_title small">Suspended</td>
-            <td class="td_value small"> <span id="wp_cnt_susp">0</span> times<br /><span id="wp_t_susp_tot">00:00:00</span></small></td>
+            <td class="td_value small"> <span id="wp_cnt_susp">0</span> times<br /><span id="wp_t_susp_tot">00:00:00</span></td>
           </tr>
 
         </table>
@@ -123,10 +123,10 @@
     <hr /> 
 
     <small>
-      Uptime Frontend/ADC/Hub: <span id="uptime_sys">-</span>/<span id="uptime_adc">-</span>/<span id="uptime_hub">-</span> - Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>
+      <b>Uptimes:</b> Frontend: <span id="uptime_sys">-</span>, ADC: <span id="uptime_adc">-</span>, Hub: <span id="uptime_hub">-</span> 
+      <br /> <b>Last alarm:</b> <span id="lastAlarm">-</span>
       <br />
-      Web Interface v%WEBIF_VERSION% <input type="checkbox" id="chktestdata" />Use test data
-      <hr />Made by %AUTHOR_TEXT%
+      Web Interface v%WEBIF_VERSION% (Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>)<!--<input type="checkbox" id="chktestdata" />Use test data-->
     </small>
   </div>
 
