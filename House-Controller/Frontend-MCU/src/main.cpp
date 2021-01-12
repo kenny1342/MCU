@@ -72,7 +72,7 @@ Logger logger = Logger(&tft);
 
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
-Timemark tm_CheckDataAge(1000); // 1sec 
+Timemark tm_CheckDataAge(5000);
 Timemark tm_PushToBlynk(1500);
 Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
@@ -493,17 +493,7 @@ void loop(void) {
     portEXIT_CRITICAL(&timerMux);
   }
 
-  if(tm_CheckDataAge.expired()) {
 
-    if(currentMillis - dataAge > 5000 && dataAge > 0L) {
-            
-      tft.setTextSize(3);
-      tft.setCursor(0, 0);
-      tft.setTextDatum(MC_DATUM);
-      tft.setTextColor(TFT_RED, TFT_BLACK);
-      tft.println("  NO DATA RX " );
-    }    
-  }
 
   if(Timers[TM_PushToBlynk]->expired()) {
     Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
@@ -753,7 +743,8 @@ void loop(void) {
         
         JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("alarms");
         if(alarms.size() == 0) {
-          tft.printf("     No alarms      ");
+          //tft.printf("     No alarms      ");
+          tft.printf("Last A: %s          ", JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("lastAlarm").as<char*>());
         } else {
           tft.setTextColor(TFT_RED, TFT_WHITE);
       
@@ -853,6 +844,18 @@ void loop(void) {
 
       default: menu_page_current = 0;
     } // switch()
+
+    if(tm_CheckDataAge.expired()) {
+
+      if(currentMillis - dataAge > 10000 && dataAge > 0L) {
+              
+        tft.setTextSize(3);
+        tft.setCursor(0, 0);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(TFT_RED, TFT_BLACK);
+        tft.println("  NO DATA RX " );
+      }    
+    }    
   } // tm_UpdateDisplay.expired()
 } // loop()
 

@@ -21,6 +21,7 @@
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
 #include <Timemark.h>
+#include <KRA-Emon.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -50,12 +51,17 @@ ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
+KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, 100.0);
+KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, 1.0);
+
 // Structs
 adc_avg ADC_waterpressure;
 volatile Buzzer buzzer;
 emonvrms_type EMONMAINS; // Vrms values (phases/gnd)
-emondata_type EMONDATA_K2;   // Livingroom values
-emondata_type EMONDATA_K3;   // Kitchen values
+//emondata_type EMONDATA_K2;   // Livingroom values
+//emondata_type EMONDATA_K3;   // Kitchen values
+
+
 volatile appconfig_type APPCONFIG ;
 volatile waterpump_type WATERPUMP;
 volatile flags_BitField APPFLAGS;
@@ -288,6 +294,9 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
+
+  
+
 }
 
 
@@ -300,7 +309,11 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
-  
+  if(!APPFLAGS.is_updating) {
+    EMON_K2.Calc();
+    //EMON_K3.Calc();
+  }
+
   if(ENABLE_BUZZER) {
     if(tm_buzzer.expired()) {
       tm_buzzer.stop();
@@ -382,12 +395,13 @@ ISR (TIMER2_COMPA_vect)
 
       ALARMS_EMON.emon_K2 = 0;
       ALARMS_EMON.emon_K3 = 0;
-      if(EMONDATA_K2.error || EMONDATA_K2.Irms > 20.0 || EMONDATA_K2.Irms < 0.0) {
+      if(EMON_K2.error || EMON_K2.FinalRMSCurrent > 20.0 || EMON_K2.FinalRMSCurrent < 0.0) {
           ALARMS_EMON.emon_K2 = 1;
       }
-      if(EMONDATA_K3.error || EMONDATA_K3.Irms > 20.0 || EMONDATA_K3.Irms < 0.0) {
+      if(EMON_K3.error || EMON_K3.FinalRMSCurrent > 20.0 || EMON_K3.FinalRMSCurrent < 0.0) {
           ALARMS_EMON.emon_K3 = 1;
       }
+
 
       // Groundfaults
       ALARMS_EMON.power_groundfault = 0;
@@ -452,22 +466,18 @@ ISR (TIMER2_COMPA_vect)
   // --------- Water pump suspension logic -------------  
   if(IS_ACTIVE_ALARMS_WP()) { 
     //WATERPUMP.is_suspended = 0;
-    WATERPUMP.status = STOPPED;
+    WATERPUMP.status = DISABLED;
   } else {  // No active WP alarms, it's ok to start or continue suspension period
 
     if(WATERPUMP.status != SUSPENDED && start_wp_suspension) {// not suspended and we just cleared an WP alarm, start suspension timer
-      //WATERPUMP.is_suspended = 1;
       WATERPUMP.status = SUSPENDED;
-      WATERPUMP.suspend_timer = 0; 
       WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
     } else { // see if we should increase or disable suspension timer
 
-      if(WATERPUMP.status == SUSPENDED && WATERPUMP.suspend_timer < APPCONFIG.wp_suspendtime) { // suspension active and still not reached timeout
-
-      } else if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
-        //WATERPUMP.is_suspended = 0;
-        WATERPUMP.status = STOPPED;
-        WATERPUMP.suspend_timer = 0;
+      if(WATERPUMP.status == SUSPENDED) {
+        if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
+          WATERPUMP.status = STOPPED;
+        }
       }
     }
   }
@@ -483,6 +493,8 @@ ISR (TIMER2_COMPA_vect)
     if(WATERPUMP.status == SUSPENDED) {
       WATERPUMP.suspend_timer++; 
       WATERPUMP.suspend_timer_total++;
+    } else {
+      WATERPUMP.suspend_timer = 0;
     }
   }
 
@@ -492,54 +504,55 @@ ISR (TIMER2_COMPA_vect)
       WATERPUMP.pressure_state_t = 0;  // Reset state time (inc in timer2)
       WATERPUMP.pressure_state = PRESSURE_LOW;
     }
-  } else if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper && ADC_waterpressure.average > 0) {
+  } else if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_lower && ADC_waterpressure.average > 0) {
     if(WATERPUMP.pressure_state != PRESSURE_OK) { // Pressure State has changed!
       WATERPUMP.pressure_state_t = 0;  // Reset state time (inc in timer2)
       WATERPUMP.pressure_state = PRESSURE_OK;
     }
   }
 
-  if(WATERPUMP.pressure_state == PRESSURE_LOW) {
-    //if(WATERPUMP.is_running) {
-    if(WATERPUMP.status == RUNNING) {
-      
-    } else {
-      if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
-        if(WATERPUMP.state_age > 15) {  // always wait minimum n sec after stop before we start again, no hysterese...
-          //WATERPUMP.is_running = 1;
-          WATERPUMP.status = RUNNING;
-          WATERPUMP.state_age=0; //reset state age
-          WATERPUMP.start_counter++; // increase the start counter 
-        }
+  if(WATERPUMP.status != SUSPENDED) {
+    if(WATERPUMP.pressure_state == PRESSURE_LOW) {
+      //if(WATERPUMP.is_running) {
+      if(WATERPUMP.status == RUNNING) {
+        
+      } else {
+        if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
+          if(WATERPUMP.state_age > 15) {  // always wait minimum n sec after stop before we start again, no hysterese...
+            //WATERPUMP.is_running = 1;
+            WATERPUMP.status = RUNNING;
+            WATERPUMP.state_age=0; //reset state age
+            WATERPUMP.start_counter++; // increase the start counter 
+          }
 
-      } else {
-        //not turning on yet, pressure_state_t < 5 sec
+        } else {
+          //not turning on yet, pressure_state_t < 5 sec
+        }
       }
-    }
-  } else { // PRESSURE_OK
-    //if(WATERPUMP.is_running) {
-    if(WATERPUMP.status == RUNNING) {
-      // check if runtime too short, it indicates too low air pressure in accumulator tank
-      if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
-        WATERPUMP.accumulator_ok = false;
+    } else { // PRESSURE_OK
+      if(WATERPUMP.status == RUNNING && WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) {
+        // check if runtime too short, it indicates too low air pressure in accumulator tank
+        if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
+          WATERPUMP.accumulator_ok = false;
+        } else {
+          WATERPUMP.accumulator_ok = true;
+        }
+        //WATERPUMP.is_running = 0;
+        WATERPUMP.status = STOPPED;
+        WATERPUMP.state_age=0; //reset state age
+        
+        
       } else {
-        WATERPUMP.accumulator_ok = true;
+        
       }
-      //WATERPUMP.is_running = 0;
-      WATERPUMP.status = STOPPED;
-      WATERPUMP.state_age=0; //reset state age
-      
-      
-    } else {
-      
     }
   }
 
+
   // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
   //if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
-  if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.status == SUSPENDED) {
-    //WATERPUMP.is_running = 0;
-    WATERPUMP.status = STOPPED;
+  if(IS_ACTIVE_ALARMS_WP()) {
+    //WATERPUMP.status = STOPPED;
   }
 
 }
@@ -571,12 +584,9 @@ void loop() // run over and over
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
   //if(strlen(buffer_sensorhub) > 0) {
   
+//  EMON.Calc();
 
   if(NewSPIData) {
-    //indx= 0; //reset button to zero  
-    //SPI_dataready = false; //flag that we handled the data
-
-    //Serial.print("SPIRX OK: ");
     Serial.print (SPIData); //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
@@ -595,15 +605,26 @@ void loop() // run over and over
       Serial.println(error.f_str());
       
     } else {
-      //Serial.print("SPIRX OK: ");
-      //Serial.print (SPIData); //print the array on serial monitor    
 
       JsonVariant jsonVal;
 
       // TODO: rewrite with switch(cmd), no String (const char)
 
       if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-        //Serial.println("this is SENSOR_DATA");
+
+        uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
+        switch(_devid) {
+          case 50406:
+            if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
+              //Serial.println("this is sid 1 pump motor sensor");
+              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();
+              tm_DataStale_50406_1.start(); // restart "old data" timer
+            }
+
+          break;
+          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
+        }
+/*
         if(tmp_json.getMember("devid").as<String>() == "50406") { // Water pump probe
           //Serial.println("this is devid 50406");
           if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
@@ -612,14 +633,15 @@ void loop() // run over and over
             tm_DataStale_50406_1.start(); // restart "old data" timer
           }
         }
-      }
-    }
+        */
+      } // 0x45
+    } // no json error
   } // NewSPIData
 
 
   // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
   if(tm_DataStale_50406_1.expired()) {
-    WATERPUMP.temp_pumphouse_val = -99.0;
+    WATERPUMP.temp_pumphouse_val = -99.9;
   }
 
   if (tm_DataTX.expired()) {
@@ -684,16 +706,33 @@ void loop() // run over and over
 
     //----------- Update EMON Voltage data -------------
 
-    EMONMAINS.Vrms_L_N = voltageSensor_L_N.getVoltageAC();
+    EMONMAINS.Vrms_L_N = EMON_K2.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
-    
+
     //----------- Update EMON Current data -------------
 
-    EMONDATA_K2.Irms = readACCurrentValue(ADC_CH_CT_K2, 20, ADC_CH_CT_K2_VDD_CALIB); // EMON_K2.calcIrms(500);
-    EMONDATA_K2.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
-    EMONDATA_K3.Irms = readACCurrentValue(ADC_CH_CT_K3, 20, ADC_CH_CT_K3_VDD_CALIB);
-    EMONDATA_K3.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K3.Irms);
+    //EMONDATA_K2.Irms = EMON.FinalRMSCurrent; // readACCurrentValue(ADC_CH_CT_K2, 20, ADC_CH_CT_K2_VDD_CALIB); // EMON_K2.calcIrms(500);
+    //EMONDATA_K2.apparentPower = EMON.apparentPower; // (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
+    //EMONDATA_K2.PF = EMON.powerFactor;
+    //EMONDATA_K3.Irms = readACCurrentValue(ADC_CH_CT_K3, 20, ADC_CH_CT_K3_VDD_CALIB);
+    //EMONDATA_K3.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K3.Irms);
+
+
+
+
+    /*
+    Serial.print("FinalRMSCurrent: "); Serial.println(EMON_K2.FinalRMSCurrent);
+    Serial.print("RMSVoltageMean: "); Serial.println(EMON_K2.RMSVoltageMean);
+    Serial.print("apparentPower: "); Serial.println(EMON_K2.apparentPower);
+    Serial.print("realPower: "); Serial.println(EMON_K2.realPower);
+    Serial.print("powerFactor: "); Serial.println(EMON_K2.powerFactor);
+*/
+
+
+
+
+
 
     //----------- Update WATER PRESSURE data -------------
 
@@ -768,15 +807,15 @@ void loop() // run over and over
     JsonObject circuits = root.createNestedObject("circuits");
     JsonObject circuit = circuits.createNestedObject("K2");
     //json = root.createNestedObject("K2");
-    circuit["I"] = EMONDATA_K2.Irms;
-    circuit["P_a"] = EMONDATA_K2.apparentPower;
-    circuit["PF"] = EMONDATA_K2.PF;
+    circuit["I"] = EMON_K2.FinalRMSCurrent;
+    circuit["P_a"] = EMON_K2.apparentPower;
+    circuit["PF"] = EMON_K2.powerFactor;
     
     circuit = circuits.createNestedObject("K3");
     //json = root.createNestedObject("K3");
-    circuit["I"] = EMONDATA_K3.Irms;
-    circuit["P_a"] = EMONDATA_K3.apparentPower;
-    circuit["PF"] = EMONDATA_K3.PF;
+    circuit["I"] = EMON_K3.FinalRMSCurrent;
+    circuit["P_a"] = EMON_K3.apparentPower;
+    circuit["PF"] = EMON_K3.powerFactor;
 
     dataString = "";
     serializeJson(root, dataString);
@@ -796,9 +835,10 @@ void loop() // run over and over
     JsonObject json = root.createNestedObject("WP");
 
     switch(WATERPUMP.status) {
-      case RUNNING: json["status"] = "RUNNING"; break;
-      case STOPPED: json["status"] = "STOPPED"; break;
+      case RUNNING: json["status"] = "RUN"; break;
+      case STOPPED: json["status"] = "STOP"; break;
       case SUSPENDED: json["status"] = "SUSPENDED"; break;
+      case DISABLED: json["status"] = "DISABLED"; break;
       default: json["status"] = WATERPUMP.status;
     }
     

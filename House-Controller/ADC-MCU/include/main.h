@@ -111,7 +111,7 @@ typedef struct
 
 enum { PRESSURE_LOW=0, PRESSURE_OK=1, PRESSURE_HIGH=2 };
 
-enum { STOPPED=0, RUNNING=1, SUSPENDED=2 };
+enum { STOPPED=0, RUNNING=1, SUSPENDED=2, DISABLED=3 };
 
 typedef struct
 {

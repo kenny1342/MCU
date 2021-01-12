@@ -221,9 +221,9 @@ jQuery(document).ready(function () {
 
         let wp_status = json.WP.status;
         
-        if(wp_status == "RUNNING") {
+        if(wp_status == "SUSPENDED") {
           $("#wp_status").removeClass().addClass("SUSPENDED");
-        } else if(wp_status == "RUNNING") {
+        } else if(wp_status == "RUN") {
           $("#wp_status").removeClass().addClass("RUNNING");
         } else {
           $("#wp_status").removeClass().addClass("STOPPED");
@@ -283,7 +283,7 @@ jQuery(document).ready(function () {
               '<td class="td_title">'+key+'</td>' +
               '<td class="td_value"><small>I(rms)</small> ' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
               '<td class="td_value">' + json.circuits[key].P_a + '<sup class="units_xs">W</sup></td>' +
-              '<td class="td_value"><small>PF:</small> ' + json.circuits[key].PF + '<sup class="units_xs">%</sup></td>' +
+              '<td class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[key].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
             '</tr>"';
             $("#table_emon_circuits tbody").append(markup);
 
