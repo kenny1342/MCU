@@ -83,7 +83,7 @@ Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_Che
 
 void setup()
 {
-  wdt_enable(WDTO_4S);
+  wdt_enable(WDTO_8S);
 
   APPFLAGS.is_busy = 1;
 
@@ -452,7 +452,7 @@ ISR (TIMER2_COMPA_vect)
   // --------- Water pump suspension logic -------------  
   if(IS_ACTIVE_ALARMS_WP()) { 
     //WATERPUMP.is_suspended = 0;
-    WATERPUMP.status = SUSPENDED;
+    WATERPUMP.status = STOPPED;
   } else {  // No active WP alarms, it's ok to start or continue suspension period
 
     if(WATERPUMP.status != SUSPENDED && start_wp_suspension) {// not suspended and we just cleared an WP alarm, start suspension timer
@@ -505,7 +505,7 @@ ISR (TIMER2_COMPA_vect)
       
     } else {
       if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
-        if(WATERPUMP.state_age > 5) {  // always wait minimum 5 sec after stop before we start again, no hysterese...
+        if(WATERPUMP.state_age > 15) {  // always wait minimum n sec after stop before we start again, no hysterese...
           //WATERPUMP.is_running = 1;
           WATERPUMP.status = RUNNING;
           WATERPUMP.state_age=0; //reset state age

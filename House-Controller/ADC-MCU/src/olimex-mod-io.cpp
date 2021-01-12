@@ -38,7 +38,7 @@ uint8_t ModIO_Update()
   Wire.write(0x10); // cmd to set relays
   Wire.write(relayState);                       
   //Serial.println("MOD-IO end"); 
-  return (uint8_t) Wire.endTransmission(0); // 0=do not send stop (no-block)
+  return (uint8_t) Wire.endTransmission(1); // 0=do not send stop (no-block)
 }
 
 uint8_t ModIO_SetRelayState(unsigned char relay, unsigned char mode) {
