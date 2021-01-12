@@ -143,14 +143,16 @@ a:hover {
 
 .SUSPENDED {
   color:rgb(219, 45, 1);
+  font-weight: 800;
 }
 .RUN {
   color:rgb(0, 61, 141);
   font-style: oblique;
+  font-weight: 800;
 }
 .STOP {
   color:rgb(13, 145, 1);
-  
+  font-weight: 800;
 }
 
 h1 {
@@ -169,6 +171,7 @@ h1 {
     white-space: nowrap;
     font-size: 3em;
     color: red;
+    font-weight: 600;
   }
 
   

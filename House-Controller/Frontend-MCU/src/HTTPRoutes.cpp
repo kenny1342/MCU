@@ -109,7 +109,7 @@ void Webserver::AddRoutes() {
     request->send(200, "application/json", output);
   });
 
-  server.on("/json/system", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/json/frontend", HTTP_GET, [](AsyncWebServerRequest *request){
     String output;
     StaticJsonDocument<150> doc;
     JsonObject root = doc.to<JsonObject>();

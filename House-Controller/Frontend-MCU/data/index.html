@@ -11,7 +11,7 @@
 <body>
   <h1>Home Controller v%FIRMWARE%</h1>
   <span id="author">Made by %AUTHOR_TEXT%</span>
-  <a href='/json/0x10'>ADC</a> | <a href='/json/0x11'>EMON</a> | <a href='/json/0x12'>Water</a> | <a href='/json/0x45'>Remote</a> | <a href='/json/system'>System</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
+  <a href='/json/0x10'>ADC</a> | <a href='/json/0x11'>EMON</a> | <a href='/json/0x12'>Water</a> | <a href='/json/0x45'>Remote</a> | <a href='/json/frontend'>Frontend</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/update'>System Update</a>
  
 
 <div class="container">
@@ -95,7 +95,7 @@
           </tr>          
           <tr>
             <td  class="td_title">Status</td>
-            <td class="td_value"> <span id="wp_status" class="RUNNING">AAAAAA</span><br /> <span class="small" id="wp_t_state">00:00:00</span></td>
+            <td class="td_value"> <span id="wp_status" class="RUN">UNKNOWN</span><br /> <span class="small" id="wp_t_state">00:00:00</span></td>
           </tr>
           <!--<tr>
             <td class="td_title">Status duration</td>
@@ -124,9 +124,9 @@
 
     <small>
       <b>Uptimes:</b> Frontend: <span id="uptime_sys">-</span>, ADC: <span id="uptime_adc">-</span>, Hub: <span id="uptime_hub">-</span> 
-      <br /> <b>Last alarm:</b> <span id="lastAlarm">-</span>
+      <br /> <b>Last ADC alarm:</b> <span id="lastAlarm"></span>
       <br />
-      Web Interface v%WEBIF_VERSION% (Free Heap memory: <span id="heap">-</span> Bytes - Freq: <span id="freq">-</span> - ChipID: <span id="chipid">-</span>)<!--<input type="checkbox" id="chktestdata" />Use test data-->
+      Web Interface v%WEBIF_VERSION% (Frontend Heap Memory: <span id="heap">-</span> Bytes - ChipID: <span id="chipid">-</span> @ <span id="freq">0 Mhz</span>)<!--<input type="checkbox" id="chktestdata" />Use test data-->
     </small>
   </div>
 

@@ -466,17 +466,10 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
-//char data_string[JSON_SIZE] = "";
-
 void loop(void) {
-  unsigned long currentMillis = millis();
-  //int wifitries = 0;
   double t = 0;
   char data_string[JSON_SIZE] = "";
   const char* data_string_ptr = data_string;
-
-  //const size_t JSON_SIZE = JSON_OBJECT_SIZE(20) + 25; // json with 20 elements, 30 chars
-  //StaticJsonDocument<JSON_SIZE> tmp_json;
 
   Blynk.run();
   CheckButtons();
@@ -777,15 +770,21 @@ void loop(void) {
         t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
         tft.printf("Room temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
 
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
+        tft.printf("Motor temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+
         tft.printf("Start count: %u \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());
 
-        const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
+        //const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
+        const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char *>();
         tft.printf("%s: %s\n", state, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_state").as<uint16_t>()));
 
-        const char * suspended = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
-        tft.printf("Susp: %s %s\n", suspended, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp").as<uint16_t>()));
+        //const char * suspended = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
+        //tft.printf("Susp: %s %s\n", suspended, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp").as<uint16_t>()));
 
         tft.printf("Susp tot: %s\n", TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
+
+        tft.printf("Power usage: NA Watt\n");
       }
       break;
       case MENU_PAGE_SYSTEM_STATS:
