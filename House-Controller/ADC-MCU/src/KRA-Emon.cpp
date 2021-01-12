@@ -16,13 +16,13 @@ KRAEMON::KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin,
     //ACTectionRange = _ACTectionRange;
 }
 
-void KRAEMON::Calc() {
+void KRAEMON::Calc() volatile {
     this->getVoltageRmsAC();
     this->getCurrentAC();
     this->getPower();
 }
 
-void KRAEMON::getVoltageRmsAC()  {
+void KRAEMON::getVoltageRmsAC() volatile {
 
     //Serial.println("CALC1");
 
@@ -54,7 +54,7 @@ if(voltageSampleCount == 1000)                                                  
 }
 
 
-void KRAEMON::getCurrentAC()  {
+void KRAEMON::getCurrentAC() volatile {
 /*
     peakVoltage += analogRead(CurrentAnalogInputPin);   //read peak voltage
   peakVoltage = peakVoltage / readcount;   
@@ -102,7 +102,7 @@ void KRAEMON::getCurrentAC()  {
 
 
  /* 3- AC Power with Direction */
-void KRAEMON::getPower() {
+void KRAEMON::getPower() volatile {
     if(millis() >= powerLastSample + 1)                                                       /* every 1 milli second taking 1 reading */
         {
         sampleCurrent1 = analogRead(CurrentAnalogInputPin)-512+ currentOffset1;

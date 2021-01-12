@@ -51,8 +51,8 @@ ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
-KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, 100.0);
-KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, 1.0);
+volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, 100.0);
+volatile KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, 1.0);
 
 // Structs
 adc_avg ADC_waterpressure;
@@ -295,10 +295,7 @@ ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
-  
-
 }
-
 
 
 //******************************************************************
@@ -309,9 +306,9 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
-  if(!APPFLAGS.is_updating) {
+  if(!APPFLAGS.isProcessingData) {
     EMON_K2.Calc();
-    //EMON_K3.Calc();
+    EMON_K3.Calc();
   }
 
   if(ENABLE_BUZZER) {
@@ -381,7 +378,7 @@ ISR (TIMER2_COMPA_vect)
     }
 
     // Only update alarms (for external data) if not currently reading new ADC values/updating data, we might get zero/invalid results until it's completed
-    if(!APPFLAGS.is_updating) {
+    if(!APPFLAGS.isProcessingData) {
 
       /////// EMON Sensor alarms ////////////////
       ALARMS_EMON.sensor_error = 0;
@@ -459,7 +456,7 @@ ISR (TIMER2_COMPA_vect)
       }
 
       /*** SET/CLEAR ALARMS DONE ***/
-    } // if(!APPFLAGS.is_updating)
+    } // if(!APPFLAGS.isProcessingData)
   } // tm_100ms_setAlarms
 
 
@@ -513,20 +510,18 @@ ISR (TIMER2_COMPA_vect)
 
   if(WATERPUMP.status != SUSPENDED) {
     if(WATERPUMP.pressure_state == PRESSURE_LOW) {
-      //if(WATERPUMP.is_running) {
       if(WATERPUMP.status == RUNNING) {
         
       } else {
         if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
           if(WATERPUMP.state_age > 15) {  // always wait minimum n sec after stop before we start again, no hysterese...
-            //WATERPUMP.is_running = 1;
             WATERPUMP.status = RUNNING;
             WATERPUMP.state_age=0; //reset state age
             WATERPUMP.start_counter++; // increase the start counter 
           }
 
         } else {
-          //not turning on yet, pressure_state_t < 5 sec
+          //not turning on yet, pressure_state_t < n sec
         }
       }
     } else { // PRESSURE_OK
@@ -647,7 +642,7 @@ void loop() // run over and over
   if (tm_DataTX.expired()) {
     
     APPFLAGS.is_busy = 1;
-    APPFLAGS.is_updating = 1;
+    APPFLAGS.isProcessingData = 1;
 
     // Control MOD-IO board relays
     //if(ModIO_GetRelayState(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
@@ -755,7 +750,7 @@ void loop() // run over and over
     WATERPUMP.water_pressure_bar_val = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
     WATERPUMP.water_pressure_bar_val += (double)CORR_FACTOR_PRESSURE_SENSOR;
 
-    APPFLAGS.is_updating = 0;
+    APPFLAGS.isProcessingData = 0;
 
     //------------ Create JSON doc ----------------
     LED_ON(PIN_LED_WHITE);

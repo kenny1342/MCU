@@ -144,7 +144,7 @@ typedef union {
     byte bitFour:1;
     byte bitFive:1;
     byte bitSix:1;
-    byte is_updating:1; // 1 if reading adc etc, signal to ISR not to do alarm/other logic because values might be zero until done
+    byte isProcessingData:1; // 1 if reading adc, transfering data etc, we signal ISR's not to do touch anything
   };
 } flags_BitField;
 
