@@ -16,8 +16,8 @@ public:
     
     float RMSVoltageMean ;                            /* square roof of voltageMean*/
     float FinalRMSCurrent ;                           /* the final RMS current reading*/
-    float apparentPower;                              /* the apparent power reading (VA) */
-    float realPower = 0;                              /* the real power reading (W) */
+    int16_t apparentPower;                              /* the apparent power reading (VA) */
+    int16_t realPower = 0;                              /* the real power reading (W) */
     float powerFactor = 0;                            /* to display power factor value*/ 
     bool error = false;
 
