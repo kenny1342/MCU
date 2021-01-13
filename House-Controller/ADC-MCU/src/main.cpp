@@ -32,6 +32,7 @@ uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
 char lastAlarm[20] = "-";
+//volatile uint8_t lastSuspReason;
 
 // For SPI data processing/ISR
 volatile uint16_t indx;
@@ -145,10 +146,10 @@ void setup()
   }
   #endif
 
-  voltageSensor_L_N.setZeroPoint(ZERO_POINT_L_N);
+  //voltageSensor_L_N.setZeroPoint(ZERO_POINT_L_N);
   voltageSensor_L_PE.setZeroPoint(ZERO_POINT_L_PE);
   voltageSensor_N_PE.setZeroPoint(ZERO_POINT_N_PE);
-  voltageSensor_L_N.setSensitivity(0.0028);
+  //voltageSensor_L_N.setSensitivity(0.0028);
   voltageSensor_L_PE.setSensitivity(0.0018);
   voltageSensor_N_PE.setSensitivity(0.0018);
 
@@ -170,10 +171,9 @@ void setup()
   //Serial_SensorHub.println(F("ADC initializing..."));
 
   // initialize all ADC readings to 0:
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    //ADC_temp_1.readings[thisReading] = 0;
-    ADC_waterpressure.readings[thisReading] = 0;
-  }
+//  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+//    ADC_waterpressure.readings[thisReading] = 0;
+//  }
 
   // Timer 1 - 0.5 Hz overflow ISR
   noInterrupts();          // disable global interrupts
@@ -181,10 +181,8 @@ void setup()
   // Setup Timer1 for 500 ms (0.5 Hz) overlow ISR
   TCCR1A = 0;     // set entire TCCR1A register to 0 (no PWM)
   TCCR1B = 0;     // same for TCCR1B
-  
   // Set timer1_counter to the correct value for our interrupt interval
   timer1_counter = 34286;   // preload timer 65536-16MHz/256/2Hz, 65536-16MHz/1024/0.5Hz
-  
   TCNT1 = timer1_counter;   // preload timer
   // clear:   TCCR1B &= ~(1 << CS10); set:      TCCR1B |= (1 << CS10); toggle: TCCR1B ^= (1 << CS10);
   
@@ -243,14 +241,10 @@ void setup()
 
   buzzer_on(PIN_BUZZER, 200);
 
-  
-
   APPFLAGS.is_busy = 0;
   tm_test.start();
   Serial.println(F("Init done!"));
 }
-
-//char * ptr = buffer_sensorhub;
 
 ISR (SPI_STC_vect)
 {
@@ -367,7 +361,10 @@ ISR (TIMER2_COMPA_vect)
     if(freeMemory() < (int)LOWMEM_LIMIT) {
       ALARMS_SYS.low_memory = 1;
     } else {
-        if(ALARMS_SYS.low_memory) start_wp_suspension = 1; // was active until now, start suspension period
+        if(ALARMS_SYS.low_memory) {
+          start_wp_suspension = 1; // was active until now, start suspension period
+          WATERPUMP.suspend_reason = 10;
+        }
 
       ALARMS_SYS.low_memory = 0; 
     }
@@ -421,14 +418,20 @@ ISR (TIMER2_COMPA_vect)
       if(WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
         ALARMS_WP.sensor_error = 1;
       } else {    
-         if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+         if(ALARMS_WP.sensor_error) {
+           start_wp_suspension = 1; // was active until now, start suspension period
+           WATERPUMP.suspend_reason = 11;
+         }
       }
 
 
       if(ADC_waterpressure.average == 0) {
         ALARMS_WP.sensor_error = 1;
       } else {    
-          if(ALARMS_WP.sensor_error) start_wp_suspension = 1; // was active until now, start suspension period
+          if(ALARMS_WP.sensor_error) {
+            start_wp_suspension = 1; // was active until now, start suspension period
+            WATERPUMP.suspend_reason = 12;
+          }
       }
 
       /////// Water pump and related alarms ///////
@@ -441,7 +444,10 @@ ISR (TIMER2_COMPA_vect)
       if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
         ALARMS_WP.temperature_pumphouse = 1;
       } else {    
-          if(ALARMS_WP.temperature_pumphouse) start_wp_suspension = 1; // was active until now, start suspension period
+          if(ALARMS_WP.temperature_pumphouse) {
+            start_wp_suspension = 1; // was active until now, start suspension period
+            WATERPUMP.suspend_reason = 13;
+          }
 
         ALARMS_WP.temperature_pumphouse = 0;
       }
@@ -450,7 +456,10 @@ ISR (TIMER2_COMPA_vect)
       if(WATERPUMP.status == RUNNING && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
         ALARMS_WP.waterpump_runtime = 1;
       } else {    
-        if(ALARMS_WP.waterpump_runtime) start_wp_suspension = 1; // was active until now, start suspension period
+        if(ALARMS_WP.waterpump_runtime) {
+          start_wp_suspension = 1; // was active until now, start suspension period
+          WATERPUMP.suspend_reason = 14;
+        }
 
         ALARMS_WP.waterpump_runtime = 0;
       }
@@ -486,7 +495,7 @@ ISR (TIMER2_COMPA_vect)
     if(WATERPUMP.status == RUNNING) {
       WATERPUMP.total_runtime++; 
     }
-    //if(WATERPUMP.is_suspended) {
+
     if(WATERPUMP.status == SUSPENDED) {
       WATERPUMP.suspend_timer++; 
       WATERPUMP.suspend_timer_total++;
@@ -514,7 +523,7 @@ ISR (TIMER2_COMPA_vect)
         
       } else {
         if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
-          if(WATERPUMP.state_age > 15) {  // always wait minimum n sec after stop before we start again, no hysterese...
+          if(WATERPUMP.state_age > 10) {  // always wait minimum n sec after stop before we start again, no hysterese...
             WATERPUMP.status = RUNNING;
             WATERPUMP.state_age=0; //reset state age
             WATERPUMP.start_counter++; // increase the start counter 
@@ -532,11 +541,9 @@ ISR (TIMER2_COMPA_vect)
         } else {
           WATERPUMP.accumulator_ok = true;
         }
-        //WATERPUMP.is_running = 0;
+        
         WATERPUMP.status = STOPPED;
         WATERPUMP.state_age=0; //reset state age
-        
-        
       } else {
         
       }
@@ -545,7 +552,6 @@ ISR (TIMER2_COMPA_vect)
 
 
   // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
-  //if(IS_ACTIVE_ALARMS_WP() || WATERPUMP.is_suspended) {
   if(IS_ACTIVE_ALARMS_WP()) {
     //WATERPUMP.status = STOPPED;
   }
@@ -555,31 +561,24 @@ ISR (TIMER2_COMPA_vect)
 
 void loop() // run over and over
 {
-    
-  //static uint32_t previousMillis = 0;
   JsonArray data;
   int pulsecount = 0;  
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
-  //const char* buffer_sensorhub_ptr = buffer_sensorhub;
   char SPIData[JSON_SIZE]; // local copy
-  //uint16_t _indx;
   wdt_reset();
-
   bool NewSPIData;
   
-  noInterrupts();
-  strcpy(SPIData, (char *)buffer_sensorhub);
-  NewSPIData=SPI_dataready;
-  SPI_dataready = false;  
-  interrupts();
+
 
 
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
-  //if(strlen(buffer_sensorhub) > 0) {
-  
-//  EMON.Calc();
+  noInterrupts();
+  strcpy(SPIData, (char *)buffer_sensorhub);
+  NewSPIData=SPI_dataready;
+  SPI_dataready = false;
+  interrupts();
 
   if(NewSPIData) {
     Serial.print (SPIData); //print the array on serial monitor    
@@ -600,10 +599,6 @@ void loop() // run over and over
       Serial.println(error.f_str());
       
     } else {
-
-      JsonVariant jsonVal;
-
-      // TODO: rewrite with switch(cmd), no String (const char)
 
       if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
 
@@ -645,17 +640,11 @@ void loop() // run over and over
     APPFLAGS.isProcessingData = 1;
 
     // Control MOD-IO board relays
-    //if(ModIO_GetRelayState(CONF_RELAY_WP) != WATERPUMP.is_running) // flag set in ISR, control relay if needed
-    //  if(!ModIO_SetRelayState(CONF_RELAY_WP, WATERPUMP.is_running) == MODIO_ACK_OK) ModIO_Reset();
     if(ModIO_GetRelayState(CONF_RELAY_WP) != (WATERPUMP.status == RUNNING)) // flag set in ISR, control relay if needed
       if(!ModIO_SetRelayState(CONF_RELAY_WP, (WATERPUMP.status == RUNNING)) == MODIO_ACK_OK) ModIO_Reset();
     
     ModIO_Update();
-  /*while(1) {
-    delay(1000);
-    Serial.println("ok...");
-    wdt_reset();
-  }*/
+
     //----------- Update Water Pump temps -------------
     switch(am2320_pumproom.Read()) {
       case 2:
@@ -770,13 +759,13 @@ void loop() // run over and over
 
     // TODO: smarten up....
     if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
-      if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.emon_K3) { data.add(F("K3")); strncpy(lastAlarm, "K3", sizeof(lastAlarm)); }
       if(ALARMS_SYS.low_memory) { data.add(F("lowmem")); strncpy(lastAlarm, "lowmem", sizeof(lastAlarm)); }
       if(ALARMS_WP.waterpump_runtime) { data.add(F("wpruntime")); strncpy(lastAlarm, "wpruntime", sizeof(lastAlarm)); }
       if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
       if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
       if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.emon_K3) { data.add(F("K3")); strncpy(lastAlarm, "K3", sizeof(lastAlarm)); }
       if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
       if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
       if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
@@ -838,9 +827,7 @@ void loop() // run over and over
     }
     
     json["t_state"] = WATERPUMP.state_age;
-    //json["is_running"] = WATERPUMP.is_running;
-    //json["is_running"] = WATERPUMP.status == RUNNING ? 1 : 0;
-    //json["is_suspended"] = WATERPUMP.is_suspended;
+    json["susp_r"] = WATERPUMP.suspend_reason;
     json["cnt_starts"] = WATERPUMP.start_counter;
     json["cnt_susp"] = WATERPUMP.suspend_count;
     json["t_susp"] = WATERPUMP.suspend_timer;
@@ -860,7 +847,7 @@ void loop() // run over and over
   }
 
 }
-
+/*
 float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib)
 {
   uint8_t readcount = 50;
@@ -880,14 +867,14 @@ float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib)
   peakVoltage = peakVoltage / readcount;   
   voltageVirtualValue = peakVoltage * 0.707;    //change the peak voltage to the Virtual Value of voltage
 
-  /*The circuit is amplified by 2 times, so it is divided by 2.*/
+  //The circuit is amplified by 2 times, so it is divided by 2.
   voltageVirtualValue = (voltageVirtualValue / 1024 * Vdd_calib ) / 2;  
 
   ACCurrtntValue = voltageVirtualValue * ACTectionRange;
 
   return ACCurrtntValue;
 }
-
+*/
 
 /**
 * check if an alarm bit is set or not

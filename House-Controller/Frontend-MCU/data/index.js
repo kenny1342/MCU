@@ -1,3 +1,4 @@
+
 function formatSecs(input=0) {
     
   let days = Math.floor(input / 86400);
@@ -206,14 +207,19 @@ jQuery(document).ready(function () {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
         }
-
+        let susp_reasons = { 10:"Low memory", 11:"Sensor O/R", 12:"Sensor ADC zero", 13:"Temp too low", 14:"Runtime exceeded" };
+        let susp_r = json.susp_r;
+        if(susp_reasons[susp_r]) {
+          $("#wp_susp_r").empty().append(susp_reasons[susp_r]);
+        } else {
+          $("#wp_susp_r").empty().append(susp_r);
+        }
+        
         $("#temperature").empty().append(parseFloat(json.temp_c).toFixed(1));
         $("#temperature_motor").empty().append(parseFloat(json.temp_motor_c).toFixed(1));
         $("#hum_room_pct").empty().append(parseFloat(json.hum_room_pct).toFixed(1));
         $("#waterpressure").empty().append(parseFloat(json.pressure_bar).toFixed(2));
-        //$("#wp_is_running").empty().append( json.WP.is_running ? "ON" : "OFF");
         $("#wp_status").empty().append( json.WP.status);
-        //$("#wp_is_suspended").empty().append( json.WP.is_suspended ? "YES" : "NO");
         $("#wp_t_state").empty().append( formatSecs(json.WP.t_state) );
         $("#wp_cnt_starts").empty().append( json.WP.cnt_starts );
         $("#wp_cnt_susp").empty().append( json.WP.cnt_susp );

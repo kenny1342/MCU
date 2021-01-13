@@ -116,7 +116,7 @@ enum { STOPPED=0, RUNNING=1, SUSPENDED=2, DISABLED=3 };
 typedef struct
 {
   uint8_t status; // enum
-  //uint8_t is_running;
+  uint8_t suspend_reason;
   uint32_t state_age; // seconds since is_running was changed (avoid too frequent start/stops) (uint32_t = 0-4294967295)
   uint16_t start_counter; // increases +1 every time we start the waterpump (volatile, #nr of starts since boot)
   uint16_t suspend_timer; // seconds to wait after alarms are cleared before we start pump again
@@ -196,7 +196,7 @@ typedef union {
 #define LED_OFF(pin) digitalWrite(pin, 1)
 #define LED_TOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
 
-float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib);
+//float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib);
 bool getAlarmStatus_SYS(uint8_t Alarm);
 bool getAlarmStatus_WP(uint8_t Alarm);
 bool getAlarmStatus_EMON(uint8_t Alarm);
