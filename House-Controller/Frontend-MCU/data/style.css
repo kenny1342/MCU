@@ -51,7 +51,7 @@ a:hover {
 #author {
   position: absolute;
   margin: 0 auto;
-  top: 1rem;
+  top: 0.1rem;
   right: 1rem;
 }
 #table_main{
@@ -88,16 +88,19 @@ a:hover {
   text-align: left;
   font-size: 3em;
 }
-#table_pump .td_title {
-  text-align: left;
-  font-size: 2em;  
-}
 
 #table_utility .td_value {
   text-align: left;
   font-size: 4.2em;
 }
+#table_utility .small {
+  font-size: 1.7rem;
+}
 
+#table_pump .td_title {
+  text-align: left;
+  font-size: 2em;  
+}
 #table_pump .td_value {
   text-align: left;
   font-size: 3em;  
@@ -232,9 +235,17 @@ h1 {
     *>*{
         font-size:0.91em;
     }
-
+    #author {
+      font-size:0.5em;
+    }
     #table_utility td, #table_pump td, #table_emon_circuits td {
       padding:0.2rem;
+    }
+    #table_pump .small {
+      font-size: 0.7rem;
+    }
+    #table_utility .small {
+      font-size: 0.7rem;
     }
 
     #table_emon_circuits tbody {
@@ -259,6 +270,9 @@ h1 {
       font-size:0.88em;
     }
 
+    #author {
+      font-size:0.5em;
+    }
     small {
       font-size:0.77em;
       white-space: nowrap;
@@ -269,6 +283,12 @@ h1 {
     }
     #table_utility .td_title {
       font-size:0.8rem;
+    }
+    #table_pump .small {
+      font-size: 0.5rem;
+    }
+    #table_utility .small {
+      font-size: 0.5rem;
     }
     #table_emon_circuits tbody {
       font-size:0.5rem;

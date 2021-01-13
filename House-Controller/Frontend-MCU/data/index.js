@@ -133,10 +133,10 @@ jQuery(document).ready(function () {
 
     }, 3000 ) ;
 
-    // Get system data from JSON
+    // Get Frontend data from JSON
     setInterval(function ( ) {
 
-      fetch('/json/system')
+      fetch('/json/frontend')
       .then(response => response.json())
       .then(data => {
           console.log(data);
