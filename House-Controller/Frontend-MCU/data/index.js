@@ -208,11 +208,15 @@ jQuery(document).ready(function () {
           return;
         }
         let susp_reasons = { 10:"Low memory", 11:"Sensor O/R", 12:"Sensor ADC zero", 13:"Temp too low", 14:"Runtime exceeded" };
-        let susp_r = json.susp_r;
-        if(susp_reasons[susp_r]) {
-          $("#wp_susp_r").empty().append(susp_reasons[susp_r]);
+        let susp_r = json.WP.susp_r;
+        if(parseInt(susp_r, 10) > 0) {
+          if(susp_reasons[susp_r]) {
+            $("#wp_susp_r").empty().append("(" + susp_reasons[susp_r]+")");
+          } else {
+            $("#wp_susp_r").empty().append(susp_r);
+          }  
         } else {
-          $("#wp_susp_r").empty().append(susp_r);
+          $("#wp_susp_r").empty();
         }
         
         $("#temperature").empty().append(parseFloat(json.temp_c).toFixed(1));
