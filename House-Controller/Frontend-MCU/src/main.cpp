@@ -656,8 +656,18 @@ void loop(void) {
       if (error) {
         Serial.print("\n");
         Serial.print(JSON_STRINGS[x]);
-        Serial.print(F("^JSON_ERR"));
+        Serial.print(F("^JSON_ERR [TFT]:"));
         Serial.println(error.f_str());
+
+        tft.setTextSize(3);
+        tft.setCursor(0, 0);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(TFT_RED, TFT_BLACK);
+        tft.println(" INVALID DATA   \n" );
+        tft.println(" JSON ERROR    \n" );
+        tft.printf("%lu\n", millis() );
+        delay(500);
+        return;        
       }
     }
 
