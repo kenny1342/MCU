@@ -5,16 +5,19 @@ function formatSecs(input=0) {
   let hours = Math.floor((input % 86400 ) / 3600) ;
   let minutes = Math.floor(((input % 86400 ) % 3600 ) / 60 );
   let seconds = ((input % 86400 ) % 3600 ) % 60  ;
-  
-  timeString = days.toString() + ' days, ' +  
-  hours.toString().padStart(2, '0') 
+  let timeString = "";
+
+  if(days > 0) {
+    timeString = days.toString() + ' days, ';
+  }
+    
+  timeString += hours.toString().padStart(2, '0') 
       + ':' + minutes.toString().padStart(2, '0') 
       + ':' + seconds.toString().padStart(2, '0'); 
     
   return timeString;
   }
     
-  
   // Make sure JQuery script is loaded. Because of size, we try to include it from public/CDN first. If that fails, we load it locally (slower)
   
   if (typeof jQuery === "undefined") {
