@@ -471,18 +471,22 @@ ISR (TIMER2_COMPA_vect)
 
   // --------- Water pump suspension logic -------------  
   if(IS_ACTIVE_ALARMS_WP()) { 
-    //WATERPUMP.is_suspended = 0;
-    WATERPUMP.status = DISABLED;
+    if(WATERPUMP.status != DISABLED) {
+      WATERPUMP.status = DISABLED;
+      WATERPUMP.state_age=0; //reset state age
+    }
   } else {  // No active WP alarms, it's ok to start or continue suspension period
 
     if(WATERPUMP.status != SUSPENDED && start_wp_suspension) {// not suspended and we just cleared an WP alarm, start suspension timer
       WATERPUMP.status = SUSPENDED;
+      WATERPUMP.state_age=0; //reset state age
       WATERPUMP.suspend_count++; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
     } else { // see if we should increase or disable suspension timer
 
       if(WATERPUMP.status == SUSPENDED) {
         if(WATERPUMP.suspend_timer >= APPCONFIG.wp_suspendtime)  {// Suspension period is over
           WATERPUMP.status = STOPPED;
+          WATERPUMP.state_age=0; //reset state age
         }
       }
     }
