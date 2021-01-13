@@ -180,12 +180,7 @@ void setup() {
   server[2]->setNoDelay(true);
   #endif
 
-  digitalWrite(SS, HIGH); // disable Slave Select
-  SPI1.begin();
-  SPI1.setClockDivider(SPI_CLOCK_DIV64);
-
-
-  tm_SendData.start();
+    tm_SendData.start();
   tm_reboot.start();
 
   //esp_err_t esp_wifi_set_max_tx_power(50);  //lower WiFi Power
@@ -197,28 +192,43 @@ void setup() {
  */
 void SendData() {
 
-  SPI.beginTransaction (SPISettings (1000000, LSBFIRST, SPI_MODE0));  // 1 MHz clock
+  uint16_t writeDelay = 1900; // delay (us) between transfer, so the slow ATmega ISR can keep up. Otherwise it reads mostly garbage chars.
+  SPI.beginTransaction (SPISettings (4000000, LSBFIRST, SPI_MODE0));  
+  
   digitalWrite(SS, LOW); // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
-  delay(50);
+  delay(10);
     
   SPI1.write(0x10); // ADC devid / START marker
-  SPI1.transfer('<'); delay(10);
-  delayMicroseconds(50);
+  delayMicroseconds(writeDelay);
+  SPI1.transfer('<'); //delay(10);
+  delayMicroseconds(writeDelay);
 
   COM[DEBUG_COM]->print("SPITX-START:\n");
 
+/*
+ // send test string
+ char c;
+ for (const char * p = "Hello, world!\n" ; c = *p; p++) {
+  SPI1.transfer (c);
+  //delayMicroseconds(10000);
+  delay(10);
+ }
+  */ 
+
+  //char * str = {"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"uptime_sec":55,"data":{"value":5,"unit":"DEG_C","name":"Pump Room","timestamp":55688},"sid":1}}
   for(int num=0; num<NUM_COM; num++) {    
     uint8_t i = 0;
     while (JSON_STRINGS[num][i] != 0x00)
     {
-        SPI1.write(JSON_STRINGS[num][i]);
-        delayMicroseconds(50);
+        SPI1.transfer(JSON_STRINGS[num][i]);        
         COM[DEBUG_COM]->write(JSON_STRINGS[num][i]);
         i++;
+        delayMicroseconds(writeDelay);
     }    
   }
 
   SPI1.transfer(0x0F); // END    
+  //delayMicroseconds(50);
   SPI1.endTransaction();
   digitalWrite(SS, HIGH); // disable Slave Select
 
@@ -231,6 +241,24 @@ uint16_t cnt;
 void loop() 
 {  
   if(tm_SendData.expired()) {
+
+/*
+    SPI1.end();
+    pinMode(12, OUTPUT); digitalWrite(12, 0);
+    pinMode(13, OUTPUT); digitalWrite(13, 0);
+    pinMode(14, OUTPUT); digitalWrite(14, 0);
+    pinMode(SS, OUTPUT); digitalWrite(15, 0);
+    delay(300);
+    //pinMode(SS, INPUT);
+    pinMode(12, INPUT);
+    pinMode(13, INPUT);
+    pinMode(14, INPUT);
+
+  SPI1.begin(14, 12, 13, 15); //SCLK, MISO, MOSI, SS
+  //SPI1.begin();         // initialize the SPI library (Master only)
+  SPI1.setClockDivider(SPI_CLOCK_DIV128);
+delay(300);
+*/
     SendData();   
     cnt++;
     COM[DEBUG_COM]->printf("CNT: %u\n", cnt);
@@ -297,6 +325,10 @@ void loop()
             while(TCPClient[num][cln].available()) {              
               TCPClient[num][cln].readBytesUntil('\n', JSON_STRINGS[num], sizeof(JSON_STRINGS[num]));
             }
+            //int len = strlen(JSON_STRINGS[num]);
+            //JSON_STRINGS[num][len] = 'X';
+            //JSON_STRINGS[num][len+1] = '\0';
+
             COM[DEBUG_COM]->write(JSON_STRINGS[num]);
             COM[DEBUG_COM]->print("\nRXTCP-END\n");
             COM[num]->write(JSON_STRINGS[num]);

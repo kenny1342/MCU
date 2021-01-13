@@ -43,7 +43,9 @@ jQuery(document).ready(function () {
       .catch(error => {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
-            localStorage.setItem('json0x10', JSON.stringify("{}"));
+            json = JSON.parse('{"cmd":16,"devid":16,"firmware":"2.19","uptimesecs":368,"alarms":[],"lastAlarm":"-"}');
+            console.log(json);
+            localStorage.setItem('json0x10', JSON.stringify(json));
           } else {
             //console.log("NOT using test data");
             localStorage.setItem('json0x10', JSON.stringify("{}"));
@@ -68,7 +70,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             console.log("using test data");
-            json = JSON.parse('{"firmware":"2.11","pressure_bar":0.000001,"temp_c":0.00001,"hum_room_pct":0.0001,temp_motor_c:0.0001,"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50,"emon_vrms_L_N":231.016,"emon_vrms_L_PE":131.6303,"emon_vrms_N_PE":122.9116,"circuits":{"K1-MAIN":{"I":16.4749,"P_a":3805.965,"PF":0},"K2-Living Room":{"I":16.18031,"P_a":3751.917,"PF":0.545476}}}');
             console.log(json);
             localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
@@ -95,10 +97,10 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             //console.log("using test data");
-            json = JSON.parse('{"firmware":"2.11","pressure_bar":0.000001,"temp_c":0.00001,"hum_room_pct":0.0001,temp_motor_c:0.0001,"alarms":[],"emon_freq":0.0000,"emon_vrms_L_N":0.0001,"emon_vrms_L_PE":0.0001,"emon_vrms_N_PE":0.001,"WP":{"t_state":0,"is_running":0,"is_suspended":false,"cnt_starts":0,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":0},"circuits":{"K2":{"I":0.000001,"P_a":0,"PF":0},"K3":{"I":0.00001,"P_a":0,"PF":0}}}');
+            json = JSON.parse('{"cmd":18,"devid":16,"temp_c":22.9,"temp_motor_c":30,"hum_room_pct":31.9,"pressure_bar":3.722656,"WP":{"status":"RUN","t_state":145,"susp_r":0,"cnt_starts":1,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":145,"t_press_st":3,"press_st":0}}');
             //console.log(json);
-            //localStorage.setItem('json0x12', JSON.stringify(json));
-            localStorage.setItem('json0x12', JSON.stringify("{}"));
+            localStorage.setItem('json0x12', JSON.stringify(json));
+            //localStorage.setItem('json0x12', JSON.stringify("{}"));
           } else {
             //console.log("NOT using test data");
             localStorage.setItem('json0x12', JSON.stringify("{}"));
@@ -149,7 +151,7 @@ jQuery(document).ready(function () {
       )
       .catch(error => {
           //console.error('Error:', error);
-          json = JSON.parse('{"ESP":{"heap":0,"freq":0,"chipid":123456,"uptimesecs":0}}');
+          json = JSON.parse('{"ESP":{"hostname":"wifi-ctrl-02","heap":204820,"freq":240,"chipid":18500,"uptimesecs":21424}}');
           localStorage.setItem('jsonsystem', JSON.stringify(json));
         }
       ); // fetch

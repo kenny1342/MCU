@@ -8,9 +8,10 @@
     If using "Hall-Effect" Current Transformer, key in value using this formula: mVperAmp = maximum voltage range (in milli volt) / current rating of CT \n
     For example, a 20A Hall-Effect Current Transformer rated at 20A, 2.5V +/- 0.625V, mVperAmp will be 625 mV / 20A = 31.25mV/A
  */
-KRAEMON::KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue) {
+KRAEMON::KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue, const char* _name) {
     VoltageAnalogInputPin = _VoltageAnalogInputPin;
     CurrentAnalogInputPin = _CurrentAnalogInputPin;
+    name = _name;
     //mVperAmpValue = _mVperAmpValue;
     //Vdd_calib = _Vdd_calib;
     //ACTectionRange = _ACTectionRange;
@@ -89,8 +90,8 @@ void KRAEMON::getCurrentAC() volatile {
         RMSCurrentMean = sqrt(currentMean)+currentOffset2 ;                                   // square root of the average value
         FinalRMSCurrent = (((RMSCurrentMean /1024) *VDD_CALIB) /mVperAmpValue) / 2;           // calculate the final RMS current
         */
-        Serial.print("I RMS: ");
-        Serial.println(FinalRMSCurrent,decimalPrecision);
+        //Serial.print("I RMS: ");
+        //Serial.println(FinalRMSCurrent,decimalPrecision);
         //Serial.println(" A  ");
         
         currentSampleSum =0;                                                                  /* to reset accumulate sample values for the next cycle */

@@ -10,10 +10,10 @@
 
 class KRAEMON {
 public:
-	KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue);
+	KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue, const char* _name);
     //KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, double _Vdd_calib, uint8_t _ACTectionRange);
     void Calc() volatile;
-    
+    const char* name;
     float RMSVoltageMean ;                            /* square roof of voltageMean*/
     float FinalRMSCurrent ;                           /* the final RMS current reading*/
     float apparentPower;                              /* the apparent power reading (VA) */

@@ -29,7 +29,10 @@ void Webserver::AddRoutes() {
 
   // Route for root / web page with variable parser/processor
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    //response->addHeader("Connection", "close");
+    
     request->send(SPIFFS, "/index.html", "text/html", false, HTMLProcessor);
+    //request->client()->close();
   });
   
   // File routes
@@ -80,32 +83,22 @@ void Webserver::AddRoutes() {
 
   // cmd 0x10 = ADCSYSDATA (from ADC-MCU)
   server.on("/json/0x10", HTTP_GET, [](AsyncWebServerRequest *request){
-    //char output[JSON_SIZE] = { 0 };
-    //serializeJson(JSON_DOCS[JSON_DOC_ADCSYSDATA], output);
-    //request->send(200, "application/json", output);
     request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
   });
 
   // cmd 0x11 = ADCEMONDATA (from ADC-MCU)
   server.on("/json/0x11", HTTP_GET, [](AsyncWebServerRequest *request){
-    //char output[JSON_SIZE] = { 0 };
-    //serializeJson(JSON_DOCS[JSON_DOC_ADCEMONDATA], output);
-    //request->send(200, "application/json", output);
     request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
   });
 
   // cmd 0x11 = ADCWATERPUMPDATA (from ADC-MCU)
   server.on("/json/0x12", HTTP_GET, [](AsyncWebServerRequest *request){
-    //char output[JSON_SIZE] = { 0 };
-    //serializeJson(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA], output);
-    //request->send(200, "application/json", output);
     request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
   });
 
   // cmd 0x45 = REMOTE_SENSOR_DATA (fex from Sensor-PumpHouse)
   server.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
     char output[JSON_SIZE] = "NOT IMPLEMENTED";
-    //serializeJson(JSON_DOCS[JSON_DOC_ADCREMOTEDATA], output);
     request->send(200, "application/json", output);
   });
 

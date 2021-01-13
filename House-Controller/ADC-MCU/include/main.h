@@ -43,10 +43,10 @@
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 //#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
-#define ADC_CH_CT_K2                A8 // ADC connected to current sensor K2 (living room) Input
-#define ADC_CH_CT_K2_VDD_CALIB      4.45 // VDD calibrated (5.0*some factor) for current calc
-#define ADC_CH_CT_K3                A6 // ADC connected to current sensor K3 (kitchen) Input
-#define ADC_CH_CT_K3_VDD_CALIB      4.45 // VDD calibrated (5.0*some factor) for current calc
+#define ADC_CH_CT_K1                A8 // ADC connected to current sensor (Main intake) Input
+#define ADC_CH_CT_K1_CALIB          100.0
+#define ADC_CH_CT_K2                A6 // ADC connected to current sensor (living room) Input
+#define ADC_CH_CT_K2_CALIB          100.0
 #define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_L_PE            A4 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_N_PE            A5 // ADC connected to ZMPT101B voltage sensor
@@ -184,8 +184,8 @@ typedef union {
     byte power_groundfault:1 ; // V L/N-GND !~= nettspenning/rot av 3=230/132,9 (mellom 100-140V )
     byte b2:1;
     byte b3:1;
+    byte emon_K1:1; // if O/R or CT sensor error
     byte emon_K2:1; // if O/R or CT sensor error
-    byte emon_K3:1; // if O/R or CT sensor error
     byte sensor_error:1; // invalid ADC readings etc any sensor
     byte b7:1;
   };

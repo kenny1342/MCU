@@ -52,15 +52,15 @@ ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
-volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, 100.0);
-volatile KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, 1.0);
+volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_CALIB, "K1 MAIN intake");
+volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_CALIB, "K2 Living room");
+volatile KRAEMON * KRAEMONS[2] = { &EMON_K1, &EMON_K2 };
+const uint8_t NUM_EMONS = 2;
 
 // Structs
 adc_avg ADC_waterpressure;
 volatile Buzzer buzzer;
 emonvrms_type EMONMAINS; // Vrms values (phases/gnd)
-//emondata_type EMONDATA_K2;   // Livingroom values
-//emondata_type EMONDATA_K3;   // Kitchen values
 
 
 volatile appconfig_type APPCONFIG ;
@@ -78,15 +78,9 @@ Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
 Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
-Timemark tm_test(2000);
 
-
-/* TODO make ENUM/pointer, see Frontend code
-const uint8_t NUM_TIMERS = 7;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay };
-*/
-
+const uint8_t NUM_TIMERS = 9;
+Timemark *Timers[NUM_TIMERS] = { &tm_blinkAlarm, &tm_blinkWarning, &tm_WP_seconds_counter, &tm_counterWP_suspend_1sec, &tm_100ms_setAlarms, &tm_DataTX, &tm_buzzer, &tm_DataStale_50406_1 };
 
 void setup()
 {
@@ -100,17 +94,12 @@ void setup()
   pinMode(PIN_LED_WHITE, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_ModIO_Reset, INPUT); // need to float
-  pinMode(PIN_MISO,OUTPUT); // Slave, MISO as OUTPUT (Have to Send data to Master IN). So data is sent via MISO of Slave Arduino.
-  pinMode(PIN_SCK,INPUT);
-  pinMode(PIN_MOSI,INPUT);
-  pinMode(PIN_SS,INPUT);
+  pinMode(PIN_MISO,OUTPUT); // // have to send on master in, *slave out*
+  //pinMode(PIN_SCK,INPUT);
+  //pinMode(PIN_MOSI,INPUT);
+  //pinMode(PIN_SS,INPUT);
 
-  //SPI.begin(); // Only when Master!
-
-//  SPCR = 0x40;  // Enable SPI in slave mode
-  SPI.setClockDivider(SPI_CLOCK_DIV128);
-
-  //Now Turn on SPI in Slave Mode by using SPI Control Register
+   
   SPCR |= _BV(SPE); // turn on SPI in slave mode
   SPI.attachInterrupt(); // turn on interrupt
 
@@ -163,19 +152,9 @@ void setup()
   WATERPUMP.pressure_state = PRESSURE_OK;
   WATERPUMP.accumulator_ok = true;
 
-  // set the data rate for the ports
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
-  //Serial_SensorHub.begin(57600);
-  
-  //Serial_SensorHub.println(F("ADC initializing..."));
 
-  // initialize all ADC readings to 0:
-//  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-//    ADC_waterpressure.readings[thisReading] = 0;
-//  }
-
-  // Timer 1 - 0.5 Hz overflow ISR
   noInterrupts();          // disable global interrupts
 
   // Setup Timer1 for 500 ms (0.5 Hz) overlow ISR
@@ -184,7 +163,6 @@ void setup()
   // Set timer1_counter to the correct value for our interrupt interval
   timer1_counter = 34286;   // preload timer 65536-16MHz/256/2Hz, 65536-16MHz/1024/0.5Hz
   TCNT1 = timer1_counter;   // preload timer
-  // clear:   TCCR1B &= ~(1 << CS10); set:      TCCR1B |= (1 << CS10); toggle: TCCR1B ^= (1 << CS10);
   
   // BUG: 256 prescaler crashes on Uno R3 DIL board
   //TCCR1B |= (1 << CS12);    // 256 prescaler 
@@ -242,7 +220,7 @@ void setup()
   buzzer_on(PIN_BUZZER, 200);
 
   APPFLAGS.is_busy = 0;
-  tm_test.start();
+  
   Serial.println(F("Init done!"));
 }
 
@@ -283,14 +261,14 @@ if(c == 0x10) { // our address
   }
 
 }
-
+/*
 ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
 }
-
+*/
 
 //******************************************************************
 //  Timer2 Interrupt Service is invoked by hardware Timer 2 every 1 ms = 1000 Hz
@@ -301,8 +279,11 @@ ISR (TIMER2_COMPA_vect)
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
   if(!APPFLAGS.isProcessingData) {
-    EMON_K2.Calc();
-    EMON_K3.Calc();
+    for(int x=0; x<NUM_EMONS; x++) {
+      KRAEMONS[x]->Calc();
+    }
+    //EMON_K1->Calc();
+    //EMON_K2->Calc();
   }
 
   if(ENABLE_BUZZER) {
@@ -387,13 +368,13 @@ ISR (TIMER2_COMPA_vect)
         ALARMS_EMON.sensor_error = 1; 
       }
 
+      ALARMS_EMON.emon_K1 = 0;
       ALARMS_EMON.emon_K2 = 0;
-      ALARMS_EMON.emon_K3 = 0;
+      if(EMON_K1.error || EMON_K1.FinalRMSCurrent > 60.0 || EMON_K1.FinalRMSCurrent < 0.0) {
+          ALARMS_EMON.emon_K1 = 1;
+      }
       if(EMON_K2.error || EMON_K2.FinalRMSCurrent > 20.0 || EMON_K2.FinalRMSCurrent < 0.0) {
           ALARMS_EMON.emon_K2 = 1;
-      }
-      if(EMON_K3.error || EMON_K3.FinalRMSCurrent > 20.0 || EMON_K3.FinalRMSCurrent < 0.0) {
-          ALARMS_EMON.emon_K3 = 1;
       }
 
 
@@ -694,7 +675,7 @@ void loop() // run over and over
 
     //----------- Update EMON Voltage data -------------
 
-    EMONMAINS.Vrms_L_N = EMON_K2.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
+    EMONMAINS.Vrms_L_N = EMON_K1.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
 
@@ -768,8 +749,8 @@ void loop() // run over and over
       if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
       if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
       if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
+      if(ALARMS_EMON.emon_K1) { data.add(F("K1")); strncpy(lastAlarm, "K1", sizeof(lastAlarm)); }
       if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.emon_K3) { data.add(F("K3")); strncpy(lastAlarm, "K3", sizeof(lastAlarm)); }
       if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
       if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
       if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
@@ -793,17 +774,13 @@ void loop() // run over and over
     doc["emon_vrms_N_PE"] = EMONMAINS.Vrms_N_PE;
 
     JsonObject circuits = root.createNestedObject("circuits");
-    JsonObject circuit = circuits.createNestedObject("K2");
-    //json = root.createNestedObject("K2");
-    circuit["I"] = EMON_K2.FinalRMSCurrent;
-    circuit["P_a"] = EMON_K2.apparentPower;
-    circuit["PF"] = EMON_K2.powerFactor;
-    
-    circuit = circuits.createNestedObject("K3");
-    //json = root.createNestedObject("K3");
-    circuit["I"] = EMON_K3.FinalRMSCurrent;
-    circuit["P_a"] = EMON_K3.apparentPower;
-    circuit["PF"] = EMON_K3.powerFactor;
+
+    for(int x=0; x<NUM_EMONS; x++) {
+      JsonObject circuit = circuits.createNestedObject(KRAEMONS[x]->name);
+      circuit["I"] = KRAEMONS[x]->FinalRMSCurrent;
+      circuit["P_a"] = KRAEMONS[x]->apparentPower;
+      circuit["PF"] = KRAEMONS[x]->powerFactor;
+    }
 
     dataString = "";
     serializeJson(root, dataString);

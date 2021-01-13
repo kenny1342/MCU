@@ -73,7 +73,7 @@ Logger logger = Logger(&tft);
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(5000);
-Timemark tm_PushToBlynk(1500);
+Timemark tm_PushToBlynk(2000);
 Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
@@ -470,7 +470,7 @@ void loop(void) {
   double t = 0;
   char data_string[JSON_SIZE] = "";
   const char* data_string_ptr = data_string;
-
+  bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
   Blynk.run();
   CheckButtons();
 
@@ -488,7 +488,7 @@ void loop(void) {
 
 
 
-  if(Timers[TM_PushToBlynk]->expired()) {
+  if(pushToBlynk) {
     Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
   }
 
@@ -569,22 +569,16 @@ void loop(void) {
         case 0x11: // ADCEMONDATA
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
 
-          // TESTING - send some circuit data to Blynk
-          jsonVal = tmp_json.getMember("K2");
-          if(!jsonVal.isNull()) {
-            Blynk.virtualWrite(V3, jsonVal.getMember("I").as<float>());
-            Blynk.virtualWrite(V4, jsonVal.getMember("P_a").as<long>());
-          }
-          
         break;        
         case 0x12: // ADCWATERPUMPDATA
    
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
 
           // TESTING - send some circuit data to Blynk
-          Blynk.virtualWrite(V0, tmp_json.getMember("pressure_bar").as<float>());
-          Blynk.virtualWrite(V1, tmp_json.getMember("temp_c").as<float>());      
-          
+          if(pushToBlynk) {
+            Blynk.virtualWrite(V0, tmp_json.getMember("pressure_bar").as<float>());
+            Blynk.virtualWrite(V1, tmp_json.getMember("temp_c").as<float>());      
+          }
         break;        
         case 0x45: // REMOTE_SENSOR_DATA
         /*
