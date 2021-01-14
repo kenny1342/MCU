@@ -36,6 +36,7 @@ extern const char* _def_hostname;
 //extern StaticJsonDocument<JSON_SIZE> data_json_sensors;
 //extern StaticJsonDocument<JSON_SIZE> JSON_DOCS[JSON_DOC_COUNT];
 extern char JSON_STRINGS[4][JSON_SIZE];
+extern struct tm timeinfo;
 
 void onRequest(AsyncWebServerRequest *request);
 void onNotFound(AsyncWebServerRequest *request);

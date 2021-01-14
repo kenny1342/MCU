@@ -11,7 +11,7 @@
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
 #include <WiFi.h>
-//#include <Time.h>
+#include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
@@ -37,14 +37,15 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 const char* _def_hostname = HOSTNAME;
 const char* _def_port = PORT;
 
-//char data_string[JSON_SIZE];
-//const char* data_string_ptr = data_string;
-
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
+const char* ntpServer = DEF_CONF_NTP_SERVER;
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
+struct tm timeinfo;
+
 int blynk_button_V2 = 0;
-//char logline[160] = "";
 uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
 MENUPAGES_t MenuPages;
@@ -316,6 +317,15 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
 
+  logger.println(F("Configuring NTP..."));
+  //init and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  if(!getLocalTime(&timeinfo)){
+    logger.println(F("Failed to obtain time"));
+  } else {
+    logger.println(TimeStructToString(timeinfo, 0));
+  }
+
   logger.print(F("Starting HTTP server..."));
 
   if(Setup::WebServer()) {
@@ -337,14 +347,7 @@ void setup(void) {
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
   }
-  /*
-  tm_ClearDisplay.start();
-  tm_CheckConnections.start();
-  tm_CheckDataAge.start();
-  tm_PushToBlynk.start();
-  tm_SerialDebug.start();
-  tm_UpdateDisplay.start();
-*/
+
   logger.println(F("Setup completed! Waiting for data..."));
   
   //delay(2000);
@@ -511,6 +514,12 @@ void loop(void) {
         }
     } else {
       Serial.println(F("WiFi OK"));
+
+      if(getLocalTime(&timeinfo)){
+        Serial.println(F("NTP update OK..."));
+      } else {
+        Serial.println(F("NTP update FAILED"));
+      }
 
       if(!Blynk.connected()) {
         Serial.println(F("Blynk disconnected, reconnecting..."));
@@ -919,4 +928,15 @@ char * TimeToString(unsigned long t)
  int s = t % 60;
  sprintf(str, "%04ld:%02d:%02d", h, m, s);
  return str;
+}
+
+char * TimeStructToString(struct tm _t, uint8_t format)
+{
+ static char str[40] = {0};
+
+  switch(format) {    
+    case 1: strftime(str, sizeof(str), "%A, %B %d %Y %H:%M:%S", &_t); break;
+    default: strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", &_t);
+  }
+  return str;
 }
