@@ -78,9 +78,11 @@ Timemark tm_PushToBlynk(2000);
 Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
-const uint8_t NUM_TIMERS = 7;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay };
+Timemark tm_UpdateClock(1000);
+
+const uint8_t NUM_TIMERS = 8;
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_UpdateClock };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_UpdateClock };
 
 volatile int interruptCounter;
 
@@ -474,6 +476,7 @@ void loop(void) {
   char data_string[JSON_SIZE] = "";
   const char* data_string_ptr = data_string;
   bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
+
   Blynk.run();
   CheckButtons();
 
@@ -490,6 +493,9 @@ void loop(void) {
   }
 
 
+  if(Timers[TM_UpdateClock]->expired()) {
+    // TODO
+  }
 
   if(pushToBlynk) {
     Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
@@ -826,9 +832,9 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("Time: %-14s", TimeStructToString(timeinfo, 0));
-        tft.printf("SSID: %-14s", WiFi.SSID().c_str());
-        tft.printf("IP: %-16s", WiFi.localIP().toString().c_str());
+        tft.printf("%-14s\n", TimeStructToString(timeinfo, 0));
+        tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
+        tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
         tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
         tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
         tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
