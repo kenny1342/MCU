@@ -694,15 +694,17 @@ void loop(void) {
         LCD_state.fgcolor = TFT_GREEN;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         
+        //JsonObject obj_wp = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP");
         const char* status = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char*>();
+
         tft.printf("W Pump: ");
-        if(strcmp(status, "RUN") != 0) {
+        if(strcmp(status, "RUN") == 0) {
           tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
           tft.printf("   RUNNING  ");
-        } else if(strcmp(status, "STOP") != 0) {
+        } else if(strcmp(status, "STOP") == 0) {
           tft.setTextColor(TFT_WHITE, TFT_RED); 
           tft.printf("   STOPPED  ");
-        } else if(strcmp(status, "SUSPENDED") != 0) {
+        } else if(strcmp(status, "SUSPENDED") == 0) {
           tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
           tft.printf("  SUSPENDED ");
         } else {
@@ -745,8 +747,9 @@ void loop(void) {
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1").as<float>();
-        uint16_t power = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1").as<uint16_t>();
+        JsonObject obj_circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1"); // 1=Main Intake
+        t = obj_circuits.getMember("I").as<float>();
+        uint16_t power = obj_circuits.getMember("P_a").as<uint16_t>();
         tft.printf("Power: "); // "Power: 10000W/28.9A"
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
@@ -786,19 +789,15 @@ void loop(void) {
         tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
 
         t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
-        tft.printf("Room temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+        tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("hum_room_pct").as<uint8_t>() );
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
-        tft.printf("Motor temp: %d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_motor_c").as<float>();
+        tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
 
-        tft.printf("Start count: %u \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());
+        tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());
 
-        //const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_running").as<uint8_t>() ? "ON" : "OFF";
         const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char *>();
         tft.printf("%s: %s\n", state, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_state").as<uint16_t>()));
-
-        //const char * suspended = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_suspended").as<uint8_t>() ? "YES" : "NO";
-        //tft.printf("Susp: %s %s\n", suspended, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp").as<uint16_t>()));
 
         tft.printf("Susp tot: %s\n", TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
 
