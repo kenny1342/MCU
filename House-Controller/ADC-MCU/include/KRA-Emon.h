@@ -10,10 +10,10 @@
 
 class KRAEMON {
 public:
-	KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue, const char* _name);
-    //KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, double _Vdd_calib, uint8_t _ACTectionRange);
+	KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin, float _mVperAmpValue, const char* _id, const char* _name);
     void Calc() volatile;
     const char* name;
+    const char* id;
     float RMSVoltageMean ;                            /* square roof of voltageMean*/
     float FinalRMSCurrent ;                           /* the final RMS current reading*/
     float apparentPower;                              /* the apparent power reading (VA) */
@@ -25,8 +25,6 @@ private:
 	void getCurrentAC() volatile;
 	void getVoltageRmsAC() volatile;
     void getPower() volatile;
-    //double Vdd_calib = 4.45;
-    //int ACTectionRange = 20;                          // Default AC Current Sensor tection range (5A,10A,20A)
     int decimalPrecision = 2;                         // decimal places for all values shown in LED Display & Serial Monitor
 
     /* 1- AC Voltage Measurement */

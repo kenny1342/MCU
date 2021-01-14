@@ -52,8 +52,8 @@ ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
-volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_CALIB, "K1 MAIN intake");
-volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_CALIB, "K2 Living room");
+volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_CALIB, "1", "K1 MAIN intake");
+volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_CALIB, "2", "K2 Living room"); 
 volatile KRAEMON * KRAEMONS[2] = { &EMON_K1, &EMON_K2 };
 const uint8_t NUM_EMONS = 2;
 
@@ -118,6 +118,8 @@ void setup()
   }
 
   Serial.println(F("initializing..."));
+  
+
   Serial.println( (__FlashStringHelper*)pgm_read_word(FIRMWARE_VERSION_LONG + 0)) ;
   Serial.println(F("Made by Ken-Roger Andersen, 2020"));
   Serial.println("");
@@ -184,11 +186,12 @@ void setup()
   // start Timer 2
   TCCR2B =  bit (CS20) | bit (CS22) ;  // prescaler of 128
   TIMSK2 = bit (OCIE2A);   // enable Timer2 Interrupt
+  
   interrupts(); // enable global interrupts
   
   Serial.println(F("ISR's enabled"));
   delay(500);
-  
+//Serial.println("OK33"); delay(4000); return;  
   Wire.begin(); // Initiate the Wire library
   //Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
 
@@ -261,14 +264,14 @@ if(c == 0x10) { // our address
   }
 
 }
-/*
+
 ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 {
   TCNT1 = timer1_counter;   // preload timer
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
 }
-*/
+
 
 //******************************************************************
 //  Timer2 Interrupt Service is invoked by hardware Timer 2 every 1 ms = 1000 Hz
@@ -776,7 +779,8 @@ void loop() // run over and over
     JsonObject circuits = root.createNestedObject("circuits");
 
     for(int x=0; x<NUM_EMONS; x++) {
-      JsonObject circuit = circuits.createNestedObject(KRAEMONS[x]->name);
+      JsonObject circuit = circuits.createNestedObject(KRAEMONS[x]->id);
+      circuit["name"] = KRAEMONS[x]->name;
       circuit["I"] = KRAEMONS[x]->FinalRMSCurrent;
       circuit["P_a"] = KRAEMONS[x]->apparentPower;
       circuit["PF"] = KRAEMONS[x]->powerFactor;

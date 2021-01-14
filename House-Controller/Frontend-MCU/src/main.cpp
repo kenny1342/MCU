@@ -694,19 +694,26 @@ void loop(void) {
         LCD_state.fgcolor = TFT_GREEN;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         
-        //tft.setCursor(0, TFT_LINE2);
+        const char* status = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char*>();
         tft.printf("W Pump: ");
-        if(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("is_running").as<uint8_t>() == 1) {
+        if(strcmp(status, "RUN") != 0) {
           tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
           tft.printf("   RUNNING  ");
-        } else {
+        } else if(strcmp(status, "STOP") != 0) {
           tft.setTextColor(TFT_WHITE, TFT_RED); 
           tft.printf("   STOPPED  ");
+        } else if(strcmp(status, "SUSPENDED") != 0) {
+          tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
+          tft.printf("  SUSPENDED ");
+        } else {
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+          tft.printf("  %s       ", status);
         }
+
         tft.printf("\n");
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
 
-        tft.printf("%-16s\n", " "); // EMPTY line
+        //tft.printf("%-16s\n", " "); // EMPTY line
         
         tft.printf("WP:" );
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
@@ -737,7 +744,14 @@ void loop(void) {
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        
+
+        t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1").as<float>();
+        uint16_t power = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1").as<uint16_t>();
+        tft.printf("Power: "); // "Power: 10000W/28.9A"
+        tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+        tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+
         JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("alarms");
         if(alarms.size() == 0) {
           //tft.printf("     No alarms      ");
