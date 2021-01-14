@@ -295,8 +295,8 @@ jQuery(document).ready(function () {
         if(Object.keys(json.circuits).length > 0) {
           $("#table_emon_circuits tbody").empty();
           for(var key in json.circuits) {
-            markup ='<tr>'+
-              '<td class="td_title">'+key+'</td>' +
+            markup ='<tr id="circuit_' + key + '">'+
+              '<td class="td_title">'+json.circuits[key].name+'</td>' +
               '<td class="td_value"><small>I(rms)</small> ' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
               '<td class="td_value">' + json.circuits[key].P_a + '<sup class="units_xs">W</sup></td>' +
               '<td class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[key].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
