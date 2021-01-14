@@ -826,16 +826,16 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
+        tft.printf("Time: %-14s", TimeStructToString(timeinfo, 0));
         tft.printf("SSID: %-14s", WiFi.SSID().c_str());
         tft.printf("IP: %-16s", WiFi.localIP().toString().c_str());
         tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
         tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
         tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
         tft.printf("ID: %llu\n", ESP.getEfuseMac());
-        tft.setTextWrap(false);
-        tft.printf("SDK: %s\n", ESP.getSdkVersion());
-        tft.setTextWrap(true);
-        //tft.printf("PROG: %u B\n", ESP.getSketchSize());
+        //tft.setTextWrap(false);
+        //tft.printf("SDK: %s\n", ESP.getSdkVersion());
+        //tft.setTextWrap(true);        
         tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
       }
       break;
