@@ -13,9 +13,7 @@ KRAEMON::KRAEMON(uint8_t _CurrentAnalogInputPin, uint8_t _VoltageAnalogInputPin,
     CurrentAnalogInputPin = _CurrentAnalogInputPin;
     name = _name;
     id = _id;
-    //mVperAmpValue = _mVperAmpValue;
-    //Vdd_calib = _Vdd_calib;
-    //ACTectionRange = _ACTectionRange;
+    mVperAmpValue = _mVperAmpValue;
 }
 
 void KRAEMON::Calc() volatile {
@@ -67,8 +65,8 @@ void KRAEMON::getCurrentAC() volatile {
   FinalRMSCurrent = voltageVirtualValue * ACTectionRange;
   */
     
-    #define VDD_CALIB 4940.0
-    mVperAmpValue = 50;
+    
+    //mVperAmpValue = 50;
 
     if(millis() >= currentLastSample + 1)                                                     /* every 1 milli second taking 1 reading */
         {
@@ -84,12 +82,12 @@ void KRAEMON::getCurrentAC() volatile {
         {       
         RMSCurrentMean = (currentSampleSum/currentSampleCount) * 0.707;                                    /* calculate average value of all sample readings taken*/
         RMSCurrentMean += currentOffset2;
-        FinalRMSCurrent = (((RMSCurrentMean /1024) *VDD_CALIB) /mVperAmpValue) / 2;
+        FinalRMSCurrent = (((RMSCurrentMean /1024) *AC_CURRENT_VDD_CALIB) /mVperAmpValue) / 2;
 
         //RMSCurrentMean = sqrt(currentMean)+currentOffset2 ;
         /*
         RMSCurrentMean = sqrt(currentMean)+currentOffset2 ;                                   // square root of the average value
-        FinalRMSCurrent = (((RMSCurrentMean /1024) *VDD_CALIB) /mVperAmpValue) / 2;           // calculate the final RMS current
+        FinalRMSCurrent = (((RMSCurrentMean /1024) *AC_CURRENT_VDD_CALIB) /mVperAmpValue) / 2;           // calculate the final RMS current
         */
         //Serial.print("I RMS: ");
         //Serial.println(FinalRMSCurrent,decimalPrecision);
@@ -107,10 +105,13 @@ void KRAEMON::getCurrentAC() volatile {
 void KRAEMON::getPower() volatile {
     if(millis() >= powerLastSample + 1)                                                       /* every 1 milli second taking 1 reading */
         {
-        sampleCurrent1 = analogRead(CurrentAnalogInputPin)-512+ currentOffset1;
-        sampleCurrent2 = (sampleCurrent1/1024)*5000;
+        //sampleCurrent1 = analogRead(CurrentAnalogInputPin)-512+ currentOffset1;
+        sampleCurrent1 = analogRead(CurrentAnalogInputPin)+ currentOffset1;
+        //sampleCurrent2 = (sampleCurrent1/1024)*5000;
+        sampleCurrent2 = (sampleCurrent1/1024)*AC_CURRENT_VDD_CALIB;
         sampleCurrent3 = sampleCurrent2/mVperAmpValue;
-        voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin)- 512)+ voltageOffset1 ;
+        //voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin)- 512)+ voltageOffset1 ;
+        voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin))+ voltageOffset1 ;
         powerSampleRead = voltageSampleRead * sampleCurrent3 ;                                /* real power sample value */
         powerSampleSum = powerSampleSum + powerSampleRead ;                                   /* accumulate value with older sample readings*/
         powerSampleCount = powerSampleCount + 1;                                              /* to move on to the next following count */

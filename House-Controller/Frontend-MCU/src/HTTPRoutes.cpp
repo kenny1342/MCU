@@ -114,7 +114,7 @@ void Webserver::AddRoutes() {
     uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
     json["chipid"] = (uint16_t)(chipid>>32); //use High 2 bytes
     json["uptimesecs"] = millis() /1000;
-    json["localtime"] = TimeStructToString(timeinfo, 0);
+    json["localtime"] = SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME);
 
     serializeJson(root, output);
     request->send(200, "application/json", output);    

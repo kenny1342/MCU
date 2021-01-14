@@ -13,6 +13,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include <ESPAsyncWebServer.h>
+#include <NTPClient.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <BlynkSimpleEsp32.h>
@@ -34,16 +35,19 @@ char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
-const char* _def_hostname = HOSTNAME;
-const char* _def_port = PORT;
+//const char* _def_hostname = CONF_DEF_HOSTNAME;
+//const char* _def_port = CONF_DEF_PORT;
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
-const char* ntpServer = DEF_CONF_NTP_SERVER;
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 3600;
-struct tm timeinfo;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, CONF_DEF_NTP_SERVER, 3600, 20);
+
+//const char* ntpServer = DEF_CONF_NTP_SERVER;
+//const long  gmtOffset_sec = 3600;
+//const int   daylightOffset_sec = 3600;
+//struct tm timeinfo;
 
 int blynk_button_V2 = 0;
 uint8_t menu_page_current = 0;
@@ -78,11 +82,11 @@ Timemark tm_PushToBlynk(2000);
 Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
-Timemark tm_UpdateClock(1000);
+Timemark tm_SyncNTP(180000);
 
 const uint8_t NUM_TIMERS = 8;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_UpdateClock };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_UpdateClock };
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_SyncNTP };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_SyncNTP };
 
 volatile int interruptCounter;
 
@@ -212,6 +216,7 @@ void setup(void) {
   //WiFiManager custom parameters/config
   ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
   ESPAsync_WMParameter custom_port("port", "HTTP port", config.port, 6);
+  ESPAsync_WMParameter custom_ntpserver("ntpserver", "NTP server", config.ntpserver, 64);
 
   //Local intialization. Once setup() done, there is no need to keep it around
   ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer, "KRATECH-WEB");
@@ -275,6 +280,7 @@ void setup(void) {
   // our custom parameters
   ESPAsync_wifiManager.addParameter(&custom_hostname);
   ESPAsync_wifiManager.addParameter(&custom_port);
+  ESPAsync_wifiManager.addParameter(&custom_ntpserver);
 
   //ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
   ESPAsync_wifiManager.autoConnect("KRATECH-AP");
@@ -294,6 +300,7 @@ void setup(void) {
       //read updated parameters
       strcpy(config.hostname, custom_hostname.getValue());
       strcpy(config.port, custom_port.getValue());
+      strcpy(config.ntpserver, custom_ntpserver.getValue());
     } 
   }
 
@@ -319,14 +326,17 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
 
-  logger.println(F("Configuring NTP..."));
-  //init and get the time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  if(!getLocalTime(&timeinfo)){
+  logger.print(F("Configuring NTP server "));
+  logger.println(config.ntpserver);
+  NTPClient timeClient = NTPClient(ntpUDP, config.ntpserver, 3600, 10);
+  timeClient.begin();
+  if(!DEBUG) delay(700);
+  if(!timeClient.update()){
     logger.println(F("Failed to obtain time"));
   } else {
-    logger.println(TimeStructToString(timeinfo, 0));
-  }
+    logger.println(SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
+  }  
+  if(!DEBUG) delay(700);
 
   logger.print(F("Starting HTTP server..."));
 
@@ -343,8 +353,7 @@ void setup(void) {
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
-  //timerAlarmWrite(timer, 6000000, true); // 6000000us=60sec
-  timerAlarmEnable(timer);
+    timerAlarmEnable(timer);
 
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
@@ -356,6 +365,8 @@ void setup(void) {
   tft.setTextWrap(false);
   //tft.fillScreen(TFT_BLACK);
   LCD_state.clear = 1;
+
+  timeClient.forceUpdate();
 }
 
 //gets called when WiFiManager enters configuration mode
@@ -493,8 +504,8 @@ void loop(void) {
   }
 
 
-  if(Timers[TM_UpdateClock]->expired()) {
-    // TODO
+  if(Timers[TM_SyncNTP]->expired()) {
+    timeClient.update();
   }
 
   if(pushToBlynk) {
@@ -520,13 +531,13 @@ void loop(void) {
         }
     } else {
       Serial.println(F("WiFi OK"));
-
+/*
       if(getLocalTime(&timeinfo)){
         Serial.println(F("NTP update OK..."));
       } else {
         Serial.println(F("NTP update FAILED"));
       }
-
+*/
       if(!Blynk.connected()) {
         Serial.println(F("Blynk disconnected, reconnecting..."));
         ConnectBlynk();
@@ -541,14 +552,14 @@ void loop(void) {
   }
     
   
-  if(strlen(data_string) > 0) {
+  if(strlen(data_string) > 10) {
     // Forward data to Frontend, then parse JSON string into document tmp_json  
     
     bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
     if(doSerialDebug) {
-      Serial.print("\nRX:");
+      Serial.printf("RX (%s):\n", SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
       Serial.println(data_string); 
     } else {
       Serial.print(".");
@@ -646,7 +657,7 @@ void loop(void) {
   //----------- Update OLED display ---------------
 
   if(Timers[TM_ClearDisplay]->expired() || LCD_state.clear) {
-      LCD_state.clear = 0;
+      LCD_state.clear = false;
       tft.fillScreen(LCD_state.bgcolor);
       //Serial.println("ISR or told to CLEAR LCD");
   }
@@ -686,9 +697,6 @@ void loop(void) {
       }
     }
 
-    
-
-
     switch(menu_page_current)
     {
       case MENU_PAGE_UTILITY_STATS:
@@ -700,18 +708,15 @@ void loop(void) {
           tft.fillScreen(LCD_state.bgcolor);
         }
 
+        // ------- LINE 1/8: -------
         LCD_state.fgcolor = TFT_GOLD;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
         tft.setCursor(0, 0);
         tft.printf("      SUMMARY       \n");
-
         LCD_state.fgcolor = TFT_GREEN;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-        
-        //JsonObject obj_wp = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP");
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
+        // ------- LINE 2/8: -------
         const char* status = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char*>();
-
         tft.printf("W Pump: ");
         if(strcmp(status, "RUN") == 0) {
           tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
@@ -726,42 +731,38 @@ void loop(void) {
           tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
           tft.printf("  %s       ", status);
         }
-
         tft.printf("\n");
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
-
-        //tft.printf("%-16s\n", " "); // EMPTY line
-        
+        // ------- LINE 3/8: -------
         tft.printf("WP:" );
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar").as<float>();      
         tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        //tft.printf(" bar, ");
+        // ------- LINE 4/8: -------
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
         tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        //tft.printf(" %cC\n", (char)247);
-                
+        // ------- LINE 5/8: -------
         t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_L_N").as<float>();
         tft.printf("V(rms) L-N:  ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-
+        // ------- LINE 6/8: -------
         t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_L_PE").as<float>();
         tft.printf("V(rms) L-PE: ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-
+        // ------- LINE 7/8: -------
         t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_N_PE").as<float>();
         tft.printf("V(rms) N-PE: ");
         tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
         tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-
+        // ------- LINE 8/8: -------
         JsonObject obj_circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1"); // 1=Main Intake
         t = obj_circuits.getMember("I").as<float>();
         uint16_t power = obj_circuits.getMember("P_a").as<uint16_t>();
@@ -812,9 +813,9 @@ void loop(void) {
         tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());
 
         const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char *>();
-        tft.printf("%s: %s\n", state, TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_state").as<uint16_t>()));
+        tft.printf("%s: %s\n", state, SecondsToDateTimeString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_state").as<uint16_t>(), TFMT_HOURS));
 
-        tft.printf("Susp tot: %s\n", TimeToString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp_tot").as<uint16_t>()));
+        tft.printf("Susp tot: %s\n", SecondsToDateTimeString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp_tot").as<uint16_t>(), TFMT_HOURS));
 
         tft.printf("Power usage: NA Watt\n");
       }
@@ -832,7 +833,7 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("%-14s\n", TimeStructToString(timeinfo, 0));
+        tft.printf("%-14s\n", SecondsToDateTimeString(timeClient.getEpochTime(), 0));
         tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
         tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
         tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
@@ -842,7 +843,7 @@ void loop(void) {
         //tft.setTextWrap(false);
         //tft.printf("SDK: %s\n", ESP.getSdkVersion());
         //tft.setTextWrap(true);        
-        tft.printf("Uptime: %s\n", TimeToString(millis()/1000));
+        tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
       }
       break;
       case MENU_PAGE_ABOUT:
@@ -924,25 +925,29 @@ void CheckButtons(void) {
 
 }
 
-// t is time in seconds = millis()/1000;
-char * TimeToString(unsigned long t)
+char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
 {
- static char str[12];
- long h = t / 3600;
- t = t % 3600;
- int m = t / 60;
- int s = t % 60;
- sprintf(str, "%04ld:%02d:%02d", h, m, s);
- return str;
-}
-
-char * TimeStructToString(struct tm _t, uint8_t format)
-{
- static char str[40] = {0};
+  time_t curSec;
+  struct tm *curDate;
+  static char dateString[32];
+  
+  curSec = time(NULL) + seconds;
+  curDate = localtime(&curSec);
 
   switch(format) {    
-    case 1: strftime(str, sizeof(str), "%A, %B %d %Y %H:%M:%S", &_t); break;
-    default: strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", &_t);
+    case TFMT_LONG: strftime(dateString, sizeof(dateString), "%A, %B %d %Y %H:%M:%S", curDate); break;
+    case TFMT_DATETIME: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate); break;
+    case TFMT_HOURS: 
+    {
+      long h = seconds / 3600;
+      uint32_t t = seconds % 3600;
+      int m = t / 60;
+      int s = t % 60;
+      sprintf(dateString, "%04ld:%02d:%02d", h, m, s);
+    }
+      break;
+
+    default: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate);
   }
-  return str;
+  return dateString;
 }

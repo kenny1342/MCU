@@ -27,33 +27,26 @@
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
-//const int interval = 800;   // interval at which to send data (millisecs)
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
 
 char lastAlarm[20] = "-";
-//volatile uint8_t lastSuspReason;
 
 // For SPI data processing/ISR
 volatile uint16_t indx;
 volatile bool SPI_dataready = false;
 volatile char buffer_sensorhub[JSON_SIZE];
-//const char * buffer_sensorhub_ptr = buffer_sensorhub;
-
-//volatile byte VALUES[4] = {0,0,0,0}; // negative (0/1), whole, part, unit (char)
-
-AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
-
 
 StaticJsonDocument<JSON_SIZE> doc;
 StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
 
-ZMPT101B voltageSensor_L_N(ADC_CH_VOLT_L_N);
+AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
+
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
-volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_CALIB, "1", "K1 MAIN intake");
-volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_CALIB, "2", "K2 Living room"); 
+volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_MVPRAMP, "1", "K1 MAIN (63A)");
+volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_MVPRAMP, "2", "K2 Living room (16A)"); 
 volatile KRAEMON * KRAEMONS[2] = { &EMON_K1, &EMON_K2 };
 const uint8_t NUM_EMONS = 2;
 
@@ -61,8 +54,6 @@ const uint8_t NUM_EMONS = 2;
 adc_avg ADC_waterpressure;
 volatile Buzzer buzzer;
 emonvrms_type EMONMAINS; // Vrms values (phases/gnd)
-
-
 volatile appconfig_type APPCONFIG ;
 volatile waterpump_type WATERPUMP;
 volatile flags_BitField APPFLAGS;
@@ -124,7 +115,6 @@ void setup()
   Serial.println(F("Made by Ken-Roger Andersen, 2020"));
   Serial.println("");
 
-
   analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
 
   #ifdef DO_VOLTAGE_CALIBRATION
@@ -137,10 +127,8 @@ void setup()
   }
   #endif
 
-  //voltageSensor_L_N.setZeroPoint(ZERO_POINT_L_N);
   voltageSensor_L_PE.setZeroPoint(ZERO_POINT_L_PE);
   voltageSensor_N_PE.setZeroPoint(ZERO_POINT_N_PE);
-  //voltageSensor_L_N.setSensitivity(0.0028);
   voltageSensor_L_PE.setSensitivity(0.0018);
   voltageSensor_N_PE.setSensitivity(0.0018);
 
@@ -191,9 +179,8 @@ void setup()
   
   Serial.println(F("ISR's enabled"));
   delay(500);
-//Serial.println("OK33"); delay(4000); return;  
+
   Wire.begin(); // Initiate the Wire library
-  //Wire.setClock(50000L); // The NHD LCD has a bug, use 50Khz instead of default 100
 
   Serial.println(F("ModIO_Init..."));
   ModIO_Init();
@@ -231,10 +218,6 @@ ISR (SPI_STC_vect)
 {
   byte c = SPDR;
   
-//Serial.write(c);
-//SPDR = 0x00;
-//return;
-
 if(c == 0x10) { // our address
   SPDR = c;
   return;
@@ -281,12 +264,11 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
+  
   if(!APPFLAGS.isProcessingData) {
     for(int x=0; x<NUM_EMONS; x++) {
       KRAEMONS[x]->Calc();
     }
-    //EMON_K1->Calc();
-    //EMON_K2->Calc();
   }
 
   if(ENABLE_BUZZER) {
@@ -602,16 +584,6 @@ void loop() // run over and over
           break;
           default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
         }
-/*
-        if(tmp_json.getMember("devid").as<String>() == "50406") { // Water pump probe
-          //Serial.println("this is devid 50406");
-          if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
-          //Serial.println("this is sid 1 pump motor sensor");
-            WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();
-            tm_DataStale_50406_1.start(); // restart "old data" timer
-          }
-        }
-        */
       } // 0x45
     } // no json error
   } // NewSPIData
@@ -676,35 +648,12 @@ void loop() // run over and over
     float t = duration / 250 / 1000.0; // us / samplecount / 1000.0 us
     EMONMAINS.Freq = 1000/(2*pulsecount* t);
 
-    //----------- Update EMON Voltage data -------------
-
+    //----------- Update EMON data -------------
     EMONMAINS.Vrms_L_N = EMON_K1.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
+
+    //----------- Update Phase/Ground Voltages -------------
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
-
-    //----------- Update EMON Current data -------------
-
-    //EMONDATA_K2.Irms = EMON.FinalRMSCurrent; // readACCurrentValue(ADC_CH_CT_K2, 20, ADC_CH_CT_K2_VDD_CALIB); // EMON_K2.calcIrms(500);
-    //EMONDATA_K2.apparentPower = EMON.apparentPower; // (EMONMAINS.Vrms_L_N * EMONDATA_K2.Irms);
-    //EMONDATA_K2.PF = EMON.powerFactor;
-    //EMONDATA_K3.Irms = readACCurrentValue(ADC_CH_CT_K3, 20, ADC_CH_CT_K3_VDD_CALIB);
-    //EMONDATA_K3.apparentPower = (EMONMAINS.Vrms_L_N * EMONDATA_K3.Irms);
-
-
-
-
-    /*
-    Serial.print("FinalRMSCurrent: "); Serial.println(EMON_K2.FinalRMSCurrent);
-    Serial.print("RMSVoltageMean: "); Serial.println(EMON_K2.RMSVoltageMean);
-    Serial.print("apparentPower: "); Serial.println(EMON_K2.apparentPower);
-    Serial.print("realPower: "); Serial.println(EMON_K2.realPower);
-    Serial.print("powerFactor: "); Serial.println(EMON_K2.powerFactor);
-*/
-
-
-
-
-
 
     //----------- Update WATER PRESSURE data -------------
 

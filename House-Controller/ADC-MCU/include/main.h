@@ -11,7 +11,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.19"
+#define FIRMWARE_VERSION            "2.20"
 #define JSON_SIZE                   1024
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
@@ -44,9 +44,9 @@
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 //#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
 #define ADC_CH_CT_K1                A8 // ADC connected to current sensor (Main intake) Input
-#define ADC_CH_CT_K1_CALIB          100.0
-#define ADC_CH_CT_K2                A6 // ADC connected to current sensor (living room) Input
-#define ADC_CH_CT_K2_CALIB          100.0
+#define ADC_CH_CT_K1_MVPRAMP        33.0  // mv/Ampere current clamp
+#define ADC_CH_CT_K2                A9 // ADC connected to current sensor (living room) Input
+#define ADC_CH_CT_K2_MVPRAMP          33.0  // mv/Ampere current clamp
 #define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_L_PE            A4 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_N_PE            A5 // ADC connected to ZMPT101B voltage sensor

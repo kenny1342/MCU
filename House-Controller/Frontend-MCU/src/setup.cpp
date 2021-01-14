@@ -28,8 +28,9 @@ void Setup::deleteAllCredentials(void) {
 bool Setup::GetConfig() {
 
   // Load defaults
-  strlcpy(config.hostname, _def_hostname, sizeof(config.hostname));
-  strlcpy(config.port, "80", sizeof(config.port));    
+  strlcpy(config.hostname, CONF_DEF_HOSTNAME, sizeof(config.hostname));
+  strlcpy(config.port, CONF_DEF_PORT, sizeof(config.port));    
+  strlcpy(config.ntpserver, CONF_DEF_NTP_SERVER, sizeof(config.ntpserver));    
 
 
   if (SPIFFS.exists(_configfile)) {

@@ -1,12 +1,9 @@
-
-// TO REPLACE ZMPT101B CLASS
-
-
 #ifndef KRAEMON_h
 #define KRAEMON_h
 
 #include <Arduino.h>
 
+#define AC_CURRENT_VDD_CALIB 3300.0 // Currentsensor op-amps outputs 0-3.3v
 
 class KRAEMON {
 public:
@@ -16,8 +13,8 @@ public:
     const char* id;
     float RMSVoltageMean ;                            /* square roof of voltageMean*/
     float FinalRMSCurrent ;                           /* the final RMS current reading*/
-    float apparentPower;                              /* the apparent power reading (VA) */
-    float realPower = 0;                              /* the real power reading (W) */
+    uint16_t apparentPower;                              /* the apparent power reading (VA) */
+    uint16_t realPower = 0;                              /* the real power reading (W) */
     float powerFactor = 0;                            /* to display power factor value*/ 
     bool error = false;
 

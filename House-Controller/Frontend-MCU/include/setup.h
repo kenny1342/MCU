@@ -5,6 +5,7 @@
 struct Config {
   char hostname[64];
   char port[6]; // TODO: apply to server..
+  char ntpserver[64];
 };
 
 class Setup {
