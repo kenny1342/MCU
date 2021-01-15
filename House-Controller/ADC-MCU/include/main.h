@@ -11,7 +11,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.20"
+#define FIRMWARE_VERSION            "2.21"
 #define JSON_SIZE                   1024
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
@@ -162,6 +162,7 @@ typedef union {
     byte low_memory:1; // set if RAM < x bytes free
   };
 } alarm_BitField_SYS;
+const char alarm_Text_SYS[9][8] = { "", "", "", "", "", "", "", "lowmem" };
 
 typedef union {
   byte allBits;
@@ -176,6 +177,7 @@ typedef union {
     byte b7:1;
   };
 } alarm_BitField_WP;
+const char alarm_Text_WP[9][15] = { "wpruntime", "wpacc_air", "", "wptemp_room", "", "", "wpsensors", "" };
 
 typedef union {
   byte allBits;
@@ -190,6 +192,7 @@ typedef union {
     byte b7:1;
   };
 } alarm_BitField_EMON;
+const char alarm_Text_EMON[9][15] = { "emvoltage", "emgroundfault", "", "", "emK1", "emK2", "emsensors", "" };
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
 #define LED_ON(pin) digitalWrite(pin, 0)

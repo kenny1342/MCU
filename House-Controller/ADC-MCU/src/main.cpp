@@ -681,11 +681,11 @@ void loop() // run over and over
     //----------- Update Water Pump temps -------------
     switch(am2320_pumproom.Read()) {
       case 2:
-        Serial.println("CRC failed");
+        if(doSerialDebug) Serial.println("CRC failed");
         WATERPUMP.temp_pumphouse_val = -98;
         break;
       case 1:
-        Serial.println("am2320_pumproom offline");
+        if(doSerialDebug) Serial.println("am2320_pumproom offline");
         WATERPUMP.temp_pumphouse_val = -99;
         break;
       case 0:
@@ -720,22 +720,62 @@ void loop() // run over and over
     root["devid"] = 0x10;
     root["firmware"] = FIRMWARE_VERSION;
     root["uptimesecs"] = (uint32_t) millis() / 1000;
+    root["freemem"] = freeMemory();
 
     data = doc.createNestedArray("alarms");
 
 
     // TODO: smarten up....
     if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
-      if(ALARMS_SYS.low_memory) { data.add(F("lowmem")); strncpy(lastAlarm, "lowmem", sizeof(lastAlarm)); }
-      if(ALARMS_WP.waterpump_runtime) { data.add(F("wpruntime")); strncpy(lastAlarm, "wpruntime", sizeof(lastAlarm)); }
-      if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
-      if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
-      if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.emon_K1) { data.add(F("K1")); strncpy(lastAlarm, "K1", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
-      if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
+      
+      for(uint8_t x=0; x<sizeof(ALARMS_SYS); x++) {
+        if(x & ALARMS_WP.allBits) { // is bit set?
+          const char * text = alarm_Text_SYS[x];
+          data.add(text);
+          strncpy(lastAlarm, text, sizeof(lastAlarm));
+        }
+      }      
+      //if(ALARMS_SYS.low_memory) { data.add(F("lowmem")); strncpy(lastAlarm, "lowmem", sizeof(lastAlarm)); }
+      
+      for(uint8_t x=0; x<sizeof(ALARMS_WP); x++) {
+        
+        const char * text = alarm_Text_WP[x];
+        
+        if(doSerialDebug) {
+          Serial.print("bit "); 
+          Serial.print(x); 
+          Serial.print("="); 
+          Serial.print(text); 
+        }
+        
+        if(x & ALARMS_WP.allBits) { // is bit set?
+          
+          
+          if(doSerialDebug) { Serial.print(" SET"); }
+          data.add(text);
+          strncpy(lastAlarm, text, sizeof(lastAlarm));
+        } else {
+          if(doSerialDebug) { Serial.print(" NOT SET"); }
+        }
+      }
+      //if(ALARMS_WP.waterpump_runtime) { data.add(F("wpruntime")); strncpy(lastAlarm, "wpruntime", sizeof(lastAlarm)); }
+      //if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
+      //if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
+      //if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
+
+      for(uint8_t x=0; x<sizeof(ALARMS_WP); x++) {
+        if(x & ALARMS_EMON.allBits) { // is bit set?
+          const char * text = alarm_Text_EMON[x];
+          data.add(text);
+          strncpy(lastAlarm, text, sizeof(lastAlarm));
+        }
+      }
+
+      //if(ALARMS_EMON.emon_K1) { data.add(F("K1")); strncpy(lastAlarm, "K1", sizeof(lastAlarm)); }
+      //if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
+      //if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
+      //if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
+      //if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
     }
     root["lastAlarm"] = lastAlarm;
 
