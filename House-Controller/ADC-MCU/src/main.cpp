@@ -221,12 +221,18 @@ void setup()
   delay(300);
   LED_OFF(PIN_LED_WHITE);
 
+  // TODO: rewrite all to pointer
   tm_blinkAlarm.start();
   tm_blinkWarning.start();
   tm_counterWP_suspend_1sec.start();
   tm_WP_seconds_counter.start();
   tm_100ms_setAlarms.start();
   tm_DataTX.start();
+  Timers[TM_SerialDebug]->start();
+
+  for(int t=0; t<NUM_TIMERS; t++){
+   // Timers[t]->start();
+  }
 
   buzzer_on(PIN_BUZZER, 200);
 
@@ -559,6 +565,7 @@ void loop() // run over and over
   int samples[250];
   char SPIData[JSON_SIZE]; // local copy
   bool NewSPIData;
+  bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
 
@@ -570,7 +577,7 @@ void loop() // run over and over
   interrupts();
 
   if(NewSPIData) {
-    Serial.print (SPIData); //print the array on serial monitor    
+    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
     // TODO: change to SPI
@@ -699,8 +706,6 @@ void loop() // run over and over
     
     APPFLAGS.is_busy = 1;
     APPFLAGS.isProcessingData = 1;
-    bool doSerialDebug = Timers[TM_SerialDebug]->expired();
-
 
     //------------ Create JSON docs and send to Frontend ----------------
     LED_ON(PIN_LED_WHITE);
