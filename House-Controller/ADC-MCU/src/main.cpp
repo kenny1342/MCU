@@ -37,8 +37,8 @@ volatile uint16_t indx;
 volatile bool SPI_dataready = false;
 volatile char buffer_sensorhub[JSON_SIZE];
 
-StaticJsonDocument<JSON_SIZE> doc;
-StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
+//StaticJsonDocument<JSON_SIZE> doc;
+//StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
 
 AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
 
@@ -537,11 +537,9 @@ void loop() // run over and over
   uint32_t currentMicros = 0;
   int samples[250];
   char SPIData[JSON_SIZE]; // local copy
-  wdt_reset();
   bool NewSPIData;
-  
 
-
+  wdt_reset();
 
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
   noInterrupts();
@@ -559,10 +557,12 @@ void loop() // run over and over
     Serial_Frontend.write('\n');
   
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
-    tmp_json.clear();
+    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+    //tmp_json.clear();
     const char* p = SPIData;
     DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
-    
+    tmp_json.shrinkToFit();
+
     if (error) {
       Serial.write(SPIData);
       Serial.print(F("\n^JSON_ERR:"));
@@ -678,12 +678,13 @@ void loop() // run over and over
 
     APPFLAGS.isProcessingData = 0;
 
-    //------------ Create JSON doc ----------------
+    //------------ Create JSON docs and send to Frontend ----------------
     LED_ON(PIN_LED_WHITE);
 
-    doc.clear();
+    DynamicJsonDocument doc(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+    //doc.clear();
     JsonObject root = doc.to<JsonObject>();
-
+    
     // ---------------- SEND ADCSYSDATA --------------------
     root.clear();
     root["cmd"] = 0x10; // ADCSYSDATA
@@ -714,6 +715,7 @@ void loop() // run over and over
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
     delay(500);
+    wdt_reset();
 
     // ---------------- SEND ADCEMONDATA --------------------
     root.clear();
@@ -740,6 +742,7 @@ void loop() // run over and over
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
     delay(500);
+    wdt_reset();
 
     // ---------------- SEND ADCWATERPUMPDATA --------------------
     root.clear();
@@ -774,7 +777,6 @@ void loop() // run over and over
     serializeJson(root, dataString);
     Serial.println(dataString);
     Serial_Frontend.println(dataString);
-
 
     LED_OFF(PIN_LED_WHITE);
     APPFLAGS.is_busy = 0;
