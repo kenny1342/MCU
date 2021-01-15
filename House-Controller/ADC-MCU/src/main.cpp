@@ -69,9 +69,30 @@ Timemark tm_100ms_setAlarms(100);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
 Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
+Timemark tm_SerialDebug(5000);
 
 const uint8_t NUM_TIMERS = 9;
-Timemark *Timers[NUM_TIMERS] = { &tm_blinkAlarm, &tm_blinkWarning, &tm_WP_seconds_counter, &tm_counterWP_suspend_1sec, &tm_100ms_setAlarms, &tm_DataTX, &tm_buzzer, &tm_DataStale_50406_1 };
+Timemark *Timers[NUM_TIMERS] = { 
+  &tm_blinkAlarm, 
+  &tm_blinkWarning, 
+  &tm_WP_seconds_counter, 
+  &tm_counterWP_suspend_1sec, 
+  &tm_100ms_setAlarms, 
+  &tm_DataTX, 
+  &tm_buzzer, 
+  &tm_DataStale_50406_1, 
+  &tm_SerialDebug 
+  };
+enum Timers {   TM_blinkAlarm, 
+  TM_blinkWarning, 
+  TM_WP_seconds_counter, 
+  TM_counterWP_suspend_1sec, 
+  TM_100ms_setAlarms, 
+  TM_DataTX, 
+  TM_buzzer, 
+  TM_DataStale_50406_1, 
+  TM_SerialDebug 
+};
 
 void setup()
 {
@@ -589,38 +610,6 @@ void loop() // run over and over
   } // NewSPIData
 
 
-  // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
-  if(tm_DataStale_50406_1.expired()) {
-    WATERPUMP.temp_pumphouse_val = -99.9;
-  }
-
-  if (tm_DataTX.expired()) {
-    
-    APPFLAGS.is_busy = 1;
-    APPFLAGS.isProcessingData = 1;
-
-    // Control MOD-IO board relays
-    if(ModIO_GetRelayState(CONF_RELAY_WP) != (WATERPUMP.status == RUNNING)) // flag set in ISR, control relay if needed
-      if(!ModIO_SetRelayState(CONF_RELAY_WP, (WATERPUMP.status == RUNNING)) == MODIO_ACK_OK) ModIO_Reset();
-    
-    ModIO_Update();
-
-    //----------- Update Water Pump temps -------------
-    switch(am2320_pumproom.Read()) {
-      case 2:
-        Serial.println("CRC failed");
-        WATERPUMP.temp_pumphouse_val = -98;
-        break;
-      case 1:
-        Serial.println("am2320_pumproom offline");
-        WATERPUMP.temp_pumphouse_val = -99;
-        break;
-      case 0:
-        WATERPUMP.temp_pumphouse_val = am2320_pumproom.t;
-        WATERPUMP.hum_pumphouse_val = am2320_pumproom.h;
-        break;
-    }    
-
     //----------- Update EMON (Mains) AC Frequency data -------------
 
     currentMicros = micros();
@@ -676,7 +665,42 @@ void loop() // run over and over
     WATERPUMP.water_pressure_bar_val = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
     WATERPUMP.water_pressure_bar_val += (double)CORR_FACTOR_PRESSURE_SENSOR;
 
+    // Control MOD-IO board relays
+    if(ModIO_GetRelayState(CONF_RELAY_WP) != (WATERPUMP.status == RUNNING)) // flag set in ISR, control relay if needed
+      if(!ModIO_SetRelayState(CONF_RELAY_WP, (WATERPUMP.status == RUNNING)) == MODIO_ACK_OK) ModIO_Reset();
+    
+    ModIO_Update();
+
+    //----------- Update Water Pump temps -------------
+    switch(am2320_pumproom.Read()) {
+      case 2:
+        Serial.println("CRC failed");
+        WATERPUMP.temp_pumphouse_val = -98;
+        break;
+      case 1:
+        Serial.println("am2320_pumproom offline");
+        WATERPUMP.temp_pumphouse_val = -99;
+        break;
+      case 0:
+        WATERPUMP.temp_pumphouse_val = am2320_pumproom.t;
+        WATERPUMP.hum_pumphouse_val = am2320_pumproom.h;
+        break;
+    }    
+
     APPFLAGS.isProcessingData = 0;
+
+  // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
+  if(Timers[TM_DataStale_50406_1]->expired()) {
+    WATERPUMP.temp_pumphouse_val = -99.9;
+  }
+
+  // ------------- SEND DATA TO FRONTEND ----------------------------------
+  if (Timers[TM_DataTX]->expired()) {
+    
+    APPFLAGS.is_busy = 1;
+    APPFLAGS.isProcessingData = 1;
+    bool doSerialDebug = Timers[TM_SerialDebug]->expired();
+
 
     //------------ Create JSON docs and send to Frontend ----------------
     LED_ON(PIN_LED_WHITE);
@@ -712,7 +736,7 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    Serial.println(dataString);
+    if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
     delay(500);
     wdt_reset();
@@ -739,7 +763,7 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    Serial.println(dataString);
+    if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
     delay(500);
     wdt_reset();
@@ -775,7 +799,7 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    Serial.println(dataString);
+    if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
 
     LED_OFF(PIN_LED_WHITE);
