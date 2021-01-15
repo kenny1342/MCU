@@ -9,3 +9,6 @@ const char *password = "12345678"; // and this is the password
 //IPAddress netmask(255, 255, 255, 0);
 const uint16_t port = 8880;
 const char * host = "192.168.4.1";
+
+void SendData(const char * json);
+int getStrength(int points);

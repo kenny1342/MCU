@@ -23,9 +23,9 @@
 #define PIN_LED_BLUE                9 // BLUE
 #define PIN_LED_WHITE               7 // WHITE, 
 #define PIN_BUZZER                  8
-#define PIN_ModIO_Reset             4
-#define PIN_AM2320_SDA_PUMPROOM     2
-#define PIN_AM2320_SCL_PUMPROOM     3
+#define PIN_ModIO_Reset             6
+//#define PIN_AM2320_SDA_PUMPROOM     2
+//#define PIN_AM2320_SCL_PUMPROOM     3
 #define LED_BUSY                    PIN_LED_BLUE
 #define LED_ALARM                   PIN_LED_RED
 #define LED_WARNING                 PIN_LED_YELLOW
@@ -192,7 +192,7 @@ typedef union {
     byte b7:1;
   };
 } alarm_BitField_EMON;
-const char alarm_Text_EMON[9][15] = { "emvoltage", "emgroundfault", "", "", "emK1", "emK2", "emsensors", "" };
+const char alarm_Text_EMON[9][25] = { "Mains Voltage O/R", "Ground fault", "", "", "K1 O/R", "K2 O/R", "Power sensor error", "" };
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
 #define LED_ON(pin) digitalWrite(pin, 0)

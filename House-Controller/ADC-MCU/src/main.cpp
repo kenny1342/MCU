@@ -40,7 +40,7 @@ volatile char buffer_sensorhub[JSON_SIZE];
 //StaticJsonDocument<JSON_SIZE> doc;
 //StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
 
-AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
+//AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
@@ -171,12 +171,12 @@ void setup()
   Serial_Frontend.println(F("ADC initializing..."));
 
   noInterrupts();          // disable global interrupts
-
+/*
   // Setup Timer1 for 500 ms (0.5 Hz) overlow ISR
   TCCR1A = 0;     // set entire TCCR1A register to 0 (no PWM)
   TCCR1B = 0;     // same for TCCR1B
   // Set timer1_counter to the correct value for our interrupt interval
-  timer1_counter = 34286;   // preload timer 65536-16MHz/256/2Hz, 65536-16MHz/1024/0.5Hz
+  timer1_counter = 60000; //34286;   // preload timer 65536-16MHz/256/2Hz, 65536-16MHz/1024/0.5Hz
   TCNT1 = timer1_counter;   // preload timer
   
   // BUG: 256 prescaler crashes on Uno R3 DIL board
@@ -184,9 +184,42 @@ void setup()
   // Set CS10 and CS12 bits for 1024 prescaler:  
   TCCR1B |= (1 << CS12);
   TCCR1B |= (1 << CS10);
-  
   TIMSK1 |= (1 << TOIE1);   // enable timer overflow interrupt
+*/
 
+// easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
+
+// TIMER 1 for interrupt frequency 10 Hz:
+cli(); // stop interrupts
+TCCR1A = 0; // set entire TCCR1A register to 0
+TCCR1B = 0; // same for TCCR1B
+TCNT1  = 0; // initialize counter value to 0
+// set compare match register for 10 Hz increments
+OCR1A = 24999; // = 16000000 / (64 * 10) - 1 (must be <65536)
+// turn on CTC mode
+TCCR1B |= (1 << WGM12);
+// Set CS12, CS11 and CS10 bits for 64 prescaler
+TCCR1B |= (0 << CS12) | (1 << CS11) | (1 << CS10);
+// enable timer compare interrupt
+TIMSK1 |= (1 << OCIE1A);
+sei(); // allow interrupts
+
+// TIMER 2 for interrupt frequency 1000 Hz:
+cli(); // stop interrupts
+TCCR2A = 0; // set entire TCCR2A register to 0
+TCCR2B = 0; // same for TCCR2B
+TCNT2  = 0; // initialize counter value to 0
+// set compare match register for 1000 Hz increments
+OCR2A = 249; // = 16000000 / (64 * 1000) - 1 (must be <256)
+// turn on CTC mode
+TCCR2B |= (1 << WGM21);
+// Set CS22, CS21 and CS20 bits for 64 prescaler
+TCCR2B |= (1 << CS22) | (0 << CS21) | (0 << CS20);
+// enable timer compare interrupt
+TIMSK2 |= (1 << OCIE2A);
+sei(); // allow interrupts
+
+/*
   // Timer 2 - gives us our 1 ms (1000 Hz) overflow ISR
   // 16 MHz clock (62.5 ns per tick) - prescaled by 128 - counter increments every 8 µs. So we count 125 of them, giving exactly 1000 µs (1 ms)
   TCCR2A = 0x00;
@@ -201,15 +234,17 @@ void setup()
   TIMSK2 = bit (OCIE2A);   // enable Timer2 Interrupt
   
   interrupts(); // enable global interrupts
-  
+  */
+
   Serial.println(F("ISR's enabled"));
   delay(500);
 
   Wire.begin(); // Initiate the Wire library
 
   Serial.println(F("ModIO_Init..."));
+  ModIO_Reset(); // we need to because sometimes it hangs on startup (stuck i2c)
   ModIO_Init();
-  //ModIO_Reset();
+  
   delay(100);
 
   // turn on 12v bus (system power sensors, relays etc)
@@ -280,10 +315,74 @@ if(c == 0x10) { // our address
 
 }
 
-ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
+/**
+ * ISR to handle incoming data from SPI (remote probes via WiFi Hub)
+ */
+//ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
+ISR(TIMER1_COMPA_vect)
 {
   TCNT1 = timer1_counter;   // preload timer
-  if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
+  if(millis() < 5000) return; // just powered up, let things stabilize
+
+  bool doSerialDebug = true;
+  char SPIData[JSON_SIZE]; // local copy
+  bool NewSPIData;
+
+  //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
+  noInterrupts();
+  strcpy(SPIData, (char *)buffer_sensorhub);
+  NewSPIData=SPI_dataready;
+  SPI_dataready = false;
+  interrupts();
+  //Serial.print(millis()/1000);
+  if(NewSPIData) {
+    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
+
+    // Send to Frontend unchanged via serial
+    // TODO: change to SPI
+    Serial_Frontend.write(SPIData);
+    Serial_Frontend.write('\n');
+  
+    // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
+    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+    //tmp_json.clear();
+    const char* p = SPIData;
+    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
+    tmp_json.shrinkToFit();
+
+    if (error) {
+      Serial.write(SPIData);
+      Serial.print(F("\n^JSON_ERR:"));
+      Serial.println(error.f_str());
+      
+    } else {
+
+      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
+
+        uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
+        uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
+        switch(_devid) {
+          case 50406: // EP32 Probe in pump house
+          {
+            // sid 1=temp room, 2=humidity room, 3=temp motor
+            if(sid == 0x01) { 
+              WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
+              tm_DataStale_50406_1.start(); // restart "old data" timer
+            }
+            if(sid == 0x02) { 
+              WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
+              tm_DataStale_50406_1.start(); // restart "old data" timer
+            }
+            if(sid == 0x03) { 
+              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
+            }
+          }
+          break;
+          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
+        }
+      } // 0x45
+    } // no json error
+  } // NewSPIData
 
 }
 
@@ -296,13 +395,7 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
-/*  
-  if(Timers[TM_UpdateEMON]->expired() && !APPFLAGS.isUpdatingData) {
-    for(int x=0; x<NUM_EMONS; x++) {
-      KRAEMONS[x]->Calc();
-    }
-  }
-*/
+
   if(ENABLE_BUZZER) {
     if(tm_buzzer.expired()) {
       tm_buzzer.stop();
@@ -317,7 +410,7 @@ ISR (TIMER2_COMPA_vect)
   digitalWrite(LED_BUSY, !APPFLAGS.isUpdatingData);
   digitalWrite(PIN_LED_WHITE, !APPFLAGS.isSendingData);
 
-  if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
+  if(!ADC_waterpressure.ready || millis() < 20000) return; // just powered up, let things stabilize
 
   // --------- Set LEDs and buzzer state -------------
   if( (IS_ACTIVE_ALARMS_WP() /*|| WATERPUMP.is_suspended*/)) { // Water pump related is critical/Alarm LED
@@ -569,60 +662,9 @@ void loop() // run over and over
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
-  char SPIData[JSON_SIZE]; // local copy
-  bool NewSPIData;
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
-
-  //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
-  noInterrupts();
-  strcpy(SPIData, (char *)buffer_sensorhub);
-  NewSPIData=SPI_dataready;
-  SPI_dataready = false;
-  interrupts();
-
-  if(NewSPIData) {
-    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
-
-    // Send to Frontend unchanged via serial
-    // TODO: change to SPI
-    Serial_Frontend.write(SPIData);
-    Serial_Frontend.write('\n');
-  
-    // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
-    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    //tmp_json.clear();
-    const char* p = SPIData;
-    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
-    tmp_json.shrinkToFit();
-
-    if (error) {
-      Serial.write(SPIData);
-      Serial.print(F("\n^JSON_ERR:"));
-      Serial.println(error.f_str());
-      
-    } else {
-
-      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-
-        uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
-        switch(_devid) {
-          case 50406:
-            if(tmp_json.getMember("sid").as<uint8_t>() == 1) { // room temp sensor (2=humidity, 3=motor temp)
-              //Serial.println("this is sid 1 pump motor sensor");
-              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();
-              tm_DataStale_50406_1.start(); // restart "old data" timer
-            }
-
-          break;
-          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
-        }
-      } // 0x45
-    } // no json error
-  } // NewSPIData
-
-  //noInterrupts();
 
     //----------- Update EMON (Mains) AC Frequency data -------------
 
@@ -693,21 +735,6 @@ void loop() // run over and over
     
     ModIO_Update();
 
-    //----------- Update Water Pump temps -------------
-    switch(am2320_pumproom.Read()) {
-      case 2:
-        if(doSerialDebug) Serial.println("CRC failed");
-        WATERPUMP.temp_pumphouse_val = -98;
-        break;
-      case 1:
-        if(doSerialDebug) Serial.println("am2320_pumproom offline");
-        WATERPUMP.temp_pumphouse_val = -99;
-        break;
-      case 0:
-        WATERPUMP.temp_pumphouse_val = am2320_pumproom.t;
-        WATERPUMP.hum_pumphouse_val = am2320_pumproom.h;
-        break;
-    }    
 
     APPFLAGS.isUpdatingData = 0;
 

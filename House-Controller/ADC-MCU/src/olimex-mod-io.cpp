@@ -13,9 +13,9 @@ void ModIO_Reset(void) {
 
     Serial.println(F("RST MODIO...")); 
     pinMode(PIN_ModIO_Reset, OUTPUT); 
-    delay(5); 
+    delay(50); 
     digitalWrite(PIN_ModIO_Reset, LOW); 
-    delay(10); 
+    delay(200); 
     digitalWrite(PIN_ModIO_Reset, HIGH); 
     pinMode(PIN_ModIO_Reset, INPUT); 
     delay(100);
