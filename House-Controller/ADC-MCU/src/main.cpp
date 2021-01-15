@@ -613,21 +613,17 @@ ISR (TIMER2_COMPA_vect)
     }
   }
 
-  if(WATERPUMP.status != SUSPENDED) {
+  if(WATERPUMP.status == STOPPED) {
     if(WATERPUMP.pressure_state == PRESSURE_LOW) {
-      if(WATERPUMP.status == RUNNING) {
-        
-      } else {
-        if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
-          if(WATERPUMP.state_age > 10) {  // always wait minimum n sec after stop before we start again, no hysterese...
-            WATERPUMP.status = RUNNING;
-            WATERPUMP.state_age=0; //reset state age
-            WATERPUMP.start_counter++; // increase the start counter 
-          }
-
-        } else {
-          //not turning on yet, pressure_state_t < n sec
+      if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
+        if(WATERPUMP.state_age > 10) {  // always wait minimum n sec after stop before we start again, no hysterese...
+          WATERPUMP.status = RUNNING;
+          WATERPUMP.state_age=0; //reset state age
+          WATERPUMP.start_counter++; // increase the start counter 
         }
+
+      } else {
+        //not turning on yet, pressure_state_t < n sec
       }
     } else { // PRESSURE_OK
       if(WATERPUMP.status == RUNNING && WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) {
