@@ -65,19 +65,22 @@ Timemark tm_blinkAlarm(200);
 Timemark tm_blinkWarning(500);
 Timemark tm_WP_seconds_counter(1000);
 Timemark tm_counterWP_suspend_1sec(1000);
-Timemark tm_100ms_setAlarms(100);
+Timemark tm_100ms_setAlarms(10);
+Timemark tm_UpdateEMON(500);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
 Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
 Timemark tm_SerialDebug(5000);
 
-const uint8_t NUM_TIMERS = 9;
+const uint8_t NUM_TIMERS = 10;
+
 Timemark *Timers[NUM_TIMERS] = { 
   &tm_blinkAlarm, 
   &tm_blinkWarning, 
   &tm_WP_seconds_counter, 
   &tm_counterWP_suspend_1sec, 
   &tm_100ms_setAlarms, 
+  &tm_UpdateEMON,
   &tm_DataTX, 
   &tm_buzzer, 
   &tm_DataStale_50406_1, 
@@ -88,6 +91,7 @@ enum Timers {   TM_blinkAlarm,
   TM_WP_seconds_counter, 
   TM_counterWP_suspend_1sec, 
   TM_100ms_setAlarms, 
+  TM_UpdateEMON,
   TM_DataTX, 
   TM_buzzer, 
   TM_DataStale_50406_1, 
@@ -98,7 +102,7 @@ void setup()
 {
   wdt_enable(WDTO_8S);
 
-  APPFLAGS.is_busy = 1;
+  APPFLAGS.isSendingData = 1;
 
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_LED_YELLOW, OUTPUT);
@@ -227,6 +231,7 @@ void setup()
   tm_counterWP_suspend_1sec.start();
   tm_WP_seconds_counter.start();
   tm_100ms_setAlarms.start();
+  tm_UpdateEMON.start();
   tm_DataTX.start();
   Timers[TM_SerialDebug]->start();
 
@@ -236,7 +241,7 @@ void setup()
 
   buzzer_on(PIN_BUZZER, 200);
 
-  APPFLAGS.is_busy = 0;
+  APPFLAGS.isSendingData = 0;
   
   Serial.println(F("Init done!"));
 }
@@ -291,13 +296,13 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
-  
-  if(!APPFLAGS.isProcessingData) {
+/*  
+  if(Timers[TM_UpdateEMON]->expired() && !APPFLAGS.isUpdatingData) {
     for(int x=0; x<NUM_EMONS; x++) {
       KRAEMONS[x]->Calc();
     }
   }
-
+*/
   if(ENABLE_BUZZER) {
     if(tm_buzzer.expired()) {
       tm_buzzer.stop();
@@ -309,7 +314,8 @@ ISR (TIMER2_COMPA_vect)
     }
   }
 
-  digitalWrite(LED_BUSY, !APPFLAGS.is_busy);
+  digitalWrite(LED_BUSY, !APPFLAGS.isUpdatingData);
+  digitalWrite(PIN_LED_WHITE, !APPFLAGS.isSendingData);
 
   if(!ADC_waterpressure.ready || millis() < 5000) return; // just powered up, let things stabilize
 
@@ -368,7 +374,7 @@ ISR (TIMER2_COMPA_vect)
     }
 
     // Only update alarms (for external data) if not currently reading new ADC values/updating data, we might get zero/invalid results until it's completed
-    if(!APPFLAGS.isProcessingData) {
+    if(!APPFLAGS.isUpdatingData) {
 
       /////// EMON Sensor alarms ////////////////
       ALARMS_EMON.sensor_error = 0;
@@ -458,7 +464,7 @@ ISR (TIMER2_COMPA_vect)
       }
 
       /*** SET/CLEAR ALARMS DONE ***/
-    } // if(!APPFLAGS.isProcessingData)
+    } // if(!APPFLAGS.isUpdatingData)
   } // tm_100ms_setAlarms
 
 
@@ -616,6 +622,7 @@ void loop() // run over and over
     } // no json error
   } // NewSPIData
 
+  //noInterrupts();
 
     //----------- Update EMON (Mains) AC Frequency data -------------
 
@@ -645,8 +652,16 @@ void loop() // run over and over
     EMONMAINS.Freq = 1000/(2*pulsecount* t);
 
     //----------- Update EMON data -------------
-    EMONMAINS.Vrms_L_N = EMON_K1.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
+    if(Timers[TM_UpdateEMON]->expired() && !APPFLAGS.isUpdatingData) {
+      for(int x=0; x<250; x++) {
+        for(int x=0; x<NUM_EMONS; x++) {
+          KRAEMONS[x]->Calc();
+        }
+      }
+    }
 
+    EMONMAINS.Vrms_L_N = EMON_K1.RMSVoltageMean; // voltageSensor_L_N.getVoltageAC();
+    
     //----------- Update Phase/Ground Voltages -------------
     EMONMAINS.Vrms_L_PE = voltageSensor_L_PE.getVoltageAC();
     EMONMAINS.Vrms_N_PE = voltageSensor_N_PE.getVoltageAC();
@@ -694,7 +709,7 @@ void loop() // run over and over
         break;
     }    
 
-    APPFLAGS.isProcessingData = 0;
+    APPFLAGS.isUpdatingData = 0;
 
   // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
   if(Timers[TM_DataStale_50406_1]->expired()) {
@@ -704,11 +719,11 @@ void loop() // run over and over
   // ------------- SEND DATA TO FRONTEND ----------------------------------
   if (Timers[TM_DataTX]->expired()) {
     
-    APPFLAGS.is_busy = 1;
-    APPFLAGS.isProcessingData = 1;
+    APPFLAGS.isSendingData = 1;
+    //APPFLAGS.isUpdatingData = 1;
 
     //------------ Create JSON docs and send to Frontend ----------------
-    LED_ON(PIN_LED_WHITE);
+    //LED_ON(PIN_LED_WHITE);
 
     DynamicJsonDocument doc(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     //doc.clear();
@@ -724,59 +739,34 @@ void loop() // run over and over
 
     data = doc.createNestedArray("alarms");
 
-
-    // TODO: smarten up....
-    if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
+    //if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
       
-      for(uint8_t x=0; x<sizeof(ALARMS_SYS); x++) {
-        if(x & ALARMS_WP.allBits) { // is bit set?
+      for(uint8_t x=0; x<8; x++) {
+        if( (ALARMS_SYS.allBits >> x) & 1) { // is bit set?
           const char * text = alarm_Text_SYS[x];
           data.add(text);
           strncpy(lastAlarm, text, sizeof(lastAlarm));
         }
       }      
-      //if(ALARMS_SYS.low_memory) { data.add(F("lowmem")); strncpy(lastAlarm, "lowmem", sizeof(lastAlarm)); }
       
-      for(uint8_t x=0; x<sizeof(ALARMS_WP); x++) {
+      for(uint8_t x=0; x<8; x++) {
         
         const char * text = alarm_Text_WP[x];
-        
-        if(doSerialDebug) {
-          Serial.print("bit "); 
-          Serial.print(x); 
-          Serial.print("="); 
-          Serial.print(text); 
-        }
-        
-        if(x & ALARMS_WP.allBits) { // is bit set?
-          
-          
-          if(doSerialDebug) { Serial.print(" SET"); }
+        if( (ALARMS_WP.allBits >> x) & 1) { // is bit set?
           data.add(text);
           strncpy(lastAlarm, text, sizeof(lastAlarm));
-        } else {
-          if(doSerialDebug) { Serial.print(" NOT SET"); }
         }
       }
-      //if(ALARMS_WP.waterpump_runtime) { data.add(F("wpruntime")); strncpy(lastAlarm, "wpruntime", sizeof(lastAlarm)); }
-      //if(ALARMS_WP.accumulator_low_air) { data.add(F("wp_accumulator")); strncpy(lastAlarm, "wp_accumulator", sizeof(lastAlarm)); }
-      //if(ALARMS_WP.temperature_pumphouse) { data.add(F("temp_pumphouse")); strncpy(lastAlarm, "temp_pumphouse", sizeof(lastAlarm)); }
-      //if(ALARMS_WP.sensor_error) { data.add(F("sensor_wp")); strncpy(lastAlarm, "sensor_wp", sizeof(lastAlarm)); }
 
-      for(uint8_t x=0; x<sizeof(ALARMS_WP); x++) {
-        if(x & ALARMS_EMON.allBits) { // is bit set?
+      for(uint8_t x=0; x<8; x++) {
+        if( (ALARMS_EMON.allBits >> x) & 1) { // is bit set?
           const char * text = alarm_Text_EMON[x];
           data.add(text);
           strncpy(lastAlarm, text, sizeof(lastAlarm));
         }
       }
 
-      //if(ALARMS_EMON.emon_K1) { data.add(F("K1")); strncpy(lastAlarm, "K1", sizeof(lastAlarm)); }
-      //if(ALARMS_EMON.emon_K2) { data.add(F("K2")); strncpy(lastAlarm, "K2", sizeof(lastAlarm)); }
-      //if(ALARMS_EMON.sensor_error) { data.add(F("sensor_emon")); strncpy(lastAlarm, "sensor_emon", sizeof(lastAlarm)); }
-      //if(ALARMS_EMON.power_groundfault) { data.add(F("groundfault")); strncpy(lastAlarm, "groundfault", sizeof(lastAlarm)); }
-      //if(ALARMS_EMON.power_voltage) { data.add(F("emon_voltage")); strncpy(lastAlarm, "emon_voltage", sizeof(lastAlarm)); }
-    }
+    //}
     root["lastAlarm"] = lastAlarm;
 
     dataString = "";
@@ -847,8 +837,8 @@ void loop() // run over and over
     if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
 
-    LED_OFF(PIN_LED_WHITE);
-    APPFLAGS.is_busy = 0;
+    //LED_OFF(PIN_LED_WHITE);
+    APPFLAGS.isSendingData = 0;
   }
 
 }

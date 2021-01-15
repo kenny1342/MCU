@@ -138,13 +138,13 @@ typedef union {
   byte allBits;
   struct {
     byte is_home:1 ; // 1 if user is home, see isHome() (ping phone etc)
-    byte is_busy:1 ; // ISR turns PIN_LED_BUSY ON if we are busy handling web, booting, doing i2c or other time consuming tasks (that might hang)
+    byte isSendingData:1 ; // ISR turns PIN_LED_BUSY ON if we are busy handling web, booting, doing i2c or other time consuming tasks (that might hang)
     byte bitTwo:1 ;
     byte bitThree:1;
     byte bitFour:1;
     byte bitFive:1;
     byte bitSix:1;
-    byte isProcessingData:1; // 1 if reading adc, transfering data etc, we signal ISR's not to do touch anything
+    byte isUpdatingData:1; // 1 if reading adc, transfering data etc, we signal ISR's not to do touch anything
   };
 } flags_BitField;
 
