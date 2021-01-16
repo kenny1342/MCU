@@ -536,17 +536,18 @@ ISR (TIMER2_COMPA_vect)
         ALARMS_WP.accumulator_low_air = 1;
       }
 
-      if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
-        ALARMS_WP.temperature_pumphouse = 1;
-      } else {    
-          if(ALARMS_WP.temperature_pumphouse) {
-            start_wp_suspension = 1; // was active until now, start suspension period
-            WATERPUMP.suspend_reason = 13;
-          }
-
-        ALARMS_WP.temperature_pumphouse = 0;
-      }
-        
+      ALARMS_WP.temperature_pumphouse = 0;
+      if(!ALARMS_WP.sensor_error) { // only set alarm if sensor is OK)
+        if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
+          ALARMS_WP.temperature_pumphouse = 1;
+        } else {    
+            if(ALARMS_WP.temperature_pumphouse) {
+              start_wp_suspension = 1; // was active until now, start suspension period
+              WATERPUMP.suspend_reason = 13;
+            }
+          //ALARMS_WP.temperature_pumphouse = 0;
+        }
+      }  
 
       if(WATERPUMP.status == RUNNING && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
         ALARMS_WP.waterpump_runtime = 1;
