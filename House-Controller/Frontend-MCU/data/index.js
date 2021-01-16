@@ -293,7 +293,7 @@ jQuery(document).ready(function () {
         }
         
         // dynamically add table rows from json.circuits array
-        let circuit_names = { 1:"K1 MAIN", 2:"K2 Living room", 3:"Kitchen", 13:"Heatpump" };
+        let circuit_names = { 1:"MAIN", 2:"Living room", 3:"Kitchen", 13:"Heatpump" };
         let circuit_fuses = { 1:63, 2:16, 3:16, 13:16 };
         
 
@@ -304,8 +304,14 @@ jQuery(document).ready(function () {
             let Ifuse = circuit_fuses[id] ? circuit_fuses[id] : 0;
             let I = json.circuits[id].I;
 
+            if(id < 10) {
+              name = "&nbsp;- " + name;
+            } else {
+              name = "- " + name;
+            }
+
             markup ='<tr id="tr_circuit_' + id + '">'+
-              '<td id="title_circuit_' + id + '" class="td_title">K' + id + '/' + Ifuse + 'A - ' +name+'</td>' +
+              '<td id="title_circuit_' + id + '" class="td_title">K' + id + '/' + Ifuse + 'A ' +name+'</td>' +
               '<td id="I_circuit_' + id + '" class="td_value"><small>I(rms)</small> ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
               '<td id="P_a_circuit_' + id + '" class="td_value">' + parseInt(json.circuits[id].P_a,10) + '<sup class="units_xs">W</sup></td>' +
               '<td id="PF_circuit_' + id + '" class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
