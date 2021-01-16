@@ -43,7 +43,7 @@ jQuery(document).ready(function () {
       .catch(error => {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
-            json = JSON.parse('{"cmd":16,"devid":16,"firmware":"2.19","uptimesecs":368,"alarms":[],"lastAlarm":"-"}');
+            json = JSON.parse('{"cmd":16,"devid":16,"firmware":"2.21","uptimesecs":18,"freemem":3211,"alarms":[],"lastAlarm":"-"}');
             console.log(json);
             localStorage.setItem('json0x10', JSON.stringify(json));
           } else {
@@ -70,8 +70,8 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             console.log("using test data");
-            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":49.98001,"emon_vrms_L_N":235.2351,"emon_vrms_L_PE":133.4106,"emon_vrms_N_PE":122.5812,"circuits":{"1":{"name":"K1 MAIN (63A)","I":25.9605,"P_a":6106.821,"PF":0},"2":{"name":"K2 Living room (16A)","I":6.928812,"P_a":1630.136,"PF":0.072735},"3":{"name":"K3 Kitchen (16A)","I":0.454317,"P_a":106.8886,"PF":0},"13":{"name":"K13 Heatpump (16A)","I":5.261323,"P_a":1236.584,"PF":0.189825}}}');
-            console.log(json);
+            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50.2008,"emon_vrms_L_N":239.2254,"emon_vrms_L_PE":135.3039,"emon_vrms_N_PE":123.7783,"circuits":{"1":{"I":19.02676,"P_a":4551.683,"PF":0.18295},"2":{"I":15.572593,"P_a":376.0423,"PF":0},"3":{"I":0.753701,"P_a":180.2182,"PF":0},"13":{"I":6.06794,"P_a":1451.714,"PF":0.072817}}}');
+            console.log(json); 
             localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
             //console.log("NOT using test data");
@@ -190,6 +190,7 @@ jQuery(document).ready(function () {
           return;
         }
         $("#uptime_adc").empty().append( formatSecs(json.uptimesecs) );
+        $("#adc_freemem").empty().append( json.freemem );
         $("#lastAlarm").empty().append(json.lastAlarm);
         $("#alarms").empty();
         if(Object.keys(json.alarms).length > 0) {
@@ -303,17 +304,17 @@ jQuery(document).ready(function () {
             let Ifuse = circuit_fuses[id] ? circuit_fuses[id] : 0;
             let I = json.circuits[id].I;
 
-            markup ='<tr id="circuit_' + id + '">'+
-              '<td class="td_title">K' + id + '/' + Ifuse + 'A - ' +name+'</td>' +
-              '<td class="td_value"><small>I(rms)</small> ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
-              '<td class="td_value">' + parseInt(json.circuits[id].P_a,10) + '<sup class="units_xs">W</sup></td>' +
-              '<td class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
+            markup ='<tr id="tr_circuit_' + id + '">'+
+              '<td id="title_circuit_' + id + '" class="td_title">K' + id + '/' + Ifuse + 'A - ' +name+'</td>' +
+              '<td id="I_circuit_' + id + '" class="td_value"><small>I(rms)</small> ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
+              '<td id="P_a_circuit_' + id + '" class="td_value">' + parseInt(json.circuits[id].P_a,10) + '<sup class="units_xs">W</sup></td>' +
+              '<td id="PF_circuit_' + id + '" class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
             '</tr>"';
             $("#table_emon_circuits tbody").append(markup);
             if( (Ifuse - I) <= 2) {
-              $("#circuit_" + id).removeClass().addClass("ERR");
+              $("#title_circuit_" + id).removeClass().addClass("ERR");
             } else {
-              $("#circuit_" + id).removeClass().addClass("OK");
+              $("#title_circuit_" + id).removeClass();
             }
             
           }

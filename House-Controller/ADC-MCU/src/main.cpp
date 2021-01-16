@@ -45,10 +45,10 @@ volatile char buffer_sensorhub[JSON_SIZE];
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
-volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_MVPRAMP, "1", "K1 MAIN (63A)");
-volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_MVPRAMP, "2", "K2 Living room (16A)"); 
-volatile KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, ADC_CH_CT_K3_MVPRAMP, "3", "K3 Kitchen (16A)"); 
-volatile KRAEMON EMON_K13 (ADC_CH_CT_K13, ADC_CH_VOLT_L_N, ADC_CH_CT_K13_MVPRAMP, "13", "K13 Heatpump (16A)"); 
+volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_MVPRAMP, "1");
+volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_MVPRAMP, "2"); 
+volatile KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, ADC_CH_CT_K3_MVPRAMP, "3"); 
+volatile KRAEMON EMON_K13 (ADC_CH_CT_K13, ADC_CH_VOLT_L_N, ADC_CH_CT_K13_MVPRAMP, "13"); 
 const uint8_t NUM_EMONS = 4;
 volatile KRAEMON * KRAEMONS[NUM_EMONS] = { &EMON_K1, &EMON_K2, &EMON_K3, &EMON_K13 };
 
@@ -816,7 +816,6 @@ void loop() // run over and over
 
     for(int x=0; x<NUM_EMONS; x++) {
       JsonObject circuit = circuits.createNestedObject(KRAEMONS[x]->id);
-      circuit["name"] = KRAEMONS[x]->name;
       circuit["I"] = KRAEMONS[x]->FinalRMSCurrent;
       circuit["P_a"] = KRAEMONS[x]->apparentPower;
       circuit["PF"] = KRAEMONS[x]->powerFactor;
