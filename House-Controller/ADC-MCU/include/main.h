@@ -211,5 +211,6 @@ void buzzer_on(uint8_t pin, uint16_t duration);
 void buzzer_off(uint8_t pin);
 //bool getAlarmStatus(&struct ALARMS uint8_t Alarm);
 int readline(int readch, char *buffer, int len);
+bool SendToFrontend(const char * txMsg);
 
 #endif

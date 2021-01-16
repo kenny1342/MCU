@@ -30,6 +30,39 @@
 #include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 #include <main.h>
 
+//#include <SlaveSPI.h>
+#include <SPI.h>
+
+/* ESP32 TTGO ST7789 SPI PINS (used by display):
+MOSI 19
+SCLK 18
+CS 5
+DC 16
+RST 13
+BL 14 
+
+MOSI = GPIO14 / 13
+MISO = GPIO12 / 12
+CLK = GPIO2 / 2
+CD = GPIO15 / 15
+*/
+
+#define PIN_MOSI_ADC 33 //14 (13)
+#define PIN_MISO_ADC 38 //12 (12)
+#define PIN_CLK_ADC 32 //2 (2)
+#define PIN_SS_ADC 37 //15 (15)
+
+SPIClass SPIADC(VSPI);
+
+//#include <ESP32DMASPIMaster.h>
+//ESP32DMASPI::Master master;
+
+//static const uint32_t BUFFER_SIZE = 64; //8192;
+//uint8_t* spi_master_tx_buf;
+//uint8_t* spi_master_rx_buf;
+
+
+
 char WEBIF_VERSION[6] = "N/A"; // read from file (/WEBIF_VERSION)
 char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
@@ -83,13 +116,13 @@ Timemark tm_SerialDebug(5000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
 Timemark tm_SyncNTP(180000);
+Timemark tm_PollADC(5000);
 
-const uint8_t NUM_TIMERS = 8;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_SyncNTP };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_SyncNTP };
+const uint8_t NUM_TIMERS = 9;
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_SyncNTP, TM_PollADC };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_SyncNTP, &tm_PollADC };
 
 volatile int interruptCounter;
-
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
  
@@ -100,8 +133,11 @@ void IRAM_ATTR onTimer() {
 
   portENTER_CRITICAL_ISR(&timerMux);
   interruptCounter++;
+
+
   portEXIT_CRITICAL_ISR(&timerMux);
-  
+
+
 }
 
 // Every time we connect to the cloud...
@@ -123,6 +159,12 @@ void setup(void) {
   BtnUP.begin();    // This also sets pinMode
   BtnDOWN.begin();  // This also sets pinMode
   
+  pinMode(PIN_SS_ADC, OUTPUT); //VSPI SS set slave select pins as output
+  SPIADC.begin(PIN_CLK_ADC, PIN_MISO_ADC, PIN_MOSI_ADC, PIN_SS_ADC); //SCLK, MISO, MOSI, SS
+  SPIADC.setClockDivider(SPI_CLOCK_DIV128);
+  // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
+  digitalWrite(PIN_SS_ADC,HIGH); // set the SS pin HIGH since we didn’t start any transfer to slave
+
   Serial_DATA.begin(57600, SERIAL_8N1, PIN_RXD2, PIN_TXD2);
   Serial_DATA.println("WiFi-MCU booting up...");
 
@@ -503,6 +545,47 @@ void loop(void) {
     portEXIT_CRITICAL(&timerMux);
   }
 
+  if(Timers[TM_PollADC]->expired()) {
+
+char buf [14];
+
+  digitalWrite(PIN_SS_ADC, LOW);    // SS is pin 10
+delay (1);
+  for (int i=0;i<14;i++)
+    buf[i]=SPI.transfer(0);
+  // disable Slave Select
+  digitalWrite(PIN_SS_ADC, HIGH);
+  Serial.printf("RXSPI: %s\n", buf);
+
+  /*
+    digitalWrite(PIN_SS_ADC, LOW); // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
+    SPIADC.beginTransaction (SPISettings (4000000, LSBFIRST, SPI_MODE0)); 
+    byte ret1 = SPIADC.transfer(0x10); // ADC devid / START marker
+
+    int maxreads = 0;
+    char r;
+    r = SPIADC.transfer(0x20);
+
+      //uint8_t sector_buffer [512];
+      //for (int s=0;s<512;s++) sector_buffer[s] = vspi->transfer(0x00);
+
+    while(r != 0x00) {
+      if(++maxreads == 500) {
+        Serial.println("SPI maxreads!");
+        break;
+      }
+
+      delayMicroseconds(2000);
+      r = SPIADC.transfer(0x20);
+
+      Serial.printf("B:%c,%d", r,r);  
+    }
+    delayMicroseconds(2000);
+    Serial.printf("POLLED ADC: (got %d), last=%d\n", maxreads, ret1);
+    SPIADC.endTransaction();
+    digitalWrite(PIN_SS_ADC, HIGH); // disable Slave Select
+*/
+  }
 
   if(Timers[TM_SyncNTP]->expired()) {
     timeClient.update();

@@ -37,6 +37,7 @@ volatile uint16_t indx;
 volatile bool SPI_dataready = false;
 volatile char buffer_sensorhub[JSON_SIZE];
 
+volatile bool SendData;
 //StaticJsonDocument<JSON_SIZE> doc;
 //StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
 
@@ -118,11 +119,15 @@ void setup()
   //pinMode(PIN_MOSI,INPUT);
   //pinMode(PIN_SS,INPUT);
 
-   
+  
   SPCR |= _BV(SPE); // turn on SPI in slave mode
   SPI.attachInterrupt(); // turn on interrupt
-
-
+/*
+  SPI.begin();
+  SPI.setClockDivider(SPI_CLOCK_DIV128); //16 MHz/128
+  pinMode(SS, OUTPUT);
+  digitalWrite(SS, LOW);   //Slave is selected
+*/
   LED_ON(PIN_LED_RED);
   delay(300);
   LED_ON(PIN_LED_YELLOW);
@@ -284,14 +289,58 @@ sei(); // allow interrupts
   Serial.println(F("Init done!"));
 }
 
+volatile bool spi_started;
+volatile bool spi_replying;
+
 ISR (SPI_STC_vect)
 {
   byte c = SPDR;
-  
-if(c == 0x10) { // our address
+  //Serial.print("RXSPI ISR:"); 
+  //Serial.println(c); 
+
+SendData = true;
+return;
+
+if(c == 0x10) {
+  if(!spi_started) { // our address
+    spi_started = true;
+    //Serial.println("RXSPI ISR:0x10"); 
+  }
   SPDR = c;
+  
   return;
 }
+
+if(spi_started && c == 0x20) { // 0x20 cmd=SEND DATA
+  const char * data = "{some-json-string}";
+
+  Serial.println("RXSPI ISR:0x20"); 
+  SendData = true;
+return;
+  SPI.transfer('<'); //start mark
+  for(uint16_t i=0; i< sizeof(data); i++)
+  {
+    SPI.transfer(data[i]);
+  }
+  for(int x=0; x<20; x++) {
+    SPDR = 'Z';
+    delay(10);
+  }
+  SPI.transfer('>');  //end mark
+  delay(10);
+  SPI.transfer(0x00);  //end mark
+  
+  Serial.print("TXSPI ISR:<"); Serial.print(data); Serial.println(">");
+  spi_started = false;
+  
+  
+}
+return;
+
+
+
+
+
 
   if(c == '<' || indx >= JSON_SIZE-1) { // Start marker
     indx =0;
@@ -398,6 +447,18 @@ ISR (TIMER2_COMPA_vect)
 {
   //static uint16_t t2_overflow_cnt;//, t2_overflow_cnt_500ms;
   static bool start_wp_suspension; // set to 1 if we clear an previous active waterpump related alarm (one of ALARMBITS_WATERPUMP_PROTECTION)
+
+
+
+
+  if(SendData) {
+    Serial.println("SENDING SPI DATA");
+    char data [14]="Hello world!\n";
+    for(uint32_t i=0;i<sizeof data ; i++) {
+      SPI.transfer(data[i]);    
+    }
+    SendData = false;
+  }
 
   if(ENABLE_BUZZER) {
     if(tm_buzzer.expired()) {
@@ -662,9 +723,10 @@ void loop() // run over and over
   uint32_t duration = 0;
   uint32_t currentMicros = 0;
   int samples[250];
-  bool doSerialDebug = Timers[TM_SerialDebug]->expired();
+  //bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
+
 
     //----------- Update EMON (Mains) AC Frequency data -------------
 
@@ -740,7 +802,7 @@ void loop() // run over and over
 
   // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
   if(Timers[TM_DataStale_50406_1]->expired()) {
-    WATERPUMP.temp_pumphouse_val = -99.9;
+    WATERPUMP.temp_pumphouse_val = 100.0;
   }
 
   // ------------- SEND DATA TO FRONTEND ----------------------------------
@@ -798,8 +860,10 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
+    //if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
+    SendToFrontend(dataString.c_str());
+    Serial.println(dataString);
     delay(500);
     wdt_reset();
 
@@ -824,8 +888,9 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
+    //if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
+    SendToFrontend(dataString.c_str());
     delay(500);
     wdt_reset();
 
@@ -860,42 +925,39 @@ void loop() // run over and over
 
     dataString = "";
     serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
+    //if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
-
+    SendToFrontend(dataString.c_str());
     //LED_OFF(PIN_LED_WHITE);
+    //Serial.println("DATA SENT"); 
     APPFLAGS.isSendingData = 0;
+
   }
 
 }
-/*
-float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib)
-{
-  uint8_t readcount = 50;
-  float ACCurrtntValue = 0;
-  float peakVoltage = 0;  
-  float voltageVirtualValue = 0;  //Vrms
 
-  if(ACTectionRange == 0) {
-    ACTectionRange = 20; // Default AC Current Sensor tection range (5A,10A,20A)
-  }
 
-  for (int i = 0; i < readcount; i++)
+bool SendToFrontend(const char * txMsg) {
+  /*
+  SPI.transfer(0x20); //Frontend addr
+  delayMicroseconds(50);
+  SPI.transfer('<'); //start mark
+  for(uint16_t i=0; i< sizeof(txMsg); i++)
   {
-    peakVoltage += analogRead(pin);   //read peak voltage
-    _delay_us(10);
+    SPI.transfer(txMsg[i]);//SPI transfer is byte-by-byte
+    delayMicroseconds(50);
   }
-  peakVoltage = peakVoltage / readcount;   
-  voltageVirtualValue = peakVoltage * 0.707;    //change the peak voltage to the Virtual Value of voltage
-
-  //The circuit is amplified by 2 times, so it is divided by 2.
-  voltageVirtualValue = (voltageVirtualValue / 1024 * Vdd_calib ) / 2;  
-
-  ACCurrtntValue = voltageVirtualValue * ACTectionRange;
-
-  return ACCurrtntValue;
+  SPI.transfer('>');  //end mark
+  delay(50);
+  if(Timers[TM_SerialDebug]->expired()) {
+    Serial.print("TXSPI:<");
+    Serial.print(txMsg);
+    Serial.println(">");
+  }
+  */
+  return true;
 }
-*/
+
 
 /**
 * check if an alarm bit is set or not
