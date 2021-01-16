@@ -44,13 +44,13 @@
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 //#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
 #define ADC_CH_CT_K1                A8 // ADC connected to current sensor (Main intake) Input
-#define ADC_CH_CT_K1_MVPRAMP        11.0  // mv/Ampere current clamp
+#define ADC_CH_CT_K1_MVPRAMP        11.0  //11 mv/Ampere current clamp
 #define ADC_CH_CT_K2                A9 // ADC connected to current sensor (living room) Input
-#define ADC_CH_CT_K2_MVPRAMP        33.0  // mv/Ampere current clamp
+#define ADC_CH_CT_K2_MVPRAMP        40.0  //33 mv/Ampere current clamp
 #define ADC_CH_CT_K3                A10 // ADC connected to current sensor (kitchen) Input
-#define ADC_CH_CT_K3_MVPRAMP        33.0  // mv/Ampere current clamp
+#define ADC_CH_CT_K3_MVPRAMP        40.0  //33 mv/Ampere current clamp
 #define ADC_CH_CT_K13               A11 // ADC connected to current sensor (heatpump) Input
-#define ADC_CH_CT_K13_MVPRAMP       33.0  // mv/Ampere current clamp
+#define ADC_CH_CT_K13_MVPRAMP       40.0  //33 mv/Ampere current clamp
 #define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_L_PE            A4 // ADC connected to ZMPT101B voltage sensor
 #define ADC_CH_VOLT_N_PE            A5 // ADC connected to ZMPT101B voltage sensor

@@ -13,8 +13,8 @@ public:
     const char* id;
     float RMSVoltageMean ;                            /* square roof of voltageMean*/
     float FinalRMSCurrent ;                           /* the final RMS current reading*/
-    uint16_t apparentPower;                              /* the apparent power reading (VA) */
-    uint16_t realPower = 0;                              /* the real power reading (W) */
+    float apparentPower;                              /* the apparent power reading (VA) */
+    float realPower = 0;                              /* the real power reading (W) */
     float powerFactor = 0;                            /* to display power factor value*/ 
     bool error = false;
 
@@ -26,8 +26,8 @@ private:
 
     /* 1- AC Voltage Measurement */
 
-    int voltageOffset1  = -9;                          // key in offset value
-    int voltageOffset2  = -20;                          // key in offset value
+    int voltageOffset1  = -14; //-9                          // key in offset value
+    int voltageOffset2  = -15;   //-20                       // key in offset value
     int VoltageAnalogInputPin = A2;                   // Which pin to measure voltage Value
     float voltageSampleRead  = 0;                     /* to read the value of a sample*/
     float voltageLastSample  = 0;                     /* to count time for each sample. Technically 1 milli second 1 sample is taken */
@@ -39,8 +39,8 @@ private:
 
     /* 2- AC Current Measurement */
 
-    int currentOffset1  = -5;                          // key in offset value
-    int currentOffset2  = -13;                          // key in offset value
+    int currentOffset1  = 0; //-5;                          // key in offset value
+    int currentOffset2  = 0; //-13;                          // key in offset value
     int CurrentAnalogInputPin = A3;                   // Which pin to measure Current Value
     float mVperAmpValue = 31.25;                      // If using ACS712 current module : for 5A module key in 185, for 20A module key in 100, for 30A module key in 66
                                                         // If using "Hall-Effect" Current Transformer, key in value using this formula: mVperAmp = maximum voltage range (in milli volt) / current rating of CT

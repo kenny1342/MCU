@@ -70,7 +70,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             console.log("using test data");
-            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50,"emon_vrms_L_N":231.016,"emon_vrms_L_PE":131.6303,"emon_vrms_N_PE":122.9116,"circuits":{"K1-MAIN":{"I":16.4749,"P_a":3805.965,"PF":0},"K2-Living Room":{"I":16.18031,"P_a":3751.917,"PF":0.545476}}}');
+            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":49.98001,"emon_vrms_L_N":235.2351,"emon_vrms_L_PE":133.4106,"emon_vrms_N_PE":122.5812,"circuits":{"1":{"name":"K1 MAIN (63A)","I":25.9605,"P_a":6106.821,"PF":0},"2":{"name":"K2 Living room (16A)","I":6.928812,"P_a":1630.136,"PF":0.072735},"3":{"name":"K3 Kitchen (16A)","I":0.454317,"P_a":106.8886,"PF":0},"13":{"name":"K13 Heatpump (16A)","I":5.261323,"P_a":1236.584,"PF":0.189825}}}');
             console.log(json);
             localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
@@ -292,17 +292,30 @@ jQuery(document).ready(function () {
         }
         
         // dynamically add table rows from json.circuits array
+        let circuit_names = { 1:"K1 MAIN", 2:"K2 Living room", 3:"Kitchen", 13:"Heatpump" };
+        let circuit_fuses = { 1:63, 2:16, 3:16, 13:16 };
+        
+
         if(Object.keys(json.circuits).length > 0) {
           $("#table_emon_circuits tbody").empty();
-          for(var key in json.circuits) {
-            markup ='<tr id="circuit_' + key + '">'+
-              '<td class="td_title">'+json.circuits[key].name+'</td>' +
-              '<td class="td_value"><small>I(rms)</small> ' + parseFloat( json.circuits[key].I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
-              '<td class="td_value">' + json.circuits[key].P_a + '<sup class="units_xs">W</sup></td>' +
-              '<td class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[key].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
+          for(var id in json.circuits) {
+            let name = circuit_names[id] ? circuit_names[id] : id + ' (UNKNOWN)';
+            let Ifuse = circuit_fuses[id] ? circuit_fuses[id] : 0;
+            let I = json.circuits[id].I;
+
+            markup ='<tr id="circuit_' + id + '">'+
+              '<td class="td_title">K' + id + '/' + Ifuse + 'A - ' +name+'</td>' +
+              '<td class="td_value"><small>I(rms)</small> ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
+              '<td class="td_value">' + parseInt(json.circuits[id].P_a,10) + '<sup class="units_xs">W</sup></td>' +
+              '<td class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
             '</tr>"';
             $("#table_emon_circuits tbody").append(markup);
-
+            if( (Ifuse - I) <= 2) {
+              $("#circuit_" + id).removeClass().addClass("ERR");
+            } else {
+              $("#circuit_" + id).removeClass().addClass("OK");
+            }
+            
           }
         }
 

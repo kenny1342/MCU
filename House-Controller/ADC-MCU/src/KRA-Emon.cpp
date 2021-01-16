@@ -46,11 +46,6 @@ if(voltageSampleCount == 1000)                                                  
     voltageSampleCount=0;                                                                 /* to reset number of sample for the next cycle */
     //Serial.println("CALC3");
     }
-    //return RMSVoltageMean;
-
-        
-
-
 }
 
 
@@ -105,13 +100,13 @@ void KRAEMON::getCurrentAC() volatile {
 void KRAEMON::getPower() volatile {
     if(millis() >= powerLastSample + 1)                                                       /* every 1 milli second taking 1 reading */
         {
-        //sampleCurrent1 = analogRead(CurrentAnalogInputPin)-512+ currentOffset1;
-        sampleCurrent1 = analogRead(CurrentAnalogInputPin)+ currentOffset1;
-        //sampleCurrent2 = (sampleCurrent1/1024)*5000;
-        sampleCurrent2 = (sampleCurrent1/1024)*AC_CURRENT_VDD_CALIB;
+        sampleCurrent1 = 2*analogRead(CurrentAnalogInputPin)-512+ currentOffset1;
+        //sampleCurrent1 = analogRead(CurrentAnalogInputPin)+ currentOffset1;
+        sampleCurrent2 = (sampleCurrent1/1024)*5000;
+        //sampleCurrent2 = (sampleCurrent1/1024)*AC_CURRENT_VDD_CALIB;
         sampleCurrent3 = sampleCurrent2/mVperAmpValue;
-        //voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin)- 512)+ voltageOffset1 ;
-        voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin))+ voltageOffset1 ;
+        voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin)- 512)+ voltageOffset1 ;
+        //voltageSampleRead = 2*(analogRead(VoltageAnalogInputPin))+ voltageOffset1 ;
         powerSampleRead = voltageSampleRead * sampleCurrent3 ;                                /* real power sample value */
         powerSampleSum = powerSampleSum + powerSampleRead ;                                   /* accumulate value with older sample readings*/
         powerSampleCount = powerSampleCount + 1;                                              /* to move on to the next following count */
@@ -128,11 +123,12 @@ void KRAEMON::getPower() volatile {
         //Serial.print("Apparent Power (VA): ");
         //Serial.print(apparentPower,decimalPrecision);
         //Serial.println(" VA ");
-        powerFactor = realPower/apparentPower;    
+        powerFactor = (float) (realPower/apparentPower);    
         if(powerFactor >1 || powerFactor<0)
         {
             powerFactor = 0;
         }
+        //powerFactor = powerFactor / 1.0 * 100;
         //Serial.print("Power Factor: ");
         //Serial.println(powerFactor,decimalPrecision);  
         //Serial.println(" ");                                           
