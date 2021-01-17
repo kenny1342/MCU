@@ -61,7 +61,7 @@
 #define DEF_CONF_WP_UPPER           4.10 // water pressure upper threshold (bar*100) before stopping pump
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
-#define DEF_CONF_WP_RUNTIME_ACC_ALARM  4    // if we run shorter than this we raise accumulator/low air pressure alarm
+#define DEF_CONF_WP_RUNTIME_ACC_ALARM  4U    // if we run shorter than this we raise accumulator/low air pressure alarm
 #define DEF_CONF_MIN_TEMP_PUMPHOUSE 0U   // uint8_t! minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                100  // minimum free memory before raising alarm
 

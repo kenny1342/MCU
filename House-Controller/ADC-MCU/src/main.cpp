@@ -602,9 +602,9 @@ ISR (TIMER2_COMPA_vect)
     if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) { // we are running and reached upper limit, stop
       // check if runtime too short, it indicates too low air pressure in accumulator tank
       if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
-        ALARMS_WP.accumulator_low_air = false;
-      } else {
         ALARMS_WP.accumulator_low_air = true;
+      } else {
+        ALARMS_WP.accumulator_low_air = false;
       }
       
       WATERPUMP.status = STOPPED;
