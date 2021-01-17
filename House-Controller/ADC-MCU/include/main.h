@@ -11,8 +11,8 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.21"
-#define JSON_SIZE                   768
+#define FIRMWARE_VERSION            "2.22"
+#define JSON_SIZE                   512
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
 #define PIN_MOSI                    51

@@ -11,13 +11,10 @@
 #include <main.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-//#include <SoftWire.h>
 #include <SPI.h>
-#include <AM2320.h>
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
-
 #include <ZMPT101B.h>
 #include <olimex-mod-io.h>
 #include <Timemark.h>
@@ -28,8 +25,7 @@ const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ 
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 uint16_t timer1_counter; // preload of timer1
-String dataString = "no data";
-//char dataString[JSON_SIZE] = "no data";
+char dataString[JSON_SIZE] = "no data";
 
 char lastAlarm[20] = "-";
 
@@ -114,11 +110,7 @@ void setup()
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_ModIO_Reset, INPUT); // need to float
   pinMode(PIN_MISO,OUTPUT); // // have to send on master in, *slave out*
-  //pinMode(PIN_SCK,INPUT);
-  //pinMode(PIN_MOSI,INPUT);
-  //pinMode(PIN_SS,INPUT);
 
-   
   SPCR |= _BV(SPE); // turn on SPI in slave mode
   SPI.attachInterrupt(); // turn on interrupt
 
@@ -237,6 +229,7 @@ void setup()
   LED_OFF(PIN_LED_WHITE);
 */
 
+/*
   // TODO: rewrite all to pointer
   tm_blinkAlarm.start();
   tm_blinkWarning.start();
@@ -247,9 +240,9 @@ void setup()
   tm_DataTX.start();
   Timers[TM_SerialDebug]->start();
   Timers[TM_ClearLastAlarm]->start();
-
+*/
   for(int t=0; t<NUM_TIMERS; t++){
-   // Timers[t]->start();
+    Timers[t]->start();
   }
 
   buzzer_on(PIN_BUZZER, 200);
@@ -764,7 +757,8 @@ void loop() // run over and over
     //}
     root["lastAlarm"] = lastAlarm;
 
-    dataString = "";
+    //dataString = "";
+    dataString[0] = '\0';
     serializeJson(root, dataString);
     if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
@@ -790,7 +784,8 @@ void loop() // run over and over
       circuit["PF"] = KRAEMONS[x]->powerFactor;
     }
 
-    dataString = "";
+    //dataString = "";
+    dataString[0] = '\0';
     serializeJson(root, dataString);
     if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
@@ -826,7 +821,8 @@ void loop() // run over and over
     json["t_press_st"] = WATERPUMP.pressure_state_t;
     json["press_st"] = WATERPUMP.pressure_state;
 
-    dataString = "";
+    //dataString = "";
+    dataString[0] = '\0';
     serializeJson(root, dataString);
     if(doSerialDebug) Serial.println(dataString);
     Serial_Frontend.println(dataString);
