@@ -114,6 +114,9 @@ a:hover {
 .td_value {
   white-space: nowrap;
 }
+/*.td_value small {
+  font-size: 0.7rem;
+}*/
 
 
 #table_main th, #table_pump th, #table_emon th {

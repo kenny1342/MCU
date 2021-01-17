@@ -313,9 +313,9 @@ jQuery(document).ready(function () {
 
             markup ='<tr id="tr_circuit_' + id + '">'+
               '<td id="title_circuit_' + id + '" class="td_title">K' + id + '/' + Ifuse + 'A ' +name+'</td>' +
-              '<td id="I_circuit_' + id + '" class="td_value"><small>I(rms)</small> ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
+              '<td id="I_circuit_' + id + '" style="font-size:1.5em;" class="td_value small">I(rms) ' + parseFloat( I ).toFixed(1) + '<sup class="units_xs">A</sup></td>' +
               '<td id="P_a_circuit_' + id + '" class="td_value">' + parseInt(json.circuits[id].P_a,10) + '<sup class="units_xs">W</sup></td>' +
-              '<td id="PF_circuit_' + id + '" class="td_value"><small>PF:</small> ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
+              '<td id="PF_circuit_' + id + '" style="font-size:1.2em;" class="td_value small">PF: ' + parseFloat(json.circuits[id].PF).toFixed(2) + '<sup class="units_xs">%</sup></td>' +
             '</tr>"';
             $("#table_emon_circuits tbody").append(markup);
             if( (Ifuse - I) <= 2) {
