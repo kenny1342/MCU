@@ -293,8 +293,8 @@ jQuery(document).ready(function () {
         }
         
         // dynamically add table rows from json.circuits array
-        let circuit_names = { 1:"MAIN", 2:"Living room", 3:"Kitchen", 13:"Heatpump" };
-        let circuit_fuses = { 1:63, 2:16, 3:16, 13:16 };
+        let circuit_names = { 1:"MAIN", 2:"Living room", 3:"Kitchen", 5:"Pump house", 13:"Heatpump" };
+        let circuit_fuses = { 1:63, 2:16, 3:16, 5:16, 13:16 };
         
 
         if(Object.keys(json.circuits).length > 0) {

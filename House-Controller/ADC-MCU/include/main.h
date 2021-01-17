@@ -19,13 +19,11 @@
 #define PIN_SCK                     52
 #define PIN_SS                      53  // SPI  Slave-Select
 #define PIN_LED_RED                 13 // RED, LED OFF if we are running normally (not busy) (13=led_builtin on mega2560)
-#define PIN_LED_YELLOW               11 // YELLOW, LED ON of we have active alarms
+#define PIN_LED_YELLOW              11 // YELLOW, LED ON of we have active alarms
 #define PIN_LED_BLUE                9 // BLUE
 #define PIN_LED_WHITE               7 // WHITE, 
 #define PIN_BUZZER                  8
 #define PIN_ModIO_Reset             6
-//#define PIN_AM2320_SDA_PUMPROOM     2
-//#define PIN_AM2320_SCL_PUMPROOM     3
 #define LED_BUSY                    PIN_LED_BLUE
 #define LED_ALARM                   PIN_LED_RED
 #define LED_WARNING                 PIN_LED_YELLOW
@@ -39,7 +37,7 @@
 #define Serial_Frontend             Serial1
 //#define Serial_SensorHub            Serial2 // TO BE REMOVED AFTER SPI
 
-#define numReadings                 10 // Define the number of samples to keep track of for ADC smoothing
+#define numReadings                 8 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
 #define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
 //#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
@@ -49,6 +47,8 @@
 #define ADC_CH_CT_K2_MVPRAMP        40.0  //33 mv/Ampere current clamp
 #define ADC_CH_CT_K3                A10 // ADC connected to current sensor (kitchen) Input
 #define ADC_CH_CT_K3_MVPRAMP        40.0  //33 mv/Ampere current clamp
+#define ADC_CH_CT_K5                A12 // ADC connected to current sensor (pump house) Input
+#define ADC_CH_CT_K5_MVPRAMP        40.0  //33 mv/Ampere current clamp
 #define ADC_CH_CT_K13               A11 // ADC connected to current sensor (heatpump) Input
 #define ADC_CH_CT_K13_MVPRAMP       40.0  //33 mv/Ampere current clamp
 #define ADC_CH_VOLT_L_N             A3 // ADC connected to ZMPT101B voltage sensor
@@ -61,24 +61,12 @@
 #define DEF_CONF_WP_UPPER           4.10 // water pressure upper threshold (bar*100) before stopping pump
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
-#define DEF_CONF_WP_RUNTIME_ACC_ALARM  9    // if we run shorter than this we raise accumulator/low air pressure alarm
-#define DEF_CONF_MIN_TEMP_PUMPHOUSE -0.1   // minimum temp pumphouse in degrees C*10 before raising alarm
+#define DEF_CONF_WP_RUNTIME_ACC_ALARM  4    // if we run shorter than this we raise accumulator/low air pressure alarm
+#define DEF_CONF_MIN_TEMP_PUMPHOUSE 0U   // uint8_t! minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                100  // minimum free memory before raising alarm
 
 
 // Structs
-
-typedef struct
-{
-  //uint8_t ADC_CH_CT;
-  //uint8_t ADC_CH_CT_VGND;
-  //double ICAL;
-  uint16_t apparentPower;
-  //double Freq;
-  double Irms;
-  double PF;
-  uint8_t error;
-} emondata_type;
 
 typedef struct
 {
@@ -191,12 +179,12 @@ typedef union {
     byte b2:1;
     byte b3:1;
     byte emon_K1:1; // if O/R or CT sensor error
-    byte emon_K2:1; // if O/R or CT sensor error
+    byte b5:1;
     byte sensor_error:1; // invalid ADC readings etc any sensor
     byte b7:1;
   };
 } alarm_BitField_EMON;
-const char alarm_Text_EMON[9][25] = { "Mains Voltage O/R", "Ground fault", "", "", "K1 O/R", "K2 O/R", "Power sensor error", "" };
+const char alarm_Text_EMON[9][25] = { "emon_mains_o_r", "emon_gndfault", "", "", "k1_o_r", "", "Power sensor error", "" };
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
 #define LED_ON(pin) digitalWrite(pin, 0)
@@ -211,5 +199,5 @@ void buzzer_on(uint8_t pin, uint16_t duration);
 void buzzer_off(uint8_t pin);
 //bool getAlarmStatus(&struct ALARMS uint8_t Alarm);
 int readline(int readch, char *buffer, int len);
-
+bool checkIfColdStart ();
 #endif

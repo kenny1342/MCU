@@ -29,6 +29,7 @@ const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 uint16_t timer1_counter; // preload of timer1
 String dataString = "no data";
+//char dataString[JSON_SIZE] = "no data";
 
 char lastAlarm[20] = "-";
 
@@ -37,20 +38,16 @@ volatile uint16_t indx;
 volatile bool SPI_dataready = false;
 char buffer_sensorhub[JSON_SIZE];
 
-//StaticJsonDocument<JSON_SIZE> doc;
-//StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
-
-//AM2320 am2320_pumproom(PIN_AM2320_SDA_PUMPROOM,PIN_AM2320_SCL_PUMPROOM); // AM2320 sensor attached SDA to digital PIN 5 and SCL to digital PIN 6
-
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
 
 volatile KRAEMON EMON_K1 (ADC_CH_CT_K1, ADC_CH_VOLT_L_N, ADC_CH_CT_K1_MVPRAMP, "1");
 volatile KRAEMON EMON_K2 (ADC_CH_CT_K2, ADC_CH_VOLT_L_N, ADC_CH_CT_K2_MVPRAMP, "2"); 
 volatile KRAEMON EMON_K3 (ADC_CH_CT_K3, ADC_CH_VOLT_L_N, ADC_CH_CT_K3_MVPRAMP, "3"); 
+volatile KRAEMON EMON_K5 (ADC_CH_CT_K5, ADC_CH_VOLT_L_N, ADC_CH_CT_K5_MVPRAMP, "5"); 
 volatile KRAEMON EMON_K13 (ADC_CH_CT_K13, ADC_CH_VOLT_L_N, ADC_CH_CT_K13_MVPRAMP, "13"); 
-const uint8_t NUM_EMONS = 4;
-volatile KRAEMON * KRAEMONS[NUM_EMONS] = { &EMON_K1, &EMON_K2, &EMON_K3, &EMON_K13 };
+const uint8_t NUM_EMONS = 5;
+volatile KRAEMON * KRAEMONS[NUM_EMONS] = { &EMON_K1, &EMON_K2, &EMON_K3, &EMON_K5, &EMON_K13 };
 
 
 // Structs
@@ -214,8 +211,15 @@ void setup()
   Wire.begin(); // Initiate the Wire library
 
   Serial.println(F("ModIO_Init..."));
-  ModIO_Reset(); // we need to because sometimes it hangs on startup (stuck i2c)
   ModIO_Init();
+
+  if(checkIfColdStart())
+  {
+    Serial.println(F("restart by WDT"));
+    ModIO_Reset(); // we need to because sometimes it hangs on startup (stuck i2c)
+  } else {
+    Serial.println(F("Cold start"));
+  }
   
   delay(100);
 
@@ -223,7 +227,7 @@ void setup()
   Serial.println(F("switching on 12v bus..."));
   if(!ModIO_SetRelayState(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) ModIO_Reset();
 
-
+/*
   LED_OFF(PIN_LED_RED);
   delay(300);
   LED_OFF(PIN_LED_YELLOW);
@@ -231,6 +235,7 @@ void setup()
   LED_OFF(PIN_LED_BLUE);
   delay(300);
   LED_OFF(PIN_LED_WHITE);
+*/
 
   // TODO: rewrite all to pointer
   tm_blinkAlarm.start();
@@ -250,7 +255,8 @@ void setup()
   buzzer_on(PIN_BUZZER, 200);
 
   APPFLAGS.isSendingData = 0;
-  
+  APPFLAGS.isUpdatingData = 0;
+
   Serial.println(F("Init done!"));
 }
 
@@ -462,13 +468,10 @@ ISR (TIMER2_COMPA_vect)
       }
 
       ALARMS_EMON.emon_K1 = 0;
-      ALARMS_EMON.emon_K2 = 0;
       if(EMON_K1.error || EMON_K1.FinalRMSCurrent > 60.0 || EMON_K1.FinalRMSCurrent < 0.0) {
           ALARMS_EMON.emon_K1 = 1;
       }
-      if(EMON_K2.error || EMON_K2.FinalRMSCurrent > 20.0 || EMON_K2.FinalRMSCurrent < 0.0) {
-          ALARMS_EMON.emon_K2 = 1;
-      }
+
 
 
       // Groundfaults
@@ -606,10 +609,8 @@ ISR (TIMER2_COMPA_vect)
     if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) { // we are running and reached upper limit, stop
       // check if runtime too short, it indicates too low air pressure in accumulator tank
       if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
-        //WATERPUMP.accumulator_ok = false;
         ALARMS_WP.accumulator_low_air = false;
       } else {
-        //WATERPUMP.accumulator_ok = true;
         ALARMS_WP.accumulator_low_air = true;
       }
       
@@ -630,24 +631,26 @@ void loop() // run over and over
 {
   JsonArray data;
   int pulsecount = 0;  
-  uint32_t duration = 0;
+  uint16_t duration = 0;
   uint32_t currentMicros = 0;
-  int samples[250];
+  const int freq_sample_count = 200;
+  int samples[freq_sample_count];
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
 
 
+  APPFLAGS.isUpdatingData = true;
     //----------- Update EMON (Mains) AC Frequency data -------------
 
     currentMicros = micros();
-    for(int c=0; c<250; c++){
+    for(int c=0; c<freq_sample_count; c++){
       samples[c] = analogRead(ADC_CH_VOLT_L_N);
-      _delay_us(10); // get a higher resolution delay
+      _delay_us(100); // get a higher resolution delay
     }
     duration = micros() - currentMicros;
 
-    for(int i=0;i<251;i++)
+    for(int i=0;i<freq_sample_count;i++)
     {
       if(samples[i]<512 && samples[i+1]>=512) // if negative AC cycle but next is positive
       {
@@ -662,14 +665,14 @@ void loop() // run over and over
     // Fixed sample time: it takes 28 milliseconds to take 250 samples. So, for one sample it takes 28/250 = 0.112 msec.
     // float Freq = 1000/(2*pulsecount*0.112);
     // Use actual sample time (more costly but also more accurate)
-    float t = duration / 250 / 1000.0; // us / samplecount / 1000.0 us
+    float t = duration / freq_sample_count / 1000.0; // us / samplecount / 1000.0 us
     EMONMAINS.Freq = 1000/(2*pulsecount* t);
 
     //----------- Update EMON data -------------
-    if(Timers[TM_UpdateEMON]->expired() && !APPFLAGS.isUpdatingData) {
-      for(int x=0; x<250; x++) {
-        for(int x=0; x<NUM_EMONS; x++) {
-          KRAEMONS[x]->Calc();
+    if(Timers[TM_UpdateEMON]->expired() /*&& !APPFLAGS.isUpdatingData*/) {
+      for(uint8_t x=0; x<250; x++) {
+        for(uint8_t y=0; y<NUM_EMONS; y++) {
+          KRAEMONS[y]->Calc();
         }
       }
     }
@@ -711,7 +714,7 @@ void loop() // run over and over
       strncpy(lastAlarm, "-", sizeof(lastAlarm));
     }
 
-    APPFLAGS.isUpdatingData = 0;
+    APPFLAGS.isUpdatingData = false;
 
   // ------------- SEND DATA TO FRONTEND ----------------------------------
   if (Timers[TM_DataTX]->expired()) {
@@ -833,34 +836,6 @@ void loop() // run over and over
   }
 
 }
-/*
-float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib)
-{
-  uint8_t readcount = 50;
-  float ACCurrtntValue = 0;
-  float peakVoltage = 0;  
-  float voltageVirtualValue = 0;  //Vrms
-
-  if(ACTectionRange == 0) {
-    ACTectionRange = 20; // Default AC Current Sensor tection range (5A,10A,20A)
-  }
-
-  for (int i = 0; i < readcount; i++)
-  {
-    peakVoltage += analogRead(pin);   //read peak voltage
-    _delay_us(10);
-  }
-  peakVoltage = peakVoltage / readcount;   
-  voltageVirtualValue = peakVoltage * 0.707;    //change the peak voltage to the Virtual Value of voltage
-
-  //The circuit is amplified by 2 times, so it is divided by 2.
-  voltageVirtualValue = (voltageVirtualValue / 1024 * Vdd_calib ) / 2;  
-
-  ACCurrtntValue = voltageVirtualValue * ACTectionRange;
-
-  return ACCurrtntValue;
-}
-*/
 
 /**
 * check if an alarm bit is set or not
@@ -882,11 +857,7 @@ bool getAlarmStatus_EMON(uint8_t Alarm) {
 
 void buzzer_on(uint8_t pin, uint16_t duration) {
     buzzer.pin = pin;
-    //buzzer.duration = duration;
-    //buzzer._mscnt = 0;
-    //buzzer.state = 1;
     if(tm_buzzer.running()) {
-      //tm_buzzer.stop();
       return;
     }
     tm_buzzer.limitMillis(duration);
@@ -895,7 +866,6 @@ void buzzer_on(uint8_t pin, uint16_t duration) {
 
 void buzzer_off(uint8_t pin) {
     buzzer.pin = pin;
-    //buzzer.state = 0;
     tm_buzzer.stop();
 }
 
@@ -925,3 +895,18 @@ int readline(int readch, char *buffer, int len) {
     }
     return 0;
 }
+
+bool checkIfColdStart ()
+ {
+ const char signature [] = "REBOOTSIGN";
+ char * p = (char *) malloc (sizeof (signature));
+ if (strcmp (p, signature) == 0)   // signature already there
+   //Serial.println ("Watchdog activated.");
+   return false;
+ else
+   {
+   //Serial.println ("Cold start.");
+   memcpy (p, signature, sizeof signature);  // copy signature into RAM
+   return true;
+   }
+ }  // end of checkIfColdStart
