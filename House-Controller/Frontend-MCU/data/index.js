@@ -242,6 +242,7 @@ jQuery(document).ready(function () {
           $("#wp_status").removeClass().addClass("SUSPENDED");
         } else if(wp_status == "RUN") {
           $("#wp_status").removeClass().addClass("RUN");
+          $("#wp_status").fadeIn(1300).fadeOut(200);
         } else {
           $("#wp_status").removeClass().addClass("STOP");
         }
