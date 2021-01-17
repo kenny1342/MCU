@@ -109,7 +109,7 @@ jQuery(document).ready(function () {
       ); // fetch
 
 
-    }, 2000 ) ;
+    }, 2200 ) ;
 
 
     // Get remote sensor data from JSON
@@ -137,7 +137,7 @@ jQuery(document).ready(function () {
       ); // fetch
 
 
-    }, 3000 ) ;
+    }, 4000 ) ;
 
     // Get Frontend data from JSON
     setInterval(function ( ) {
@@ -242,11 +242,11 @@ jQuery(document).ready(function () {
           $("#wp_status").removeClass().addClass("SUSPENDED");
         } else if(wp_status == "RUN") {
           $("#wp_status").removeClass().addClass("RUN");
-          $("#wp_status").fadeIn(1300).fadeOut(200);
+          $("#wp_status").fadeToggle(700); //fadeOut(200).fadeIn(400);
         } else {
           $("#wp_status").removeClass().addClass("STOP");
         }
-
+        
       } catch(e) {
         let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);

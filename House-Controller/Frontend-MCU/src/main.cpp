@@ -607,43 +607,6 @@ void loop(void) {
           }
         break;        
         case 0x45: // REMOTE_SENSOR_DATA
-        /*
-        {
-          //JSON_DOCS[JSON_DOC_ADCREMOTEDATA].garbageCollect();
-          JsonVariant json_devid;
-          
-          json_devid = tmp_json.getMember("devid");
-          uint16_t devid = json_devid.as<uint16_t>();
-          Serial.printf("GOT 0x45, devid=%u\n", devid);        
-
-          if(devid > 0) {
-            
-            // TODO: check if array with this devid already exists, clear if so
-            //if(JSON_DOCS[JSON_DOC_ADCREMOTEDATA].containsJey( tmp_json.getMember("devid").as<char*>() ))
-            
-            //JSON_DOCS[JSON_DOC_ADCREMOTEDATA].remove( String(devid) ); // remove if exists?
-            JSON_DOCS[JSON_DOC_ADCREMOTEDATA].getMember( String(devid) ).clear();
-            JsonObject root_sensor = JSON_DOCS[JSON_DOC_ADCREMOTEDATA].createNestedObject(String(devid)); // TODO: no String
-            
-            char jsonString[JSON_SIZE] = "";
-            //const char * p = jsonString;
-            //serializeJson(tmp_json, Serial);
-            Serial.print("jsonString:");
-            serializeJson(tmp_json, Serial);
-            Serial.write('\n');
-
-            serializeJson(tmp_json, jsonString, sizeof(jsonString));
-            //root_sensor.getOrAddMember("json").set()
-            root_sensor["json"] = jsonString;
-            
-
-            root_sensor["ts_epoch"] = millis() / 1000;
-
-
-            //JSON_DOCS[JSON_DOC_ADCREMOTEDATA] = tmp_json;        
-          }
-        }
-        */
         break;
         default: Serial.printf("Unknown CMD in JSON: %u", cmd);
 
@@ -833,7 +796,7 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("%-14s\n", SecondsToDateTimeString(timeClient.getEpochTime(), 0));
+        tft.printf("%-14s\n", SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
         tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
         tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
         tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
