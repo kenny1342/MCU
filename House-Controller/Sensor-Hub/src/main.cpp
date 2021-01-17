@@ -192,8 +192,8 @@ void setup() {
  */
 void SendData() {
 
-  uint16_t writeDelay = 1900; // delay (us) between transfer, so the slow ATmega ISR can keep up. Otherwise it reads mostly garbage chars.
-  SPI.beginTransaction (SPISettings (4000000, LSBFIRST, SPI_MODE0));  
+  uint16_t writeDelay = 80; // delay (us) between transfer, so the slow ATmega ISR can keep up. Otherwise it reads mostly garbage chars.
+  SPI.beginTransaction (SPISettings (1000000, LSBFIRST, SPI_MODE0));  
   
   digitalWrite(SS, LOW); // SS/CS pin should be set to LOW to inform the slave that the master will send or request data. Otherwise, it is always HIGH
   delay(10);

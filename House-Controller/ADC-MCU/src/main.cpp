@@ -35,7 +35,7 @@ char lastAlarm[20] = "-";
 // For SPI data processing/ISR
 volatile uint16_t indx;
 volatile bool SPI_dataready = false;
-volatile char buffer_sensorhub[JSON_SIZE];
+char buffer_sensorhub[JSON_SIZE];
 
 //StaticJsonDocument<JSON_SIZE> doc;
 //StaticJsonDocument<JSON_SIZE> tmp_json; // Parsing input serial data from REMOTE_SENSORS
@@ -72,10 +72,11 @@ Timemark tm_100ms_setAlarms(10);
 Timemark tm_UpdateEMON(500);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
-Timemark tm_DataStale_50406_1(120000); // We expect Pump House temperature updated within 2 min, if not we clear/alarm it
+Timemark tm_DataStale_50406_1(180000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
 Timemark tm_SerialDebug(5000);
+Timemark tm_ClearLastAlarm(1*3600000); // clear last alarm
 
-const uint8_t NUM_TIMERS = 10;
+const uint8_t NUM_TIMERS = 11;
 
 Timemark *Timers[NUM_TIMERS] = { 
   &tm_blinkAlarm, 
@@ -87,7 +88,8 @@ Timemark *Timers[NUM_TIMERS] = {
   &tm_DataTX, 
   &tm_buzzer, 
   &tm_DataStale_50406_1, 
-  &tm_SerialDebug 
+  &tm_SerialDebug,
+  &tm_ClearLastAlarm 
   };
 enum Timers {   TM_blinkAlarm, 
   TM_blinkWarning, 
@@ -98,7 +100,8 @@ enum Timers {   TM_blinkAlarm,
   TM_DataTX, 
   TM_buzzer, 
   TM_DataStale_50406_1, 
-  TM_SerialDebug 
+  TM_SerialDebug,
+  TM_ClearLastAlarm 
 };
 
 void setup()
@@ -168,76 +171,42 @@ void setup()
   APPCONFIG.min_temp_pumphouse = DEF_CONF_MIN_TEMP_PUMPHOUSE;
 
   WATERPUMP.pressure_state = PRESSURE_OK;
-  WATERPUMP.accumulator_ok = true;
+  //WATERPUMP.accumulator_ok = true;
 
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
-  noInterrupts();          // disable global interrupts
-/*
-  // Setup Timer1 for 500 ms (0.5 Hz) overlow ISR
-  TCCR1A = 0;     // set entire TCCR1A register to 0 (no PWM)
-  TCCR1B = 0;     // same for TCCR1B
-  // Set timer1_counter to the correct value for our interrupt interval
-  timer1_counter = 60000; //34286;   // preload timer 65536-16MHz/256/2Hz, 65536-16MHz/1024/0.5Hz
-  TCNT1 = timer1_counter;   // preload timer
-  
-  // BUG: 256 prescaler crashes on Uno R3 DIL board
-  //TCCR1B |= (1 << CS12);    // 256 prescaler 
-  // Set CS10 and CS12 bits for 1024 prescaler:  
-  TCCR1B |= (1 << CS12);
-  TCCR1B |= (1 << CS10);
-  TIMSK1 |= (1 << TOIE1);   // enable timer overflow interrupt
-*/
+  // easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
 
-// easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
+  // TIMER 1 for interrupt frequency 10 Hz:
+  cli(); // stop interrupts
+  TCCR1A = 0; // set entire TCCR1A register to 0
+  TCCR1B = 0; // same for TCCR1B
+  TCNT1  = 0; // initialize counter value to 0
+  // set compare match register for 10 Hz increments
+  OCR1A = 24999; // = 16000000 / (64 * 10) - 1 (must be <65536)
+  // turn on CTC mode
+  TCCR1B |= (1 << WGM12);
+  // Set CS12, CS11 and CS10 bits for 64 prescaler
+  TCCR1B |= (0 << CS12) | (1 << CS11) | (1 << CS10);
+  // enable timer compare interrupt
+  TIMSK1 |= (1 << OCIE1A);
+  sei(); // allow interrupts
 
-// TIMER 1 for interrupt frequency 10 Hz:
-cli(); // stop interrupts
-TCCR1A = 0; // set entire TCCR1A register to 0
-TCCR1B = 0; // same for TCCR1B
-TCNT1  = 0; // initialize counter value to 0
-// set compare match register for 10 Hz increments
-OCR1A = 24999; // = 16000000 / (64 * 10) - 1 (must be <65536)
-// turn on CTC mode
-TCCR1B |= (1 << WGM12);
-// Set CS12, CS11 and CS10 bits for 64 prescaler
-TCCR1B |= (0 << CS12) | (1 << CS11) | (1 << CS10);
-// enable timer compare interrupt
-TIMSK1 |= (1 << OCIE1A);
-sei(); // allow interrupts
-
-// TIMER 2 for interrupt frequency 1000 Hz:
-cli(); // stop interrupts
-TCCR2A = 0; // set entire TCCR2A register to 0
-TCCR2B = 0; // same for TCCR2B
-TCNT2  = 0; // initialize counter value to 0
-// set compare match register for 1000 Hz increments
-OCR2A = 249; // = 16000000 / (64 * 1000) - 1 (must be <256)
-// turn on CTC mode
-TCCR2B |= (1 << WGM21);
-// Set CS22, CS21 and CS20 bits for 64 prescaler
-TCCR2B |= (1 << CS22) | (0 << CS21) | (0 << CS20);
-// enable timer compare interrupt
-TIMSK2 |= (1 << OCIE2A);
-sei(); // allow interrupts
-
-/*
-  // Timer 2 - gives us our 1 ms (1000 Hz) overflow ISR
-  // 16 MHz clock (62.5 ns per tick) - prescaled by 128 - counter increments every 8 µs. So we count 125 of them, giving exactly 1000 µs (1 ms)
-  TCCR2A = 0x00;
-  TCCR2B = 0x00;
-  TCCR2A = bit (WGM21) ;   // CTC mode
-  OCR2A  = 124;            // count up to 125  (zero relative!!!!)
-  TCNT2 = 0;      // counter to zero
-  // Reset prescalers
-  GTCCR = bit (PSRASY);        // reset prescaler now
-  // start Timer 2
-  TCCR2B =  bit (CS20) | bit (CS22) ;  // prescaler of 128
-  TIMSK2 = bit (OCIE2A);   // enable Timer2 Interrupt
-  
-  interrupts(); // enable global interrupts
-  */
+  // TIMER 2 for interrupt frequency 1000 Hz:
+  cli(); // stop interrupts
+  TCCR2A = 0; // set entire TCCR2A register to 0
+  TCCR2B = 0; // same for TCCR2B
+  TCNT2  = 0; // initialize counter value to 0
+  // set compare match register for 1000 Hz increments
+  OCR2A = 249; // = 16000000 / (64 * 1000) - 1 (must be <256)
+  // turn on CTC mode
+  TCCR2B |= (1 << WGM21);
+  // Set CS22, CS21 and CS20 bits for 64 prescaler
+  TCCR2B |= (1 << CS22) | (0 << CS21) | (0 << CS20);
+  // enable timer compare interrupt
+  TIMSK2 |= (1 << OCIE2A);
+  sei(); // allow interrupts
 
   Serial.println(F("ISR's enabled"));
   delay(500);
@@ -272,6 +241,7 @@ sei(); // allow interrupts
   tm_UpdateEMON.start();
   tm_DataTX.start();
   Timers[TM_SerialDebug]->start();
+  Timers[TM_ClearLastAlarm]->start();
 
   for(int t=0; t<NUM_TIMERS; t++){
    // Timers[t]->start();
@@ -295,8 +265,10 @@ if(c == 0x10) { // our address
 
   if(c == '<' || indx >= JSON_SIZE-1) { // Start marker
     indx =0;
-    memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
-    buffer_sensorhub[0] = 0;
+    //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
+    //buffer_sensorhub[0] = 0;
+    //for( uint32_t i = 0; i < sizeof(buffer_sensorhub);  ++i )
+      //buffer_sensorhub[i] = (char)0;
 
     //Serial.print("SPISTART\n");
     return;
@@ -325,20 +297,26 @@ if(c == 0x10) { // our address
 ISR(TIMER1_COMPA_vect)
 {
   TCNT1 = timer1_counter;   // preload timer
-  if(millis() < 5000) return; // just powered up, let things stabilize
+  if(millis() < 1000) return; // just powered up, let things stabilize
 
   bool doSerialDebug = true;
-  char SPIData[JSON_SIZE]; // local copy
-  bool NewSPIData;
+  //char SPIData[JSON_SIZE]; // local copy
+  //bool NewSPIData;
+  const char * SPIData = buffer_sensorhub;
 
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
+  /*
   noInterrupts();
   strcpy(SPIData, (char *)buffer_sensorhub);
   NewSPIData=SPI_dataready;
   SPI_dataready = false;
   interrupts();
+  */
+
   //Serial.print(millis()/1000);
-  if(NewSPIData) {
+  if(SPI_dataready && !APPFLAGS.isUpdatingData) {
+    SPI_dataready = false;
+    APPFLAGS.isUpdatingData = true;
     if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
@@ -351,7 +329,7 @@ ISR(TIMER1_COMPA_vect)
     //tmp_json.clear();
     const char* p = SPIData;
     DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
-    tmp_json.shrinkToFit();
+    //tmp_json.shrinkToFit();
 
     if (error) {
       Serial.write(SPIData);
@@ -370,11 +348,11 @@ ISR(TIMER1_COMPA_vect)
             // sid 1=temp room, 2=humidity room, 3=temp motor
             if(sid == 0x01) { 
               WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-              tm_DataStale_50406_1.start(); // restart "old data" timer
+              //Timers[TM_DataStale_50406_1]->limitMillis(10000);
+              Timers[TM_DataStale_50406_1]->start(); // restart "old data" timer
             }
             if(sid == 0x02) { 
               WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-              tm_DataStale_50406_1.start(); // restart "old data" timer
             }
             if(sid == 0x03) { 
               WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
@@ -387,6 +365,7 @@ ISR(TIMER1_COMPA_vect)
     } // no json error
   } // NewSPIData
 
+  APPFLAGS.isUpdatingData = false;
 }
 
 
@@ -506,20 +485,9 @@ ISR (TIMER2_COMPA_vect)
         ALARMS_EMON.power_voltage = 1;
       }
 
-      /////// WATER PUMP Sensor alarms ////////////////
-      ALARMS_WP.sensor_error = 0;
+      /////// WATER PUMP alarms ////////////////
 
-      // TODO: check data age
-      if(WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
-        ALARMS_WP.sensor_error = 1;
-      } else {    
-         if(ALARMS_WP.sensor_error) {
-           start_wp_suspension = 1; // was active until now, start suspension period
-           WATERPUMP.suspend_reason = 11;
-         }
-      }
-
-
+      // TODO: improve detection, maybe add pulldown resistor (currently if disconnected it shows 3+ bar)
       if(ADC_waterpressure.average == 0) {
         ALARMS_WP.sensor_error = 1;
       } else {    
@@ -529,25 +497,26 @@ ISR (TIMER2_COMPA_vect)
           }
       }
 
-      /////// Water pump and related alarms ///////
-      if(WATERPUMP.accumulator_ok) {
-        ALARMS_WP.accumulator_low_air = 0;
-      } else {
-        ALARMS_WP.accumulator_low_air = 1;
+      ALARMS_WP.sensor_error_room = 0;
+
+      if(!Timers[TM_DataStale_50406_1]->running() || Timers[TM_DataStale_50406_1]->expired() || WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
+        Timers[TM_DataStale_50406_1]->stop();
+        ALARMS_WP.sensor_error_room = 1;
+        WATERPUMP.hum_pumphouse_val = -1.0;
+        WATERPUMP.temp_motor_val = 0.0;
+        WATERPUMP.temp_pumphouse_val = 0.0;
       }
 
       ALARMS_WP.temperature_pumphouse = 0;
-      if(!ALARMS_WP.sensor_error) { // only set alarm if sensor is OK)
-        if(WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
-          ALARMS_WP.temperature_pumphouse = 1;
-        } else {    
-            if(ALARMS_WP.temperature_pumphouse) {
-              start_wp_suspension = 1; // was active until now, start suspension period
-              WATERPUMP.suspend_reason = 13;
-            }
-          //ALARMS_WP.temperature_pumphouse = 0;
-        }
-      }  
+      if(!ALARMS_WP.sensor_error_room && WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
+        ALARMS_WP.temperature_pumphouse = 1;
+      } else {    
+          if(ALARMS_WP.temperature_pumphouse) {
+            start_wp_suspension = 1; // was active until now, start suspension period
+            WATERPUMP.suspend_reason = 13;
+          }
+        //ALARMS_WP.temperature_pumphouse = 0;
+      }
 
       if(WATERPUMP.status == RUNNING && WATERPUMP.state_age > (uint32_t)APPCONFIG.wp_max_runtime) { // have we run to long?
         ALARMS_WP.waterpump_runtime = 1;
@@ -567,8 +536,8 @@ ISR (TIMER2_COMPA_vect)
 
   // --------- Water pump suspension logic -------------  
   if(IS_ACTIVE_ALARMS_WP()) { 
-    if(WATERPUMP.status != DISABLED) {
-      WATERPUMP.status = DISABLED;
+    if(WATERPUMP.status != ALARM) {
+      WATERPUMP.status = ALARM;
       WATERPUMP.state_age=0; //reset state age
     }
   } else {  // No active WP alarms, it's ok to start or continue suspension period
@@ -585,6 +554,11 @@ ISR (TIMER2_COMPA_vect)
           WATERPUMP.state_age=0; //reset state age
         }
       }
+    }
+    
+    if(WATERPUMP.status == ALARM) { // no alarms and no suspension but still disabled, set to STOPPED
+      WATERPUMP.status = STOPPED;
+      WATERPUMP.state_age=0; //reset state age
     }
   }
 
@@ -617,35 +591,32 @@ ISR (TIMER2_COMPA_vect)
     }
   }
 
-  if(WATERPUMP.status == STOPPED) {
-    if(WATERPUMP.pressure_state == PRESSURE_LOW) {
-      if(WATERPUMP.pressure_state_t > 5) {  // PRESSURE_LOW for more than 5 sec (multiple readings), so data is consistent and it's OK to turn pump on
-        if(WATERPUMP.state_age > 10) {  // always wait minimum n sec after stop before we start again, no hysterese...
-          WATERPUMP.status = RUNNING;
-          WATERPUMP.state_age=0; //reset state age
-          WATERPUMP.start_counter++; // increase the start counter 
-        }
-
-      } else {
-        //not turning on yet, pressure_state_t < n sec
-      }
-    } else { // PRESSURE_OK
-      if(WATERPUMP.status == RUNNING && WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) {
-        // check if runtime too short, it indicates too low air pressure in accumulator tank
-        if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
-          WATERPUMP.accumulator_ok = false;
-        } else {
-          WATERPUMP.accumulator_ok = true;
-        }
-        
-        WATERPUMP.status = STOPPED;
+  if(WATERPUMP.status == STOPPED) {  
+    if(WATERPUMP.pressure_state == PRESSURE_LOW && WATERPUMP.pressure_state_t > 3) { // same state for more than n sec (multiple readings), so data is consistent and it's OK to act on it
+      if(WATERPUMP.state_age > 10) {  // always wait minimum n sec after stop before we start again, no hysterese...
+        WATERPUMP.status = RUNNING;
         WATERPUMP.state_age=0; //reset state age
-      } else {
-        
+        WATERPUMP.start_counter++; // increase the start counter 
       }
     }
   }
 
+
+  if(WATERPUMP.status == RUNNING) { 
+    if(WATERPUMP.water_pressure_bar_val >= APPCONFIG.wp_upper) { // we are running and reached upper limit, stop
+      // check if runtime too short, it indicates too low air pressure in accumulator tank
+      if(WATERPUMP.state_age < APPCONFIG.wp_runtime_accumulator_alarm) {
+        //WATERPUMP.accumulator_ok = false;
+        ALARMS_WP.accumulator_low_air = false;
+      } else {
+        //WATERPUMP.accumulator_ok = true;
+        ALARMS_WP.accumulator_low_air = true;
+      }
+      
+      WATERPUMP.status = STOPPED;
+      WATERPUMP.state_age=0; //reset state age
+    }
+  }
 
   // FINAL SAFETY NET, OVERRIDES ALL OTHER LOGIC (this will also include max_runtime alarm)  
   if(IS_ACTIVE_ALARMS_WP()) {
@@ -665,6 +636,7 @@ void loop() // run over and over
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
+
 
     //----------- Update EMON (Mains) AC Frequency data -------------
 
@@ -735,25 +707,18 @@ void loop() // run over and over
     
     ModIO_Update();
 
+    if(Timers[TM_ClearLastAlarm]->expired()) {
+      strncpy(lastAlarm, "-", sizeof(lastAlarm));
+    }
 
     APPFLAGS.isUpdatingData = 0;
-
-  // ------------ RESET/CLEAR REMOTE_SENSOR DATA IF TOO OLD ---------------
-  if(Timers[TM_DataStale_50406_1]->expired()) {
-    WATERPUMP.temp_pumphouse_val = -99.9;
-  }
 
   // ------------- SEND DATA TO FRONTEND ----------------------------------
   if (Timers[TM_DataTX]->expired()) {
     
     APPFLAGS.isSendingData = 1;
-    //APPFLAGS.isUpdatingData = 1;
-
-    //------------ Create JSON docs and send to Frontend ----------------
-    //LED_ON(PIN_LED_WHITE);
 
     DynamicJsonDocument doc(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    //doc.clear();
     JsonObject root = doc.to<JsonObject>();
     
     // ---------------- SEND ADCSYSDATA --------------------
@@ -844,7 +809,7 @@ void loop() // run over and over
       case RUNNING: json["status"] = "RUN"; break;
       case STOPPED: json["status"] = "STOP"; break;
       case SUSPENDED: json["status"] = "SUSPENDED"; break;
-      case DISABLED: json["status"] = "DISABLED"; break;
+      case ALARM: json["status"] = "ALARM"; break;
       default: json["status"] = WATERPUMP.status;
     }
     

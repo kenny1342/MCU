@@ -12,7 +12,7 @@
 #define ZERO_POINT_N_PE             483
 
 #define FIRMWARE_VERSION            "2.21"
-#define JSON_SIZE                   1024
+#define JSON_SIZE                   768
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
 #define PIN_MOSI                    51
@@ -58,12 +58,12 @@
 #define DEF_EMON_ICAL_K2            0.40
 #define DEF_EMON_ICAL_K3            3.02
 #define DEF_CONF_WP_LOWER           3.75 // water pressure lower threshold (bar*100) before starting pump
-#define DEF_CONF_WP_UPPER           4.20 // water pressure upper threshold (bar*100) before stopping pump
+#define DEF_CONF_WP_UPPER           4.10 // water pressure upper threshold (bar*100) before stopping pump
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
-#define DEF_CONF_WP_RUNTIME_ACC_ALARM  6    // if we run shorter than this we raise accumulator/low air pressure alarm
-#define DEF_CONF_MIN_TEMP_PUMPHOUSE 4L   // minimum temp pumphouse in degrees C*10 before raising alarm
-#define LOWMEM_LIMIT                50  // minimum free memory before raising alarm
+#define DEF_CONF_WP_RUNTIME_ACC_ALARM  9    // if we run shorter than this we raise accumulator/low air pressure alarm
+#define DEF_CONF_MIN_TEMP_PUMPHOUSE -0.1   // minimum temp pumphouse in degrees C*10 before raising alarm
+#define LOWMEM_LIMIT                100  // minimum free memory before raising alarm
 
 
 // Structs
@@ -115,7 +115,7 @@ typedef struct
 
 enum { PRESSURE_LOW=0, PRESSURE_OK=1, PRESSURE_HIGH=2 };
 
-enum { STOPPED=0, RUNNING=1, SUSPENDED=2, DISABLED=3 };
+enum { STOPPED=0, RUNNING=1, SUSPENDED=2, ALARM=3 };
 
 typedef struct
 {
@@ -128,13 +128,13 @@ typedef struct
   uint8_t suspend_count; // FOR DEBUG MOSTLY (in practice it also count number of times an ALARMBITS_WATERPUMP_PROTECTION alarm is set)
   uint32_t suspend_timer_total;
   uint32_t  total_runtime;
-  double temp_pumphouse_val;
-  double hum_pumphouse_val;
-  double temp_motor_val;
+  double temp_pumphouse_val = 0;
+  double hum_pumphouse_val = -1.0; // to indicate no data received yet
+  double temp_motor_val = 0;
   double water_pressure_bar_val;  
   uint8_t pressure_state;
   uint16_t pressure_state_t;
-  bool accumulator_ok;
+  //bool accumulator_ok;
 } waterpump_type;
 
 //Flags,  Use each bit in a byte as a flag bit
@@ -174,14 +174,14 @@ typedef union {
     byte waterpump_runtime:1 ;
     byte accumulator_low_air:1;
     byte b2:1;
-    byte temperature_pumphouse:1; // should never be below 0C/freezing
+    byte temperature_pumphouse:1; // if too cold
     byte b4:1;
     byte b5:1;
-    byte sensor_error:1; // invalid ADC readings etc any sensor
-    byte b7:1;
+    byte sensor_error:1; // pressure
+    byte sensor_error_room:1;
   };
 } alarm_BitField_WP;
-const char alarm_Text_WP[9][15] = { "wpruntime", "wpacc_air", "", "wptemp_room", "", "", "wpsensors", "" };
+const char alarm_Text_WP[9][15] = { "wpruntime", "wpacc_air", "", "wptemp_room", "", "", "wppressensor", "wproomsensor" };
 
 typedef union {
   byte allBits;
