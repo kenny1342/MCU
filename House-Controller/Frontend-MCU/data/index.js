@@ -242,7 +242,10 @@ jQuery(document).ready(function () {
           $("#wp_status").removeClass().addClass("SUSPENDED");
         } else if(wp_status == "RUN") {
           $("#wp_status").removeClass().addClass("RUN");
-          $("#wp_status").fadeToggle(700); //fadeOut(200).fadeIn(400);
+          if(!$("#wp_status").is(':animated') )  {
+            $("#wp_status").fadeToggle(600);
+          }
+          //$("#wp_status").fadeToggle(700);
         } else {
           $("#wp_status").removeClass().addClass("STOP");
         }

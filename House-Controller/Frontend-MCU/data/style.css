@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Encode+Sans+Expanded:wght@800&family=Orbitron:wght@900&display=swap');
 @import "https://fonts.googleapis.com/css?family=Raleway:100,300";
 @import "https://fonts.googleapis.com/css?family=Open+Sans:300,400,700,800";
 @import "https://fonts.googleapis.com/css?family=Josefin+Sans|Pacifico";
@@ -141,6 +142,13 @@ a:hover {
   border-bottom: 3px dotted rgb(141, 118, 14);
 }
 
+/* keep surrounding object still while fading out/in */
+#table_pump #wp_status{
+  position: fixed;
+  margin: -0.3rem auto;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+}
 
 .OK {
   color:rgb(16, 95, 0);
@@ -151,16 +159,12 @@ a:hover {
 
 .SUSPENDED {
   color:rgb(219, 45, 1);
-  font-weight: 800;
 }
-.RUN {
+.RUN {  
   color:rgb(0, 126, 10);
-  font-style: oblique;
-  font-weight: 800;
 }
 .STOP {
   color:rgb(1, 63, 145);
-  font-weight: 800;
 }
 
 h1 {
@@ -177,7 +181,7 @@ h1 {
   #alarms {
     text-align: center;
     white-space: nowrap;
-    font-size: 3em;
+    font-size: 2em;
     color: red;
     font-weight: 600;
   }
@@ -278,6 +282,9 @@ h1 {
 
     #author {
       font-size:0.5em;
+    }
+    #menu {
+      font-size:0.85em;
     }
     small {
       font-size:0.77em;
