@@ -2,7 +2,7 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-#define ENABLE_BUZZER               0
+#define ENABLE_BUZZER               1
 // Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
 // note down the values and define them in ZERO_POINT_...
 //#define DO_VOLTAGE_CALIBRATION

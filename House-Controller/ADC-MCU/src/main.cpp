@@ -66,7 +66,7 @@ Timemark tm_100ms_setAlarms(10);
 Timemark tm_UpdateEMON(500);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
-Timemark tm_DataStale_50406_1(180000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
+Timemark tm_DataStale_50406_1(1800000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
 Timemark tm_SerialDebug(5000);
 Timemark tm_ClearLastAlarm(1*3600000); // clear last alarm
 
