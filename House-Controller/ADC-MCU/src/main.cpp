@@ -19,6 +19,7 @@
 #include <olimex-mod-io.h>
 #include <Timemark.h>
 #include <KRA-Emon.h>
+//#include <EmonLib.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -713,6 +714,19 @@ void loop() // run over and over
   if (Timers[TM_DataTX]->expired()) {
     
     APPFLAGS.isSendingData = 1;
+
+
+
+/*
+  EnergyMonitor emon1;             // Create an instance
+  emon1.voltage(ADC_CH_VOLT_L_N, 50.26, 1.1);  // Voltage: input pin, calibration, phase_shift
+  emon1.current(ADC_CH_CT_K1, 2.1);       // Current: input pin, calibration.
+  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
+  emon1.serialprint();           // Print out all variables (realpower, apparent power, Vrms, Irms, power factor)
+  */
+
+
+
 
     DynamicJsonDocument doc(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     JsonObject root = doc.to<JsonObject>();
