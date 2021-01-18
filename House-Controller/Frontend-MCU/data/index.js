@@ -30,6 +30,27 @@ function formatSecs(input=0) {
   
 jQuery(document).ready(function () {
 
+
+  console.log("Loading config.json");
+  fetch('/config.json') // Load configuration
+  .then(response => response.json())
+  .then(data => {
+      //console.log(data);
+      localStorage.setItem('config', JSON.stringify(data));
+      } // data =>
+  )
+  .catch(error => {
+      console.error('Error:', error);
+      alert("USING TEST DATA!\n"+error)
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16},  "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpacc_air":"Low air pressure accumulator tank",  "wptemp_room":"Low temperature pump room",  "wppress_sensor":"Water pressure sensor fault",  "wppress_sensor":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"version":"1.0"  }');
+      localStorage.setItem('config', JSON.stringify(json));
+    }
+  ); // fetch
+
+  // global
+  var config = JSON.parse(localStorage.getItem('config')); 
+  console.log(config);
+
     // Get data from JSON
     setInterval(function ( ) {
 
@@ -245,7 +266,6 @@ jQuery(document).ready(function () {
           if(!$("#wp_status").is(':animated') )  {
             $("#wp_status").fadeOut(300).fadeIn(500);
           }
-          //$("#wp_status").fadeToggle(700);
         } else {
           $("#wp_status").removeClass().addClass("STOP");
         }
@@ -296,16 +316,15 @@ jQuery(document).ready(function () {
           $("#emon_vrms_N_PE").removeClass().addClass("OK");
         }
         
-        // dynamically add table rows from json.circuits array
-        let circuit_names = { 1:"MAIN", 2:"Living room", 3:"Kitchen", 5:"Pump house", 13:"Heatpump" };
-        let circuit_fuses = { 1:63, 2:16, 3:16, 5:16, 13:16 };
-        
+        // load static circuit config 
+        let circuit_conf = config.circuits;        
 
+        //dynamically add table rows from json.circuits array
         if(Object.keys(json.circuits).length > 0) {
           $("#table_emon_circuits tbody").empty();
           for(var id in json.circuits) {
-            let name = circuit_names[id] ? circuit_names[id] : id + ' (UNKNOWN)';
-            let Ifuse = circuit_fuses[id] ? circuit_fuses[id] : 0;
+            let name = circuit_conf[id]["name"] ? circuit_conf[id]["name"] : id + ' (Unconfigured)';
+            let Ifuse = circuit_conf[id]["size"] ? circuit_conf[id]["size"] : 0;
             let I = json.circuits[id].I;
 
             if(id < 10) {

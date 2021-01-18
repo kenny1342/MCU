@@ -36,6 +36,9 @@ void Webserver::AddRoutes() {
   });
   
   // File routes
+  server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/config.json", "application/json");
+  });
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
   });

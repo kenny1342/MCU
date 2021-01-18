@@ -1,1 +1,24 @@
-{"hostname":"wifi-ctrl-02","port":"80"}
+{
+    "hostname": "wifi-ctrl-02",
+    "port": "80",
+    "ntpserver": "192.168.30.1",
+    "circuits": {
+      "1": {"name": "Main", "size":63},
+      "2": {"name": "Living room", "size":16},
+      "3": {"name": "Kitchen", "size":16},
+      "5": {"name": "Pump room", "size":16},
+      "13": {"name": "Heat pump", "size":16}
+    },
+    "alarms": {
+      "lowmem": "ADC Low memory",
+      "wpruntime": "Max runtime exceeded",
+      "wpacc_air": "Low air pressure accumulator tank",
+      "wptemp_room": "Low temperature pump room",
+      "wppress_sensor": "Water pressure sensor fault",
+      "wppress_sensor": "Temp sensor fault pump room",
+      "emon_mains_o_r": "Mains voltage out of range",
+      "emon_gndfault": "Ground fault detected (voltages out of range)",
+      "emon_sensor": "Voltage/current sensor error"
+    },
+    "version": "1.0"
+  }
