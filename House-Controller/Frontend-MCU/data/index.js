@@ -243,7 +243,7 @@ jQuery(document).ready(function () {
         } else if(wp_status == "RUN") {
           $("#wp_status").removeClass().addClass("RUN");
           if(!$("#wp_status").is(':animated') )  {
-            $("#wp_status").fadeToggle(600);
+            $("#wp_status").fadeOut(300).fadeIn(500);
           }
           //$("#wp_status").fadeToggle(700);
         } else {
