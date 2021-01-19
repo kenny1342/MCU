@@ -154,7 +154,7 @@ typedef union {
     byte low_memory:1; // set if RAM < x bytes free
   };
 } alarm_BitField_SYS;
-const char alarm_Text_SYS[9][8] = { "", "", "", "", "", "", "", "lowmem" };
+const char alarm_Text_SYS[9][8] = { "", "", "", "", "", "", "", "lowmem" }; // map in Frontend/config.json
 
 typedef union {
   byte allBits;
@@ -169,7 +169,7 @@ typedef union {
     byte sensor_error_room:1;
   };
 } alarm_BitField_WP;
-const char alarm_Text_WP[9][13] = { "wpruntime", "wpacc_air", "", "wptemp_room", "", "", "wppressensor", "wproomsensor" };
+const char alarm_Text_WP[9][13] = { "wpruntime", "wpaccair", "", "wptemproom", "", "", "wppressens", "wproomsens" }; // map in Frontend/config.json
 
 typedef union {
   byte allBits;
@@ -184,7 +184,7 @@ typedef union {
     byte b7:1;
   };
 } alarm_BitField_EMON;
-const char alarm_Text_EMON[9][15] = { "emon_mains_o_r", "emon_gndfault", "", "", "k1_o_r", "", "emon_sensor", "" };
+const char alarm_Text_EMON[9][15] = { "emon_mains_o_r", "emon_gndfault", "", "", "k1_o_r", "", "emon_sensor", "" }; // map in Frontend/config.json
 
 #define IS_ACTIVE_ALARMS_WP() (ALARMS_SYS.low_memory || ALARMS_WP.sensor_error || ALARMS_WP.temperature_pumphouse || ALARMS_WP.waterpump_runtime)
 #define LED_ON(pin) digitalWrite(pin, 0)
