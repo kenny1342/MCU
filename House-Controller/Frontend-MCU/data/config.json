@@ -7,18 +7,19 @@
       "2": {"name": "Living room", "size":16},
       "3": {"name": "Kitchen", "size":16},
       "5": {"name": "Pump room", "size":16},
+      "7": {"name": "Aux Water Heater", "size":16},
       "13": {"name": "Heat pump", "size":16}
     },
     "alarms": {
       "lowmem": "ADC Low memory",
       "wpruntime": "Max runtime exceeded",
-      "wpacc_air": "Low air pressure accumulator tank",
-      "wptemp_room": "Low temperature pump room",
-      "wppress_sensor": "Water pressure sensor fault",
-      "wppress_sensor": "Temp sensor fault pump room",
+      "wpaccair": "Low air pressure accumulator tank",
+      "wptemproom": "Low temperature pump room",
+      "wppresssens": "Water pressure sensor fault",
+      "wppresssens": "Temp sensor fault pump room",
       "emon_mains_o_r": "Mains voltage out of range",
       "emon_gndfault": "Ground fault detected (voltages out of range)",
       "emon_sensor": "Voltage/current sensor error"
     },
-    "version": "1.0"
+    "version": "1.1"
   }

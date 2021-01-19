@@ -42,7 +42,8 @@ jQuery(document).ready(function () {
   .catch(error => {
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
-      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16},  "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpacc_air":"Low air pressure accumulator tank",  "wptemp_room":"Low temperature pump room",  "wppress_sensor":"Water pressure sensor fault",  "wppress_sensor":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"version":"1.0"  }');
+      $("#chktestdata").prop('checked', true);
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"version":"1.0"  }');
       localStorage.setItem('config', JSON.stringify(json));
     }
   ); // fetch
@@ -64,7 +65,7 @@ jQuery(document).ready(function () {
       .catch(error => {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
-            json = JSON.parse('{"cmd":16,"devid":16,"firmware":"2.21","uptimesecs":18,"freemem":3211,"alarms":[],"lastAlarm":"-"}');
+            json = JSON.parse('{"cmd":16,"devid":16,"firmware":"2.21","uptimesecs":18,"freemem":3211,"alarms":["wpaccair"],"lastAlarm":"-"}');
             console.log(json);
             localStorage.setItem('json0x10', JSON.stringify(json));
           } else {
@@ -91,7 +92,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             console.log("using test data");
-            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50.2008,"emon_vrms_L_N":239.2254,"emon_vrms_L_PE":135.3039,"emon_vrms_N_PE":123.7783,"circuits":{"1":{"I":19.02676,"P_a":4551.683,"PF":0.18295},"2":{"I":15.572593,"P_a":376.0423,"PF":0},"3":{"I":0.753701,"P_a":180.2182,"PF":0},"13":{"I":6.06794,"P_a":1451.714,"PF":0.072817}}}');
+            json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50.2008,"emon_vrms_L_N":239.2254,"emon_vrms_L_PE":135.3039,"emon_vrms_N_PE":123.7783,"circuits":{"1":{"I":19.02676,"P_a":4551.683,"PF":0.18295},"2":{"I":15.572593,"P_a":376.0423,"PF":0},"3":{"I":0.753701,"P_a":180.2182,"PF":0},"7":{"I":5.753701,"P_a":100.2182,"PF":0},"13":{"I":6.06794,"P_a":1451.714,"PF":0.072817}}}');
             console.log(json); 
             localStorage.setItem('json0x11', JSON.stringify(json));
           } else {
@@ -213,11 +214,15 @@ jQuery(document).ready(function () {
         $("#uptime_adc").empty().append( formatSecs(json.uptimesecs) );
         $("#adc_freemem").empty().append( json.freemem );
         $("#lastAlarm").empty().append(json.lastAlarm);
+        
         $("#alarms").empty();
+        // load static circuit config 
+        let alarms_conf = config.alarms;        
         if(Object.keys(json.alarms).length > 0) {
           $("#alarms").append("ALARMS: ");
           for(var key in json.alarms) {
-            $("#alarms").append(json.alarms[key] + "&nbsp;");
+            let alarm_text = alarms_conf[json.alarms[key]] ? alarms_conf[json.alarms[key]] : json.alarms[key];
+            $("#alarms").append(alarm_text + "&nbsp;");
           }
         }
 
