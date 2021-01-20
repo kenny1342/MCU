@@ -52,6 +52,12 @@ void Webserver::AddRoutes() {
     request->send(SPIFFS, "/index.js", "application/x-javascript");
   });
 
+  // TEST
+  server.on("/config2.json", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/config2.json", "application/json");
+  });
+
+
   // GET command routes
 /*
   // return data fields from json as requested in /sensordata?fieldname
@@ -168,6 +174,51 @@ void Webserver::AddRoutes() {
       request->send(200, "text/html", recoveryHTML);    
   });
 
+  // Generic file upload (for upload of config.json)
+  server.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request) {
+      String html = "<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>";
+      request->send(200, "text/html", html);
+    });  
+
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
+    //bool upload_ok = true;
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", "<html><head><body>Uploading...</body></html>");
+    response->addHeader("Connection", "close");
+    request->send(response);
+    
+  },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    bool is_config_json = (filename.indexOf("config.json") >= 0); 
+    if(!index){      
+      Serial.printf("UploadStart: %s\n",filename.c_str());
+      // open the file on first call and store the file handle in the request object
+      request->_tempFile = SPIFFS.open("/"+filename, "w");
+    }
+    if(len) {
+      // stream the incoming chunk to the opened file
+      request->_tempFile.write(data,len);
+    }
+    if(final){
+      Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
+      // close the file handle as the upload is now done
+      request->_tempFile.close();
+      //request->redirect("/");
+      
+      if(is_config_json) {
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
+        response->addHeader("Connection", "close");
+        request->send(response);
+        
+        delay(2000);
+        //ESP.restart();
+      } else {
+        delay(2000);
+        //request->redirect("/");
+      }
+    }
+    
+});
+
+
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
     shouldReboot = !Update.hasError();
     AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
@@ -181,7 +232,7 @@ void Webserver::AddRoutes() {
         
         //Update.runAsync(true);
         
-        // if filename includes littlefs, update the littlefs partition
+        // if filename includes spiffs, update the spiffs partition
         int cmd = (filename.indexOf("spiffs") >= 0) ? U_SPIFFS : U_FLASH; 
 
         if(cmd == U_FLASH) {

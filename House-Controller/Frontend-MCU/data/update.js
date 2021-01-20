@@ -33,7 +33,7 @@ jQuery(document).ready(function () {
 
 
   
-  $('form').submit(function(e){
+  $('#upload_form').submit(function(e){
     e.preventDefault();
 
 
@@ -78,4 +78,56 @@ jQuery(document).ready(function () {
         }
     });
   });
+
+
+
+
+  $('#config_upload_form').submit(function(e){
+    e.preventDefault();
+
+
+    // Firmware Update
+    let form = $('#config_upload_form')[0];
+    let data = new FormData(form);
+
+    if(!$("#config_upload_form input[type=file]").val()) {
+      alert('You must select a file!');
+      return false;
+    }
+
+    $.ajax({
+      url: '/upload',
+      type: 'POST',
+      data: data,
+      contentType: false,
+      processData:false,
+      xhr: function() {
+      var xhr = new window.XMLHttpRequest();
+      xhr.upload.addEventListener('progress', function(evt) {
+        if (evt.lengthComputable) {
+          var per = evt.loaded / evt.total;
+          $('#prg').html('Progress: ' + Math.round(per*100) + '%');
+        }
+      }, false);
+        return xhr;
+      },
+      success:function(d, s) {
+        console.log('success!');
+        $('#success').show();
+        setTimeout(function(){ 
+          // TODO: check if responding or wait another few secs
+          window.location.href = "/";
+        }, 40000);
+      },
+        error: function (a, b, c) {
+            $('#error').show();
+            console.log(a);
+            console.log(b);
+            console.log(c);
+        }
+    });
+  });
+
+
+
 }); // page loaded

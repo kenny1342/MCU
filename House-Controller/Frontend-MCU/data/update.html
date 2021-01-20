@@ -30,6 +30,13 @@
 
   <div id='prg'>Progress: 0%</div>
 
+  <hr />
+  <h3>Upload configuration (<a href="/config.json">config.json</a>)</h3>
+  <form method='POST' action='/upload' enctype='multipart/form-data' id='config_upload_form'>
+    <input type='file' name='upload'>
+    <input type='submit' value='Upload'>
+    </form>
+
   <div id='success' style='display:none;'>Success, please wait while rebooting...</div>
   <div id='error' style='display:none;'>ERROR</div>
 
