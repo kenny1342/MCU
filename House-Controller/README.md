@@ -6,6 +6,7 @@
 
 *Started as a Christmas project in 2020*
 
+![Prototype](Pics/webif_v2.90.png)
 
 ## Purpose
 Controlling the water pump, monitoring water/utility/temperatures etc, and provide the data in several ways:
@@ -37,7 +38,6 @@ Written in C++ using Arduino Core SDK, AVRDude compiler (ATmega), ESP build tool
 
 * Visual Code
 ** PlatformIO extension
-
 
 ## Configuration
 
