@@ -1,8 +1,10 @@
 #include <Arduino.h>
+#include <OneWire.h>
+
 bool debug = true;
 
 #define FIRMWARE_VERSION            "4.0"
-#define PIN_SENSOR_TEMP_MOTOR       10      // DS18B20 on pin 10 (a 4.7K resistor is necessary)
+#define PIN_SENSOR_TEMP_MOTOR       10      // DS18B20 on GPIO 10 (a 4.7K resistor is necessary)
 
 // For AP mode:
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
