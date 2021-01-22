@@ -3,13 +3,15 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <AM2320.h>
-#include <config.h>
+#include <OneWire.h>
+#include <main.h>
 
 #define MAX_SRV_CLIENTS 1
 #define TCP_PORT (2323)
 WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
+OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
 
 // reading buffor config
 #define BUFFER_SIZE 1024
@@ -62,8 +64,9 @@ void loop()
   uint8_t i;
   //char buf[1024];
   int bytesAvail;
-float tempsens1;
-float humsens1;
+  double temp_room;
+  double hum_room;
+  double temp_motor;
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi connection gone, reboot");
@@ -120,21 +123,25 @@ float humsens1;
   }
 
 
-    //----------- Update Water Pump temps -------------
+    //----------- Update Pump room temps -------------
     switch(am2320_pumproom.Read()) {
       case 2:
         Serial.println("CRC failed");
-        tempsens1 = -98;
+        temp_room = -98;
         break;
       case 1:
         Serial.println("am2320_pumproom offline");
-        tempsens1 = -99;
+        temp_room = -99;
         break;
       case 0:
-        tempsens1 = am2320_pumproom.cTemp;
-        humsens1 = am2320_pumproom.Humidity;
+        temp_room = am2320_pumproom.cTemp;
+        hum_room = am2320_pumproom.Humidity;
         break;
     }    
+
+    //----------- Update Pump motor temps -------------
+
+    readDS18B20(&ds18b20_temp_motor, &temp_motor);
 
   // --------------- SEND SENSOR DATA TO HUB ---------------------
 /*
@@ -159,9 +166,9 @@ TX3:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"up
     // ---------- TEMP PUMP ROOM ----------------
     root["sid"] = 0x01; // this sensor's ID
 
-    data["value"] = tempsens1; //(float) random(5,39);
+    data["value"] = temp_room; //(float) random(5,39);
     data["unit"] = "DEG_C";
-    data["name"] = "Pump Room";
+    data["name"] = "Room";
     data["timestamp"] = millis();
 
     dataString.clear();
@@ -174,9 +181,9 @@ TX3:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"up
     // ----------- HUMIDITY PUMP ROOM ------------
     root["sid"] = 0x02; // this sensor's ID
 
-    data["value"] = humsens1; //(float) random(0,99);
+    data["value"] = hum_room; //(float) random(0,99);
     data["unit"] = "RH";
-    data["name"] = "Pump Room";
+    data["desc"] = "Room";
     data["timestamp"] = millis();
 
     dataString.clear();
@@ -186,12 +193,12 @@ TX3:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"up
     Serial.println(dataString);
     delay(2000);
 
-    // ---------- TEMP PUMP ROOM ----------------
+    // ---------- TEMP PUMP MOTOR ----------------
     root["sid"] = 0x03; // this sensor's ID
 
-    data["value"] = (float) random(0,99);
+    data["value"] = temp_motor; //(float) random(0,99);
     data["unit"] = "DEG_C";
-    data["name"] = "Pump Motor";
+    data["desc"] = "Motor";
     data["timestamp"] = millis();
 
     dataString.clear();
@@ -230,8 +237,105 @@ void SendData(const char * json) {
   //delay(1000);
 }
 
+void readDS18B20(OneWire *ds, double * celsius) {
+  byte i;
+  byte present = 0;
+  byte type_s;
+  byte data[12];
+  byte addr[8];
+  //float celsius, fahrenheit;
+  
+  if ( !ds->search(addr)) {
+    Serial.println("No more addresses.");
+    Serial.println();
+    ds->reset_search();
+    delay(250);
+    return;
+  }
+  
+  Serial.print("ROM =");
+  for( i = 0; i < 8; i++) {
+    Serial.write(' ');
+    Serial.print(addr[i], HEX);
+  }
 
-// Take measurements of the Wi-Fi strength and return the average result.
+  if (OneWire::crc8(addr, 7) != addr[7]) {
+      Serial.println("CRC is not valid!");
+      return;
+  }
+  Serial.println();
+ 
+  // the first ROM byte indicates which chip
+  switch (addr[0]) {
+    case 0x10:
+      Serial.println("  Chip = DS18S20");  // or old DS1820
+      type_s = 1;
+      break;
+    case 0x28:
+      Serial.println("  Chip = DS18B20");
+      type_s = 0;
+      break;
+    case 0x22:
+      Serial.println("  Chip = DS1822");
+      type_s = 0;
+      break;
+    default:
+      Serial.println("Device is not a DS18x20 family device.");
+      return;
+  } 
+
+  ds->reset();
+  ds->select(addr);
+  ds->write(0x44, 1);        // start conversion, with parasite power on at the end
+  
+  delay(1000);     // maybe 750ms is enough, maybe not
+  // we might do a ds.depower() here, but the reset will take care of it.
+  
+  present = ds->reset();
+  ds->select(addr);    
+  ds->write(0xBE);         // Read Scratchpad
+
+  Serial.print("  Data = ");
+  Serial.print(present, HEX);
+  Serial.print(" ");
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    data[i] = ds->read();
+    Serial.print(data[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.print(" CRC=");
+  Serial.print(OneWire::crc8(data, 8), HEX);
+  Serial.println();
+
+  // Convert the data to actual temperature
+  // because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits
+  // even when compiled on a 32 bit processor.
+  int16_t raw = (data[1] << 8) | data[0];
+  if (type_s) {
+    raw = raw << 3; // 9 bit resolution default
+    if (data[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - data[6];
+    }
+  } else {
+    byte cfg = (data[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  *celsius = (double)raw / 16.0;
+  //fahrenheit = celsius * 1.8 + 32.0;
+  Serial.print("  Temperature = ");
+  Serial.print(*celsius);
+  Serial.print(" Celsius, ");
+}
+
+/**
+* Take measurements of the Wi-Fi strength and return the average result.
+*/
 int getStrength(int points){
     long rssi = 0;
     long averageRSSI = 0;

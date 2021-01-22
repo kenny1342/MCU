@@ -1,6 +1,8 @@
+#include <Arduino.h>
 bool debug = true;
 
-#define FIRMWARE_VERSION            "2.16"
+#define FIRMWARE_VERSION            "4.0"
+#define PIN_SENSOR_TEMP_MOTOR       10      // DS18B20 on pin 10 (a 4.7K resistor is necessary)
 
 // For AP mode:
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
@@ -11,4 +13,5 @@ const uint16_t port = 8880;
 const char * host = "192.168.4.1";
 
 void SendData(const char * json);
+void readDS18B20(OneWire *ds, double *celsius);
 int getStrength(int points);
