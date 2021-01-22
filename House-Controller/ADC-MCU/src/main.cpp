@@ -624,11 +624,11 @@ ISR (TIMER2_COMPA_vect)
 void loop() // run over and over
 {
   JsonArray data;
-  int pulsecount = 0;  
+  uint8_t pulsecount = 0;  
   uint16_t duration = 0;
   uint32_t currentMicros = 0;
-  const int freq_sample_count = 200;
-  int samples[freq_sample_count];
+  const uint8_t freq_sample_count = 250;
+  uint16_t samples[freq_sample_count];
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
 
   wdt_reset();
@@ -640,7 +640,7 @@ void loop() // run over and over
     currentMicros = micros();
     for(int c=0; c<freq_sample_count; c++){
       samples[c] = analogRead(ADC_CH_VOLT_L_N);
-      _delay_us(100); // get a higher resolution delay
+      _delay_us(50); // get a higher resolution delay
     }
     duration = micros() - currentMicros;
 
