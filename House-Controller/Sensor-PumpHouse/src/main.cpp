@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <AM2320.h>
 #include <OneWire.h>
+#include <DallasTemperature.h>
 #include <main.h>
 
 #define MAX_SRV_CLIENTS 1
@@ -12,6 +13,15 @@ WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
 OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
+
+/*
+OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
+// arrays to hold device addresses
+DeviceAddress insideThermometer, outsideThermometer;
+*/
+//OneWire ds(PIN_SENSOR_TEMP_MOTOR); // on pin x (a 4.7K resistor is necessary)
 
 // reading buffor config
 #define BUFFER_SIZE 1024
@@ -31,7 +41,7 @@ void setup()
   Serial.printf("connecting to SSID:%s, key:%s...\n", ssid, password);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    if(++wifitries > 100) {
+    if(++wifitries > 10) {
       Serial.println("too many wifi conn tries, reboot");
       ESP.restart();
     }
@@ -53,6 +63,8 @@ void setup()
   Serial.println("' to connect");
 
   Wire.begin(21, 22);
+  ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
+  //sensors.begin();
 }
  
 
@@ -64,9 +76,10 @@ void loop()
   uint8_t i;
   //char buf[1024];
   int bytesAvail;
-  double temp_room;
-  double hum_room;
+  //double temp_room;
+  //double hum_room;
   double temp_motor;
+
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi connection gone, reboot");
@@ -121,34 +134,10 @@ void loop()
       */
     }
   }
-
-
-    //----------- Update Pump room temps -------------
-    switch(am2320_pumproom.Read()) {
-      case 2:
-        Serial.println("CRC failed");
-        temp_room = -98;
-        break;
-      case 1:
-        Serial.println("am2320_pumproom offline");
-        temp_room = -99;
-        break;
-      case 0:
-        temp_room = am2320_pumproom.cTemp;
-        hum_room = am2320_pumproom.Humidity;
-        break;
-    }    
-
-    //----------- Update Pump motor temps -------------
-
-    readDS18B20(&ds18b20_temp_motor, &temp_motor);
+/*
+*/
 
   // --------------- SEND SENSOR DATA TO HUB ---------------------
-/*
-TX1:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"uptime_sec":61,"data":{"value":78,"unit":"DEG_C","name":"Pump Room","timestamp":61747},"sid":1}
-TX2:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"uptime_sec":61,"data":{"value":20,"unit":"RH","name":"Pump Room","timestamp":62756},"sid":2}
-TX3:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"uptime_sec":61,"data":{"value":66,"unit":"DEG_C","name":"Pump Motor","timestamp":63760},"sid":3}
-*/
  
      doc.clear();
     JsonObject root = doc.to<JsonObject>();
@@ -163,51 +152,84 @@ TX3:{"cmd":69,"devid":50406,"firmware":"2.16","IP":"192.168.4.2","port":2323,"up
 
     JsonObject data = doc.createNestedObject("data");
 
-    // ---------- TEMP PUMP ROOM ----------------
-    root["sid"] = 0x01; // this sensor's ID
-
-    data["value"] = temp_room; //(float) random(5,39);
-    data["unit"] = "DEG_C";
-    data["name"] = "Room";
-    data["timestamp"] = millis();
-
-    dataString.clear();
-    serializeJson(root, dataString);
-    SendData(dataString.c_str());
-    Serial.print("TX1:");
-    Serial.println(dataString);
-    delay(2000);
 
     // ----------- HUMIDITY PUMP ROOM ------------
-    root["sid"] = 0x02; // this sensor's ID
+    //Wire.begin(21, 22);
+    
+    Serial.print(F("Getting data from AM2320..."));
+    
+    switch(am2320_pumproom.Read()) {
+      case 2:
+        Serial.println("CRC failed!");
+        //temp_room = -98;
+        break;
+      case 1:
+        Serial.println("Offline!");
+        //temp_room = -99;
+        break;
+      case 0:
+        //temp_room = am2320_pumproom.cTemp;
+        //hum_room = am2320_pumproom.Humidity;
 
-    data["value"] = hum_room; //(float) random(0,99);
-    data["unit"] = "RH";
-    data["desc"] = "Room";
-    data["timestamp"] = millis();
+        // ---------- TEMP PUMP ROOM ----------------
+        root["sid"] = 0x01; // this sensor's ID
 
-    dataString.clear();
-    serializeJson(root, dataString);
-    SendData(dataString.c_str());
-    Serial.print("TX2:");
-    Serial.println(dataString);
-    delay(2000);
+        data["value"] = am2320_pumproom.cTemp; //(float) random(5,39);
+        data["unit"] = "DEG_C";
+        data["name"] = "Room";
+        data["timestamp"] = millis();
+
+        dataString.clear();
+        serializeJson(root, dataString);    
+        Serial.print("TX1:");
+        Serial.print(dataString);
+        SendData(dataString.c_str());
+        delay(1000);
+
+        root["sid"] = 0x02; // this sensor's ID
+
+        data["value"] = am2320_pumproom.Humidity; //(float) random(0,99);
+        data["unit"] = "RH";
+        data["desc"] = "Room";
+        data["timestamp"] = millis();
+
+        dataString.clear();
+        serializeJson(root, dataString);
+        Serial.print("TX2:");
+        Serial.print(dataString);
+        SendData(dataString.c_str());
+
+        delay(1000);
+
+        break;
+    }    
+
 
     // ---------- TEMP PUMP MOTOR ----------------
-    root["sid"] = 0x03; // this sensor's ID
+    //----------- Update Pump motor temps -------------
+    //ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
+    //ds18b20_temp_motor.reset_search();
+    ds18b20_temp_motor.reset();
+    delay(100);
+    Serial.println(F("Getting data from DS18B20..."));
+    if(readDS18B20(&ds18b20_temp_motor, &temp_motor)) {
+      Serial.println();
+      root["sid"] = 0x03; // this sensor's ID
 
-    data["value"] = temp_motor; //(float) random(0,99);
-    data["unit"] = "DEG_C";
-    data["desc"] = "Motor";
-    data["timestamp"] = millis();
+      data["value"] = temp_motor; //(float) random(0,99);
+      data["unit"] = "DEG_C";
+      data["desc"] = "Motor";
+      data["timestamp"] = millis();
 
-    dataString.clear();
-    serializeJson(root, dataString);
-    SendData(dataString.c_str());
-    Serial.print("TX3:");
-    Serial.println(dataString);
+      dataString.clear();
+      serializeJson(root, dataString);
+      Serial.print("TX3:");
+      Serial.print(dataString);
 
-    Serial.print("Cycle done, waiting 5 secs...\n");
+      SendData(dataString.c_str());
+    }
+
+    Serial.print(F("Cycle done, waiting 5 secs...\n****************************\n"));
     delay(5000);
 
 }
@@ -232,28 +254,31 @@ void SendData(const char * json) {
   
   client.stop();
 
-  Serial.println("Data sent to HUB OK!");
+  Serial.println(" [OK]");
 
   //delay(1000);
 }
 
-void readDS18B20(OneWire *ds, double * celsius) {
+bool readDS18B20(OneWire *ds, double * celsius) {
   byte i;
   byte present = 0;
   byte type_s;
   byte data[12];
   byte addr[8];
-  //float celsius, fahrenheit;
   
   if ( !ds->search(addr)) {
-    Serial.println("No more addresses.");
-    Serial.println();
+    delay(10);
     ds->reset_search();
-    delay(250);
-    return;
+    delay(500);
+    if ( !ds->search(addr)) {
+      Serial.println("ERR: No device found!");
+      ds->reset_search();
+      delay(250);
+      return false;
+    }
   }
   
-  Serial.print("ROM =");
+  Serial.print("ROM=");
   for( i = 0; i < 8; i++) {
     Serial.write(' ');
     Serial.print(addr[i], HEX);
@@ -261,27 +286,27 @@ void readDS18B20(OneWire *ds, double * celsius) {
 
   if (OneWire::crc8(addr, 7) != addr[7]) {
       Serial.println("CRC is not valid!");
-      return;
+      return false;
   }
-  Serial.println();
+  Serial.print(", Chip=");
  
   // the first ROM byte indicates which chip
   switch (addr[0]) {
     case 0x10:
-      Serial.println("  Chip = DS18S20");  // or old DS1820
+      Serial.print("DS18S20");  // or old DS1820
       type_s = 1;
       break;
     case 0x28:
-      Serial.println("  Chip = DS18B20");
+      Serial.print("DS18B20");
       type_s = 0;
       break;
     case 0x22:
-      Serial.println("  Chip = DS1822");
+      Serial.print("DS1822");
       type_s = 0;
       break;
     default:
-      Serial.println("Device is not a DS18x20 family device.");
-      return;
+      Serial.print("NOT a DS18x20 family device");
+      return false;
   } 
 
   ds->reset();
@@ -295,7 +320,7 @@ void readDS18B20(OneWire *ds, double * celsius) {
   ds->select(addr);    
   ds->write(0xBE);         // Read Scratchpad
 
-  Serial.print("  Data = ");
+  Serial.print(", Data=");
   Serial.print(present, HEX);
   Serial.print(" ");
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
@@ -303,9 +328,9 @@ void readDS18B20(OneWire *ds, double * celsius) {
     Serial.print(data[i], HEX);
     Serial.print(" ");
   }
-  Serial.print(" CRC=");
+  Serial.print(", CRC=");
   Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();
+  //Serial.println();
 
   // Convert the data to actual temperature
   // because the result is a 16 bit signed integer, it should
@@ -328,9 +353,11 @@ void readDS18B20(OneWire *ds, double * celsius) {
   }
   *celsius = (double)raw / 16.0;
   //fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print("  Temperature = ");
+  Serial.print(", Temperature=");
   Serial.print(*celsius);
-  Serial.print(" Celsius, ");
+  Serial.print(" C");
+
+  return true;
 }
 
 /**
@@ -347,4 +374,14 @@ int getStrength(int points){
 
    averageRSSI = rssi/points;
     return averageRSSI;
+}
+
+// function to print a device address
+void printAddress(DeviceAddress deviceAddress)
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    if (deviceAddress[i] < 16) Serial.print("0");
+    Serial.print(deviceAddress[i], HEX);
+  }
 }
