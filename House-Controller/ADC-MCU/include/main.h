@@ -3,6 +3,9 @@
 #define __MAIN_H
 
 #define ENABLE_BUZZER               1
+#define DEVID_PROBE_PUMPHOUSE       25705 // devid of ESP32 wifi probe with pump motor/temp sensors
+#define DEVID_PROBE_BATHROOM        50406 // devid of ESP32 wifi probe
+
 // Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
 // note down the values and define them in ZERO_POINT_...
 //#define DO_VOLTAGE_CALIBRATION

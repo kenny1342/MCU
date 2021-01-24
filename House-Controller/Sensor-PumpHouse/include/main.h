@@ -6,7 +6,7 @@ bool debug = true;
 #define MODE_STA
 
 #define FIRMWARE_VERSION            "4.0"
-#define PIN_SENSOR_TEMP_MOTOR       4      // DS18B20 on GPIO 10 (a 4.7K resistor is necessary)
+#define PIN_SENSOR_TEMP_MOTOR       25      // DS18B20 on GPIO 10 (a 4.7K resistor is necessary)
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point

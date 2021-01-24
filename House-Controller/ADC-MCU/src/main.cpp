@@ -633,7 +633,7 @@ if(Serial_SensorHub.available() > 10) {
         uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
         uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
         switch(_devid) {
-          case 48150: // NEW EP32 Probe in pump house
+          case DEVID_PROBE_PUMPHOUSE: // NEW EP32 Probe in pump house
           {
 //Serial.println("REMOTE DATA 48150");            
             if(sid == 0x03) { // this is DS18B20 sensor
@@ -643,7 +643,7 @@ if(Serial_SensorHub.available() > 10) {
 
           }
           break;
-          case 50406: // EP32 Probe in pump house
+          case DEVID_PROBE_BATHROOM: // EP32 Probe in pump house
           {
             // sid 1=temp room, 2=humidity room, 3=temp motor
             if(sid == 0x01) { 
