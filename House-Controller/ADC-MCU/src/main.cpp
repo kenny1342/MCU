@@ -9,7 +9,7 @@
  */
 #include <Arduino.h>
 #include <main.h>
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <avr/wdt.h>
@@ -166,6 +166,10 @@ void setup()
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
+  Serial_SensorHub.begin(19200);
+Serial_SensorHub.clearWriteError();
+
+
   // easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
 
   // TIMER 1 for interrupt frequency 10 Hz:
@@ -230,18 +234,6 @@ void setup()
   LED_OFF(PIN_LED_WHITE);
 */
 
-/*
-  // TODO: rewrite all to pointer
-  tm_blinkAlarm.start();
-  tm_blinkWarning.start();
-  tm_counterWP_suspend_1sec.start();
-  tm_WP_seconds_counter.start();
-  tm_100ms_setAlarms.start();
-  tm_UpdateEMON.start();
-  tm_DataTX.start();
-  Timers[TM_SerialDebug]->start();
-  Timers[TM_ClearLastAlarm]->start();
-*/
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
   }
@@ -254,6 +246,7 @@ void setup()
   Serial.println(F("Init done!"));
 }
 
+/*
 ISR (SPI_STC_vect)
 {
   byte c = SPDR;
@@ -289,6 +282,18 @@ if(c == 0x10) { // our address
   }
 
 }
+*/
+/*
+ISR(USART3_RX_vect)
+{
+  Serial.println("receive interrupt occur");
+  while (!(UCSR2A & (1 << RXC2))) {};
+
+  char ReceivedByte;
+  ReceivedByte = UDR2; // Fetch the received byte value into the variable "ByteReceived"
+  UDR2 = ReceivedByte; // Echo back the received byte back to the computer
+}
+*/
 
 /**
  * ISR to handle incoming data from SPI (remote probes via WiFi Hub)
@@ -299,10 +304,9 @@ ISR(TIMER1_COMPA_vect)
   TCNT1 = timer1_counter;   // preload timer
   if(millis() < 1000) return; // just powered up, let things stabilize
 
-  bool doSerialDebug = true;
-  //char SPIData[JSON_SIZE]; // local copy
-  //bool NewSPIData;
-  const char * SPIData = buffer_sensorhub;
+  //bool doSerialDebug = true;
+  //const char * SPIData = buffer_sensorhub;
+
 
   //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
   /*
@@ -313,62 +317,11 @@ ISR(TIMER1_COMPA_vect)
   interrupts();
   */
 
-  //Serial.print(millis()/1000);
+  
   if(SPI_dataready && !APPFLAGS.isUpdatingData) {
     SPI_dataready = false;
     APPFLAGS.isUpdatingData = true;
-    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
-
-    // Send to Frontend unchanged via serial
-    // TODO: change to SPI
-    Serial_Frontend.write(SPIData);
-    Serial_Frontend.write('\n');
-  
-    // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
-    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    //tmp_json.clear();
-    const char* p = SPIData;
-    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
-    //tmp_json.shrinkToFit();
-
-    if (error) {
-      Serial.write(SPIData);
-      Serial.print(F("\n^JSON_ERR:"));
-      Serial.println(error.f_str());
-      
-    } else {
-
-      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-
-        uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
-        uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
-        switch(_devid) {
-          case 48150: // NEW EP32 Probe in pump house
-          {
-            if(sid == 0x03) { // this is DS18B20 sensor
-              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
-            }
-
-          }
-          break;
-          case 50406: // EP32 Probe in pump house
-          {
-            // sid 1=temp room, 2=humidity room, 3=temp motor
-            if(sid == 0x01) { 
-              WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-              //Timers[TM_DataStale_50406_1]->limitMillis(10000);
-              Timers[TM_DataStale_50406_1]->start(); // restart "old data" timer
-            }
-            if(sid == 0x02) { 
-              WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-            }
-          }
-          break;
-          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
-        }
-      } // 0x45
-    } // no json error
-  } // NewSPIData
+  }
 
   APPFLAGS.isUpdatingData = false;
 }
@@ -640,6 +593,80 @@ void loop() // run over and over
 
 
   APPFLAGS.isUpdatingData = true;
+
+//if(Serial_SensorHub.find('}')) {
+if(Serial_SensorHub.available() > 10) {
+  //Serial.println("RXHUB:");
+
+  //buffer_sensorhub[0] = '\0';
+  memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
+    Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
+    SPI_dataready = true;
+    Serial.print("RXHUB:");
+    Serial.print(buffer_sensorhub);
+    //Serial.println("***");
+
+    const char * SPIData = buffer_sensorhub;
+    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
+
+    // Send to Frontend unchanged via serial
+    // TODO: change to SPI
+    Serial_Frontend.write(SPIData);
+    Serial_Frontend.write('\n');
+  
+    // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
+    DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+    //tmp_json.clear();
+    const char* p = buffer_sensorhub;// SPIData;
+    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
+    //tmp_json.shrinkToFit();
+
+    if (error) {
+      Serial.write(SPIData);
+      Serial.print(F("\n^JSON_ERR:"));
+      Serial.println(error.f_str());
+      
+    } else {
+
+      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
+//Serial.println("REMOTE DATA 0x45");
+        uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
+        uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
+        switch(_devid) {
+          case 48150: // NEW EP32 Probe in pump house
+          {
+//Serial.println("REMOTE DATA 48150");            
+            if(sid == 0x03) { // this is DS18B20 sensor
+//Serial.println("REMOTE DATA 0x03");            
+              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
+            }
+
+          }
+          break;
+          case 50406: // EP32 Probe in pump house
+          {
+            // sid 1=temp room, 2=humidity room, 3=temp motor
+            if(sid == 0x01) { 
+              WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
+              //Timers[TM_DataStale_50406_1]->limitMillis(10000);
+              Timers[TM_DataStale_50406_1]->start(); // restart "old data" timer
+            }
+            if(sid == 0x02) { 
+              WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
+            }
+          }
+          break;
+          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
+        }
+      } // 0x45
+    } // no json error
+
+
+
+
+
+  }
+
     //----------- Update EMON (Mains) AC Frequency data -------------
 
     currentMicros = micros();
@@ -892,6 +919,8 @@ void buzzer_off(uint8_t pin) {
 int readline(int readch, char *buffer, int len) {
     static int pos = 0;
     int rpos;
+//Serial.print("c:");
+//Serial.print(readch);
 
     if (readch > 0) {
         switch (readch) {
@@ -913,7 +942,7 @@ int readline(int readch, char *buffer, int len) {
 
 bool checkIfColdStart ()
  {
- const char signature [] = "REBOOTSIGN";
+ const char signature [] = "REBOOTFLAG";
  char * p = (char *) malloc (sizeof (signature));
  if (strcmp (p, signature) == 0)   // signature already there
    //Serial.println ("Watchdog activated.");
