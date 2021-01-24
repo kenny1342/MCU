@@ -1,10 +1,13 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ArduinoOTA.h> 
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <AM2320.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Timemark.h>
 #include <main.h>
 
 #define MAX_SRV_CLIENTS 1
@@ -13,7 +16,7 @@ WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
 OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
-
+Timemark tm_DataTX(1000);
 /*
 OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);
 // Pass our oneWire reference to Dallas Temperature. 
@@ -38,8 +41,8 @@ void setup()
     ; // wait for serial port to connect. Needed for Native USB only
   }
 
-  Serial.printf("connecting to SSID:%s, key:%s...\n", ssid, password);
-  WiFi.begin(ssid, password);
+  Serial.printf("connecting to SSID:%s, key:%s...\n", ssid, pw);
+  WiFi.begin(ssid, pw);
   while (WiFi.status() != WL_CONNECTED) {
     if(++wifitries > 10) {
       Serial.println("too many wifi conn tries, reboot");
@@ -53,6 +56,38 @@ void setup()
   Serial.println(WiFi.localIP());
  
 
+  ArduinoOTA.setPort(3232);
+  // ArduinoOTA.setHostname("myesp32"); // defaults to esp3232-[MAC]
+  ArduinoOTA
+    .onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+  // if DNSServer is started with "*" for domain name, it will reply with
+  // provided IP to all DNS request
+
+  ArduinoOTA.begin();
+
   // Start TCP listener on port TCP_PORT
   tcpServer.begin();
   tcpServer.setNoDelay(true);
@@ -65,6 +100,13 @@ void setup()
   Wire.begin(21, 22);
   ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
   //sensors.begin();
+
+ if(mdns_init()!= ESP_OK){
+    Serial.println("mDNS failed to start");
+    return;
+  }
+
+  tm_DataTX.start();
 }
  
 
@@ -74,10 +116,7 @@ void loop()
   StaticJsonDocument<250> doc;
 
   uint8_t i;
-  //char buf[1024];
   int bytesAvail;
-  //double temp_room;
-  //double hum_room;
   double temp_motor;
 
 
@@ -88,6 +127,8 @@ void loop()
   }
 
 
+  ArduinoOTA.handle();
+
   //check if there are any new clients
   if (tcpServer.hasClient()) {
     for (i = 0; i < MAX_SRV_CLIENTS; i++) {
@@ -96,6 +137,8 @@ void loop()
         if (tcpServerClients[i]) tcpServerClients[i].stop();
         tcpServerClients[i] = tcpServer.available();
         Serial.print("New client: "); Serial.print(i);
+        tcpServerClients[i].printf("Welcome to Probe %s!\n", WiFi.localIP().toString().c_str());
+        tcpServerClients[i].print(F("Commands: exit | reboot | dump\n"));
         continue;
       }
     }
@@ -112,36 +155,65 @@ void loop()
       if((bytesAvail = tcpServerClients[i].available()) > 0) {
         Serial.print(bytesAvail);
         Serial.println(" BYTES FROM TCP:");
+
+        char buffer_cmd[50] = {0};
+        tcpServerClients[i].readBytesUntil('\n', buffer_cmd, sizeof(buffer_cmd));
+        if(strncmp(buffer_cmd, "exit", 4) == 0) {
+          tcpServerClients[i].println("BYE\n");
+          tcpServerClients[i].flush();
+          tcpServerClients[i].stop();
+        }
+        if(strncmp(buffer_cmd, "reboot", 6) == 0) {
+          tcpServerClients[i].println("Rebooting...\n");
+          tcpServerClients[i].flush();
+          delay(2000);
+          ESP.restart();
+        }
+        if(strncmp(buffer_cmd, "dump", 4) == 0) {
+          tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320_pumproom.cTemp, am2320_pumproom.Humidity);
+          tcpServerClients[i].printf("DS18b20 temp=%0.2f\n", temp_motor);
+          tcpServerClients[i].flush();
+        }
+
       }
 
-      // read JSON data from HUB and spit it out on UART
+      // read data from TCP client
       int size = 0;
       while ((size = tcpServerClients[i].available())) {
-                size = (size >= BUFFER_SIZE ? BUFFER_SIZE : size);
+                /*size = (size >= BUFFER_SIZE ? BUFFER_SIZE : size);
                 tcpServerClients[i].read(buff, size);
                 Serial.write(buff, size);
-                Serial.flush();
-      }
+                Serial.flush();*/
 
-      /*
-      while ((bytesAvail = tcpServerClients[i].available()) > 0) {
-        bytesIn = tcpServerClients[i].readBytes(buf, min(sizeof(buf), bytesAvail));
-        if (bytesIn > 0) {
-          Serial.write(buf, bytesIn);
-          delay(0);
-        }
       }
-      */
     }
   }
 /*
 */
 
-  // --------------- SEND SENSOR DATA TO HUB ---------------------
- 
-     doc.clear();
+  if(tm_DataTX.expired()) {
+    // --------------- SEND SENSOR DATA TO HUB ---------------------
+    Serial.printf("Listening on %s:%u\n", WiFi.localIP().toString().c_str(), TCP_PORT);
+
+    int nrOfServices = MDNS.queryService("rs232-1", "tcp");
+      
+    if (nrOfServices == 0) {
+      Serial.println("No mDNS rs232-1 (HUB) service found! Hub offline?");
+      return;
+    } else {
+      Serial.print(nrOfServices, DEC);
+      Serial.println(" mDNS rs232-1 (HUB) services found: ");
+    }
+
+    for (int i = 0; i < nrOfServices; i=i+1) {
+      Serial.printf("%s (%s:%u)\n", MDNS.hostname(i).c_str(), MDNS.IP(i).toString().c_str(), MDNS.port(i));
+    }
+
+    uint8_t mdns_index_hub = 0; // for now just assume the first is the correct (and only)...
+
+    doc.clear();
     JsonObject root = doc.to<JsonObject>();
-    
+
     root["cmd"] = 0x45; // REMOTE_SENSOR_DATA
     root["devid"] = (uint16_t)(ESP.getEfuseMac()>>32); // this device ID
     root["firmware"] = FIRMWARE_VERSION;
@@ -153,23 +225,17 @@ void loop()
     JsonObject data = doc.createNestedObject("data");
 
 
-    // ----------- HUMIDITY PUMP ROOM ------------
-    //Wire.begin(21, 22);
-    
-    Serial.print(F("Getting data from AM2320..."));
-    
+    // ----------- AM2320 TEMP & HUM ------------
+    Serial.print(F("Getting data from AM2320...\n"));
+
     switch(am2320_pumproom.Read()) {
       case 2:
         Serial.println("CRC failed!");
-        //temp_room = -98;
         break;
       case 1:
         Serial.println("Offline!");
-        //temp_room = -99;
         break;
       case 0:
-        //temp_room = am2320_pumproom.cTemp;
-        //hum_room = am2320_pumproom.Humidity;
 
         // ---------- TEMP PUMP ROOM ----------------
         root["sid"] = 0x01; // this sensor's ID
@@ -183,8 +249,8 @@ void loop()
         serializeJson(root, dataString);    
         Serial.print("TX1:");
         Serial.print(dataString);
-        SendData(dataString.c_str());
-        delay(1000);
+        SendData(dataString.c_str(), mdns_index_hub);
+//        delay(1000);
 
         root["sid"] = 0x02; // this sensor's ID
 
@@ -197,9 +263,9 @@ void loop()
         serializeJson(root, dataString);
         Serial.print("TX2:");
         Serial.print(dataString);
-        SendData(dataString.c_str());
+        SendData(dataString.c_str(), mdns_index_hub);
 
-        delay(1000);
+//        delay(1000);
 
         break;
     }    
@@ -226,24 +292,28 @@ void loop()
       Serial.print("TX3:");
       Serial.print(dataString);
 
-      SendData(dataString.c_str());
+      SendData(dataString.c_str(), mdns_index_hub);
     }
 
-    Serial.print(F("Cycle done, waiting 5 secs...\n****************************\n"));
-    delay(5000);
+    Serial.print(F("All done!...\n****************************\n"));
+  }
+
+
 
 }
 
-void SendData(const char * json) {
+void SendData(const char * json, uint8_t mdns_index) {
 
     WiFiClient client;
  
-    if (!client.connect(host, port)) {
+
+    if (!client.connect(MDNS.IP(mdns_index), MDNS.port(mdns_index))) {
       if(++hubconntries > 20) {
         Serial.println("too many HUB conn tries, rebooting");
         ESP.restart();
       }
-        Serial.println("Connection to HUB failed");
+        Serial.printf("Connection to HUB (%s:%u) failed!", MDNS.IP(mdns_index).toString().c_str(), MDNS.port(mdns_index));
+        
  
         delay(2000);
         return;
