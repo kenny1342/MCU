@@ -14,8 +14,16 @@
 #define TCP_PORT (2323)
 WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
+#ifdef USE_AM2320
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
-OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
+#endif
+//OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
+
+// Setup a oneWire instance to communicate with any OneWire device
+OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);	
+// Pass oneWire reference to DallasTemperature library
+DallasTemperature ds_sensors(&oneWire);
+
 Timemark tm_DataTX(1000);
 /*
 OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);
@@ -30,8 +38,12 @@ DeviceAddress insideThermometer, outsideThermometer;
 #define BUFFER_SIZE 1024
 byte buff[BUFFER_SIZE];
 
+uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
 uint8_t hubconntries = 0;
+
+double temp_motor = 0.0;
+double temp_inlet = 0.0;
 
 void setup()
 {
@@ -97,9 +109,14 @@ void setup()
   Serial.print(TCP_PORT);
   Serial.println("' to connect");
 
+#ifdef USE_AM2320
   Wire.begin(21, 22);
-  ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
-  //sensors.begin();
+#endif
+
+  //ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
+  //oneWire.begin(PIN_SENSOR_TEMP_MOTOR);
+  ds_sensors.begin();
+  //oneWire.begin(PIN_SENSOR_TEMP_MOTOR);
 
  if(mdns_init()!= ESP_OK){
     Serial.println("mDNS failed to start");
@@ -117,7 +134,6 @@ void loop()
 
   uint8_t i;
   int bytesAvail;
-  double temp_motor;
 
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -170,8 +186,13 @@ void loop()
           ESP.restart();
         }
         if(strncmp(buffer_cmd, "dump", 4) == 0) {
+#ifdef USE_AM2320          
           tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320_pumproom.cTemp, am2320_pumproom.Humidity);
-          tcpServerClients[i].printf("DS18b20 temp=%0.2f\n", temp_motor);
+#endif          
+          tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
+          tcpServerClients[i].printf("DS18b20 #0 (motor) temp=%0.2f\n", temp_motor);
+          tcpServerClients[i].printf("DS18b20 #1 (inlet) temp=%0.2f\n", temp_inlet);
+          
           tcpServerClients[i].flush();
         }
 
@@ -224,7 +245,7 @@ void loop()
 
     JsonObject data = doc.createNestedObject("data");
 
-
+#ifdef USE_AM2320
     // ----------- AM2320 TEMP & HUM ------------
     Serial.print(F("Getting data from AM2320...\n"));
 
@@ -270,30 +291,73 @@ void loop()
         break;
     }    
 
+#endif
 
     // ---------- TEMP PUMP MOTOR ----------------
     //----------- Update Pump motor temps -------------
-    //ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
-    //ds18b20_temp_motor.reset_search();
-    ds18b20_temp_motor.reset();
-    delay(100);
-    Serial.println(F("Getting data from DS18B20..."));
-    if(readDS18B20(&ds18b20_temp_motor, &temp_motor)) {
-      Serial.println();
-      root["sid"] = 0x03; // this sensor's ID
 
-      data["value"] = temp_motor; //(float) random(0,99);
-      data["unit"] = "DEG_C";
-      data["desc"] = "Motor";
-      data["timestamp"] = millis();
 
-      dataString.clear();
-      serializeJson(root, dataString);
-      Serial.print("TX3:");
-      Serial.print(dataString);
 
-      SendData(dataString.c_str(), mdns_index_hub);
+  Serial.print("Locating devices...");
+  Serial.print("Found ");
+  ds_deviceCount = ds_sensors.getDeviceCount();
+  Serial.print(ds_deviceCount, DEC);
+  Serial.println(" DS devices.");
+
+  Serial.println(F("Reading data from DS18B20 devices..."));
+
+// Send command to all the sensors for temperature conversion
+  ds_sensors.requestTemperatures(); 
+  
+  // Display temperature from each sensor
+  for (int i = 0;  i < ds_deviceCount;  i++)
+  {
+    
+    Serial.print("Sensor ");
+    Serial.print(i+1);
+    Serial.print(" : ");
+    float tempC = ds_sensors.getTempCByIndex(i);
+    Serial.print(tempC);
+    Serial.print((char)176);//shows degrees character
+    Serial.print("C");  
+    if(i == 0) {
+      temp_motor = tempC;
     }
+    if(i == 1) {
+      temp_inlet = tempC;
+    }
+  }
+
+    Serial.println();
+    root["sid"] = 0x03; // this sensor's ID
+
+    data["value"] = temp_motor; //(float) random(0,99);
+    data["unit"] = "DEG_C";
+    data["desc"] = "Motor";
+    data["timestamp"] = millis();
+
+    dataString.clear();
+    serializeJson(root, dataString);
+    Serial.print("TX3:");
+    Serial.print(dataString);
+
+    SendData(dataString.c_str(), mdns_index_hub);
+
+    delay(100);
+
+    root["sid"] = 0x04; // this sensor's ID
+
+    data["value"] = temp_inlet; //(float) random(0,99);
+    data["unit"] = "DEG_C";
+    data["desc"] = "Inlet";
+    data["timestamp"] = millis();
+
+    dataString.clear();
+    serializeJson(root, dataString);
+    Serial.print("TX4:");
+    Serial.print(dataString);
+
+    SendData(dataString.c_str(), mdns_index_hub);
 
     Serial.print(F("All done!...\n****************************\n"));
   }
