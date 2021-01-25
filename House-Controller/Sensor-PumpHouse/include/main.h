@@ -4,8 +4,9 @@
 bool debug = true;
 
 #define MODE_STA
+#define USE_AM2320
 
-#define FIRMWARE_VERSION            "4.1"
+#define FIRMWARE_VERSION            "4.2"
 #define PIN_SENSOR_TEMP_MOTOR       25      // DS18B20 on GPIO 10 (a 4.7K resistor is necessary)
 
 #ifdef MODE_AP

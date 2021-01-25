@@ -297,7 +297,7 @@ void loop()
     //----------- Update Pump motor temps -------------
 
 
-
+  ds_sensors.begin();
   Serial.print("Locating devices...");
   Serial.print("Found ");
   ds_deviceCount = ds_sensors.getDeviceCount();
