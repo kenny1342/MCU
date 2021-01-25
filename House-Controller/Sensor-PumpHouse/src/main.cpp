@@ -5,10 +5,13 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include "OneWireNg_CurrentPlatform.h" // Instead of stock OneWire lib, because it malfunctions when Wire is used too (on ESP32 at least)
+#include <KRA_DallasTemp.h>
 #include "SSD1306.h"
 #include <AM2320.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
+#include <Adafruit_Sensor.h>
+#include "DHT.h"
+//#include <OneWire.h>
+//#include <DallasTemperature.h>
 #include <Timemark.h>
 #include <main.h>
 
@@ -19,6 +22,11 @@ WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 #ifdef USE_AM2320
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
 #endif
+
+#ifdef USE_DHT
+DHT dht(PIN_DHT_SENSOR, DHTTYPE);
+#endif
+
 OneWire  ds_sensors(PIN_SENSOR_TEMP_MOTOR); 
 
 #ifdef USE_TFT
@@ -26,6 +34,8 @@ SSD1306 display(0x3c, 4, 15);
 #endif
 
 long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
+double dht_temp = 0.0;
+double dht_hum = 0.0;
 
 Timemark tm_DataTX(1000);
 
@@ -37,65 +47,10 @@ uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
 uint8_t hubconntries = 0;
 
-/* DS therms commands */
-#define CMD_CONVERT_T           0x44
-#define CMD_COPY_SCRATCHPAD     0x48
-#define CMD_WRITE_SCRATCHPAD    0x4E
-#define CMD_RECALL_EEPROM       0xB8
-#define CMD_READ_POW_SUPPLY     0xB4
-#define CMD_READ_SCRATCHPAD     0xBE
-
-/* supported DS therms families */
-#define DS18S20     0x10
-#define DS1822      0x22
-#define DS18B20     0x28
-#define DS1825      0x3B
-#define DS28EA00    0x42
-
-#define ARRSZ(t) (sizeof(t)/sizeof((t)[0]))
-
-static struct {
-    uint8_t code;
-    const char *name;
-} DSTH_CODES[] = {
-    { DS18S20, "DS18S20" },
-    { DS1822, "DS1822" },
-    { DS18B20, "DS18B20" },
-    { DS1825, "DS1825" },
-    { DS28EA00,"DS28EA00" }
-};
 
 static OneWireNg *ow = NULL;
 
 
-/* returns NULL if not supported */
-static const char *dsthName(const OneWireNg::Id& id)
-{
-    for (size_t i=0; i < ARRSZ(DSTH_CODES); i++) {
-        if (id[0] == DSTH_CODES[i].code)
-            return DSTH_CODES[i].name;
-    }
-    return NULL;
-}
-
-/* returns false if not supported */
-static bool printId(const OneWireNg::Id& id)
-{
-    const char *name = dsthName(id);
-
-    Serial.print(id[0], HEX);
-    for (size_t i=1; i < sizeof(OneWireNg::Id); i++) {
-        Serial.print(':');
-        Serial.print(id[i], HEX);
-    }
-    if (name) {
-        Serial.print(" -> ");
-        Serial.print(name);
-    }
-    Serial.println();
-
-    return (name ? true : false);
-}
 
 
 
@@ -182,6 +137,10 @@ void setup()
   Wire.begin(21, 22);
 #endif
 
+#ifdef USE_DHT
+dht.begin();
+#endif
+
 ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
 #if (CONFIG_MAX_SRCH_FILTERS > 0)
     /* if filtering is enabled - filter to supported devices only;
@@ -262,9 +221,12 @@ void loop()
           tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320_pumproom.cTemp, am2320_pumproom.Humidity);
 #endif          
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
-          tcpServerClients[i].printf("DS18b20 #0 temp=%lu%.lu\n", ds_temps[0]/1000, ds_temps[0] % 10000);
-          tcpServerClients[i].printf("DS18b20 #1 temp=%lu.%lu\n", ds_temps[1]/1000, ds_temps[1] % 10000);
-          
+          tcpServerClients[i].printf("DS18b20 #0 temp=%lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
+          tcpServerClients[i].printf("DS18b20 #1 temp=%lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
+#ifdef USE_DHT          
+          tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", dht_temp, dht_hum);
+      #endif
+
           tcpServerClients[i].flush();
         }
 
@@ -287,6 +249,18 @@ void loop()
   if(tm_DataTX.expired()) {
 
       readDS18B20();
+
+    #ifdef USE_DHT  
+    Serial.print(F("Trying to read DHT/AM2302 sensor..."));
+    dht_temp = dht.readTemperature(false);
+    dht_hum = dht.readHumidity();
+    if(dht_temp == NAN || dht_hum == NAN) {
+      Serial.println(F("ERR: Not found!"));
+    } else {
+      Serial.printf("OK! temp=%0.2fC, hum=%0.2f%%\n", dht_temp, dht_hum);
+    }
+  #endif
+
 #ifdef USE_TFT
     char str[50];
 
@@ -304,11 +278,16 @@ void loop()
     sprintf(str, "IP: %s ", WiFi.localIP().toString().c_str());
     display.drawString(0, 10, str);
 
-    sprintf(str, "DS18b20 #0: %lu.%lu\n", ds_temps[0]/1000, ds_temps[0] % 10);
+    sprintf(str, "DS18b20 #0: %lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
     display.drawString(0, 30, str);
 
     sprintf(str, "DS18b20 #1: %lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
     display.drawString(0, 40, str);
+
+    #ifdef USE_DHT
+    sprintf(str, "DHT #1: %0.2fC - %02.f%%\n", dht_temp, dht_hum);
+    display.drawString(0, 50, str);
+    #endif
 
     display.display();
 #endif
@@ -392,12 +371,8 @@ void loop()
 
 #endif
 
-    // ---------- TEMP PUMP MOTOR ----------------
-    //----------- Update Pump motor temps -------------
+    // ---------- TEMP 1-WIRE SENSORS ----------------
 
-
-  
-  
     Serial.println();
     root["sid"] = 0x03; // this sensor's ID
 
@@ -442,15 +417,12 @@ void SendData(const char * json, uint8_t mdns_index) {
 
     WiFiClient client;
  
-
     if (!client.connect(MDNS.IP(mdns_index), MDNS.port(mdns_index))) {
       if(++hubconntries > 20) {
-        Serial.println("too many HUB conn tries, rebooting");
+        Serial.println(F("too many HUB conn tries, rebooting"));
         ESP.restart();
       }
         Serial.printf("Connection to HUB (%s:%u) failed!", MDNS.IP(mdns_index).toString().c_str(), MDNS.port(mdns_index));
-        
- 
         delay(2000);
         return;
     }
@@ -460,122 +432,9 @@ void SendData(const char * json, uint8_t mdns_index) {
   
   client.stop();
 
-  Serial.println(" [OK]");
-
-  //delay(1000);
+  Serial.println(F(" [OK]"));
 }
 
-bool readDS18B20(OneWire *ds, bool parasitePower/*, double * celsius*/) {
-  byte i;
-  byte present = 0;
-  byte type_s;
-  byte data[12];
-  byte addr[8];
-  
-
-
-  
-  Serial.println("Looking for DS18 devices...");
-
-  ds->reset_search();
-  ds_deviceCount = 0;
-
-  while(ds->search(addr)) {
-
-    Serial.printf("#%u: ROM=", ds_deviceCount);
-    for( i = 0; i < 8; i++) {
-      Serial.write(' ');
-      Serial.print(addr[i], HEX);
-    }
-
-    if (OneWire::crc8(addr, 7) != addr[7]) {
-        Serial.println("CRC is not valid!");
-        return false;
-    }
-    Serial.print(", Chip=");
-  
-    // the first ROM byte indicates which chip
-    switch (addr[0]) {
-      case 0x10:
-        Serial.print("DS18S20");  // or old DS1820
-        type_s = 1;
-        break;
-      case 0x28:
-        Serial.print("DS18B20");
-        type_s = 0;
-        break;
-      case 0x22:
-        Serial.print("DS1822");
-        type_s = 0;
-        break;
-      default:
-        Serial.print("NOT a DS18x20 family device");
-        return false;
-    } 
-
-    ds->reset();
-    ds->select(addr);
-    ds->write(0x44, parasitePower);        // start conversion, with/out parasite power at the end
-    
-    delay(750);     // maybe 750ms is enough, maybe not
-    // we might do a ds.depower() here, but the reset will take care of it.
-    
-    present = ds->reset();
-    ds->select(addr);    
-    ds->write(0xBE);         // Read Scratchpad
-
-    Serial.print(", Data=");
-    Serial.print(present, HEX);
-    Serial.print(" ");
-    for ( i = 0; i < 9; i++) {           // we need 9 bytes
-      data[i] = ds->read();
-      Serial.print(data[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.print(", CRC=");
-    Serial.print(OneWire::crc8(data, 8), HEX);
-    //Serial.println();
-
-    // Convert the data to actual temperature
-    // because the result is a 16 bit signed integer, it should
-    // be stored to an "int16_t" type, which is always 16 bits
-    // even when compiled on a 32 bit processor.
-    int16_t raw = (data[1] << 8) | data[0];
-    if (type_s) {
-      raw = raw << 3; // 9 bit resolution default
-      if (data[7] == 0x10) {
-        // "count remain" gives full 12 bit resolution
-        raw = (raw & 0xFFF0) + 12 - data[6];
-      }
-    } else {
-      byte cfg = (data[4] & 0x60);
-      // at lower res, the low bits are undefined, so let's zero them
-      if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-      else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-      else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-      //// default is 12 bit resolution, 750 ms conversion time
-    }
-    //*celsius = (double)raw / 16.0;
-    ds_temps[ds_deviceCount] = (double)raw / 16.0;
-    //fahrenheit = celsius * 1.8 + 32.0;
-    Serial.print(", Temperature=");
-    //Serial.print(*celsius);
-    Serial.print(ds_temps[ds_deviceCount]);
-    Serial.println(" C");
-    
-    ds_deviceCount++;
-  }
-
-    if ( ds_deviceCount == 0) {
-      Serial.println("ERR: No device found!");
-      ds->reset_search();
-      delay(250);
-      return false;
-    }
-
-
-  return true;
-}
 
 /**
 * Take measurements of the Wi-Fi strength and return the average result.
@@ -599,14 +458,14 @@ void readDS18B20() {
     OneWireNg::ErrorCode ec;
 
     ow->searchReset();
-
+    ds_deviceCount = 0;
     do
     {
         ec = ow->search(id);
         if (!(ec == OneWireNg::EC_MORE || ec == OneWireNg::EC_DONE))
             break;
 
-        if (!printId(id))
+        if (!KRA_DallasTemp::printId(id))
             continue;
 
         /* start temperature conversion */
@@ -669,11 +528,17 @@ void readDS18B20() {
 
         ds_temps[ds_deviceCount] = temp;
 
-        if(ds_deviceCount < NUM_DS_SENSORS-1) {
+        if(ds_deviceCount < NUM_DS_SENSORS) {
           ds_deviceCount++;
         }
         
 
     } while (ec == OneWireNg::EC_MORE);
 
+    if ( ds_deviceCount == 0) {
+      Serial.println("ERR: No device found!");
+    }
+
 }
+
+
