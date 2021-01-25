@@ -4,6 +4,8 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
+#include "OneWireNg_CurrentPlatform.h" // Instead of stock OneWire lib, because it malfunctions when Wire is used too (on ESP32 at least)
+#include "SSD1306.h"
 #include <AM2320.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -17,22 +19,15 @@ WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 #ifdef USE_AM2320
 AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
 #endif
-//OneWire  ds18b20_temp_motor(PIN_SENSOR_TEMP_MOTOR); 
+OneWire  ds_sensors(PIN_SENSOR_TEMP_MOTOR); 
 
-// Setup a oneWire instance to communicate with any OneWire device
-OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);	
-// Pass oneWire reference to DallasTemperature library
-DallasTemperature ds_sensors(&oneWire);
+#ifdef USE_TFT
+SSD1306 display(0x3c, 4, 15);
+#endif
+
+long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
 
 Timemark tm_DataTX(1000);
-/*
-OneWire oneWire(PIN_SENSOR_TEMP_MOTOR);
-// Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature sensors(&oneWire);
-// arrays to hold device addresses
-DeviceAddress insideThermometer, outsideThermometer;
-*/
-//OneWire ds(PIN_SENSOR_TEMP_MOTOR); // on pin x (a 4.7K resistor is necessary)
 
 // reading buffor config
 #define BUFFER_SIZE 1024
@@ -42,8 +37,67 @@ uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
 uint8_t hubconntries = 0;
 
-double temp_motor = 0.0;
-double temp_inlet = 0.0;
+/* DS therms commands */
+#define CMD_CONVERT_T           0x44
+#define CMD_COPY_SCRATCHPAD     0x48
+#define CMD_WRITE_SCRATCHPAD    0x4E
+#define CMD_RECALL_EEPROM       0xB8
+#define CMD_READ_POW_SUPPLY     0xB4
+#define CMD_READ_SCRATCHPAD     0xBE
+
+/* supported DS therms families */
+#define DS18S20     0x10
+#define DS1822      0x22
+#define DS18B20     0x28
+#define DS1825      0x3B
+#define DS28EA00    0x42
+
+#define ARRSZ(t) (sizeof(t)/sizeof((t)[0]))
+
+static struct {
+    uint8_t code;
+    const char *name;
+} DSTH_CODES[] = {
+    { DS18S20, "DS18S20" },
+    { DS1822, "DS1822" },
+    { DS18B20, "DS18B20" },
+    { DS1825, "DS1825" },
+    { DS28EA00,"DS28EA00" }
+};
+
+static OneWireNg *ow = NULL;
+
+
+/* returns NULL if not supported */
+static const char *dsthName(const OneWireNg::Id& id)
+{
+    for (size_t i=0; i < ARRSZ(DSTH_CODES); i++) {
+        if (id[0] == DSTH_CODES[i].code)
+            return DSTH_CODES[i].name;
+    }
+    return NULL;
+}
+
+/* returns false if not supported */
+static bool printId(const OneWireNg::Id& id)
+{
+    const char *name = dsthName(id);
+
+    Serial.print(id[0], HEX);
+    for (size_t i=1; i < sizeof(OneWireNg::Id); i++) {
+        Serial.print(':');
+        Serial.print(id[i], HEX);
+    }
+    if (name) {
+        Serial.print(" -> ");
+        Serial.print(name);
+    }
+    Serial.println();
+
+    return (name ? true : false);
+}
+
+
 
 void setup()
 {
@@ -52,6 +106,21 @@ void setup()
    while (!Serial) {
     ; // wait for serial port to connect. Needed for Native USB only
   }
+
+  #ifdef USE_TFT
+  pinMode(16,OUTPUT);
+    
+  digitalWrite(16, LOW);    // set GPIO16 low to reset OLED
+  delay(50); 
+  digitalWrite(16, HIGH); // while OLED is running, must set GPIO16 in high
+  display.init();
+  display.flipScreenVertically();  
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);  
+  display.drawString(0, 0, " INIT... ");
+  display.display();
+  #endif
 
   Serial.printf("connecting to SSID:%s, key:%s...\n", ssid, pw);
   WiFi.begin(ssid, pw);
@@ -113,11 +182,16 @@ void setup()
   Wire.begin(21, 22);
 #endif
 
-  //ds18b20_temp_motor.begin(PIN_SENSOR_TEMP_MOTOR);
-  //oneWire.begin(PIN_SENSOR_TEMP_MOTOR);
-  ds_sensors.begin();
-  //oneWire.begin(PIN_SENSOR_TEMP_MOTOR);
+ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
+#if (CONFIG_MAX_SRCH_FILTERS > 0)
+    /* if filtering is enabled - filter to supported devices only;
+       CONFIG_MAX_SRCH_FILTERS must be large enough to embrace all code ids */
+    for (size_t i=0; i < ARRSZ(DSTH_CODES); i++)
+        ow->searchFilterAdd(DSTH_CODES[i].code);
+#endif
 
+  //ds_sensors.begin(PIN_SENSOR_TEMP_MOTOR);
+  
  if(mdns_init()!= ESP_OK){
     Serial.println("mDNS failed to start");
     return;
@@ -131,10 +205,8 @@ void loop()
 {
   String dataString = "";
   StaticJsonDocument<250> doc;
-
   uint8_t i;
   int bytesAvail;
-
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi connection gone, reboot");
@@ -190,8 +262,8 @@ void loop()
           tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320_pumproom.cTemp, am2320_pumproom.Humidity);
 #endif          
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
-          tcpServerClients[i].printf("DS18b20 #0 (motor) temp=%0.2f\n", temp_motor);
-          tcpServerClients[i].printf("DS18b20 #1 (inlet) temp=%0.2f\n", temp_inlet);
+          tcpServerClients[i].printf("DS18b20 #0 temp=%lu%.lu\n", ds_temps[0]/1000, ds_temps[0] % 10000);
+          tcpServerClients[i].printf("DS18b20 #1 temp=%lu.%lu\n", ds_temps[1]/1000, ds_temps[1] % 10000);
           
           tcpServerClients[i].flush();
         }
@@ -213,6 +285,33 @@ void loop()
 */
 
   if(tm_DataTX.expired()) {
+
+      readDS18B20();
+#ifdef USE_TFT
+    char str[50];
+
+    display.clear();
+    display.setFont(ArialMT_Plain_10);
+
+    if (WiFi.status() != WL_CONNECTED) {
+      sprintf(str, "WiFi ERROR (%s)", WiFi.SSID().c_str());
+      
+    } else {
+      sprintf(str, "WiFi OK (%s) %ddBm", WiFi.SSID().c_str(), getStrength(3));
+    }
+    display.drawString(0, 0, str);
+
+    sprintf(str, "IP: %s ", WiFi.localIP().toString().c_str());
+    display.drawString(0, 10, str);
+
+    sprintf(str, "DS18b20 #0: %lu.%lu\n", ds_temps[0]/1000, ds_temps[0] % 10);
+    display.drawString(0, 30, str);
+
+    sprintf(str, "DS18b20 #1: %lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
+    display.drawString(0, 40, str);
+
+    display.display();
+#endif
     // --------------- SEND SENSOR DATA TO HUB ---------------------
     Serial.printf("Listening on %s:%u\n", WiFi.localIP().toString().c_str(), TCP_PORT);
 
@@ -297,41 +396,13 @@ void loop()
     //----------- Update Pump motor temps -------------
 
 
-
-  Serial.print("Locating devices...");
-  Serial.print("Found ");
-  ds_deviceCount = ds_sensors.getDeviceCount();
-  Serial.print(ds_deviceCount, DEC);
-  Serial.println(" DS devices.");
-
-  Serial.println(F("Reading data from DS18B20 devices..."));
-
-// Send command to all the sensors for temperature conversion
-  ds_sensors.requestTemperatures(); 
   
-  // Display temperature from each sensor
-  for (int i = 0;  i < ds_deviceCount;  i++)
-  {
-    
-    Serial.print("Sensor ");
-    Serial.print(i+1);
-    Serial.print(" : ");
-    float tempC = ds_sensors.getTempCByIndex(i);
-    Serial.print(tempC);
-    Serial.print((char)176);//shows degrees character
-    Serial.print("C");  
-    if(i == 0) {
-      temp_motor = tempC;
-    }
-    if(i == 1) {
-      temp_inlet = tempC;
-    }
-  }
-
+  
     Serial.println();
     root["sid"] = 0x03; // this sensor's ID
 
-    data["value"] = temp_motor; //(float) random(0,99);
+    sprintf(str, "%lu.%lu", ds_temps[0]/1000, ds_temps[0] % 10);
+    data["value"] = str; // ds_temps[0]; //(float) random(0,99);
     data["unit"] = "DEG_C";
     data["desc"] = "Motor";
     data["timestamp"] = millis();
@@ -343,11 +414,12 @@ void loop()
 
     SendData(dataString.c_str(), mdns_index_hub);
 
-    delay(100);
+    delay(500);
 
     root["sid"] = 0x04; // this sensor's ID
 
-    data["value"] = temp_inlet; //(float) random(0,99);
+    sprintf(str, "%lu.%lu", ds_temps[1]/1000, ds_temps[1] % 10);
+    data["value"] = str; //ds_temps[1]; //(float) random(0,99);
     data["unit"] = "DEG_C";
     data["desc"] = "Inlet";
     data["timestamp"] = millis();
@@ -393,103 +465,114 @@ void SendData(const char * json, uint8_t mdns_index) {
   //delay(1000);
 }
 
-bool readDS18B20(OneWire *ds, double * celsius) {
+bool readDS18B20(OneWire *ds, bool parasitePower/*, double * celsius*/) {
   byte i;
   byte present = 0;
   byte type_s;
   byte data[12];
   byte addr[8];
   
-  if ( !ds->search(addr)) {
-    delay(10);
-    ds->reset_search();
-    delay(500);
-    if ( !ds->search(addr)) {
+
+
+  
+  Serial.println("Looking for DS18 devices...");
+
+  ds->reset_search();
+  ds_deviceCount = 0;
+
+  while(ds->search(addr)) {
+
+    Serial.printf("#%u: ROM=", ds_deviceCount);
+    for( i = 0; i < 8; i++) {
+      Serial.write(' ');
+      Serial.print(addr[i], HEX);
+    }
+
+    if (OneWire::crc8(addr, 7) != addr[7]) {
+        Serial.println("CRC is not valid!");
+        return false;
+    }
+    Serial.print(", Chip=");
+  
+    // the first ROM byte indicates which chip
+    switch (addr[0]) {
+      case 0x10:
+        Serial.print("DS18S20");  // or old DS1820
+        type_s = 1;
+        break;
+      case 0x28:
+        Serial.print("DS18B20");
+        type_s = 0;
+        break;
+      case 0x22:
+        Serial.print("DS1822");
+        type_s = 0;
+        break;
+      default:
+        Serial.print("NOT a DS18x20 family device");
+        return false;
+    } 
+
+    ds->reset();
+    ds->select(addr);
+    ds->write(0x44, parasitePower);        // start conversion, with/out parasite power at the end
+    
+    delay(750);     // maybe 750ms is enough, maybe not
+    // we might do a ds.depower() here, but the reset will take care of it.
+    
+    present = ds->reset();
+    ds->select(addr);    
+    ds->write(0xBE);         // Read Scratchpad
+
+    Serial.print(", Data=");
+    Serial.print(present, HEX);
+    Serial.print(" ");
+    for ( i = 0; i < 9; i++) {           // we need 9 bytes
+      data[i] = ds->read();
+      Serial.print(data[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.print(", CRC=");
+    Serial.print(OneWire::crc8(data, 8), HEX);
+    //Serial.println();
+
+    // Convert the data to actual temperature
+    // because the result is a 16 bit signed integer, it should
+    // be stored to an "int16_t" type, which is always 16 bits
+    // even when compiled on a 32 bit processor.
+    int16_t raw = (data[1] << 8) | data[0];
+    if (type_s) {
+      raw = raw << 3; // 9 bit resolution default
+      if (data[7] == 0x10) {
+        // "count remain" gives full 12 bit resolution
+        raw = (raw & 0xFFF0) + 12 - data[6];
+      }
+    } else {
+      byte cfg = (data[4] & 0x60);
+      // at lower res, the low bits are undefined, so let's zero them
+      if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+      else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+      else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+      //// default is 12 bit resolution, 750 ms conversion time
+    }
+    //*celsius = (double)raw / 16.0;
+    ds_temps[ds_deviceCount] = (double)raw / 16.0;
+    //fahrenheit = celsius * 1.8 + 32.0;
+    Serial.print(", Temperature=");
+    //Serial.print(*celsius);
+    Serial.print(ds_temps[ds_deviceCount]);
+    Serial.println(" C");
+    
+    ds_deviceCount++;
+  }
+
+    if ( ds_deviceCount == 0) {
       Serial.println("ERR: No device found!");
       ds->reset_search();
       delay(250);
       return false;
     }
-  }
-  
-  Serial.print("ROM=");
-  for( i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
-  }
 
-  if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      return false;
-  }
-  Serial.print(", Chip=");
- 
-  // the first ROM byte indicates which chip
-  switch (addr[0]) {
-    case 0x10:
-      Serial.print("DS18S20");  // or old DS1820
-      type_s = 1;
-      break;
-    case 0x28:
-      Serial.print("DS18B20");
-      type_s = 0;
-      break;
-    case 0x22:
-      Serial.print("DS1822");
-      type_s = 0;
-      break;
-    default:
-      Serial.print("NOT a DS18x20 family device");
-      return false;
-  } 
-
-  ds->reset();
-  ds->select(addr);
-  ds->write(0x44, 1);        // start conversion, with parasite power on at the end
-  
-  delay(1000);     // maybe 750ms is enough, maybe not
-  // we might do a ds.depower() here, but the reset will take care of it.
-  
-  present = ds->reset();
-  ds->select(addr);    
-  ds->write(0xBE);         // Read Scratchpad
-
-  Serial.print(", Data=");
-  Serial.print(present, HEX);
-  Serial.print(" ");
-  for ( i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = ds->read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.print(", CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
-  //Serial.println();
-
-  // Convert the data to actual temperature
-  // because the result is a 16 bit signed integer, it should
-  // be stored to an "int16_t" type, which is always 16 bits
-  // even when compiled on a 32 bit processor.
-  int16_t raw = (data[1] << 8) | data[0];
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10) {
-      // "count remain" gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    }
-  } else {
-    byte cfg = (data[4] & 0x60);
-    // at lower res, the low bits are undefined, so let's zero them
-    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-    //// default is 12 bit resolution, 750 ms conversion time
-  }
-  *celsius = (double)raw / 16.0;
-  //fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print(", Temperature=");
-  Serial.print(*celsius);
-  Serial.print(" C");
 
   return true;
 }
@@ -510,12 +593,87 @@ int getStrength(int points){
     return averageRSSI;
 }
 
-// function to print a device address
-void printAddress(DeviceAddress deviceAddress)
-{
-  for (uint8_t i = 0; i < 8; i++)
-  {
-    if (deviceAddress[i] < 16) Serial.print("0");
-    Serial.print(deviceAddress[i], HEX);
-  }
+
+void readDS18B20() {
+    OneWireNg::Id id;
+    OneWireNg::ErrorCode ec;
+
+    ow->searchReset();
+
+    do
+    {
+        ec = ow->search(id);
+        if (!(ec == OneWireNg::EC_MORE || ec == OneWireNg::EC_DONE))
+            break;
+
+        if (!printId(id))
+            continue;
+
+        /* start temperature conversion */
+        ow->addressSingle(id);
+        ow->writeByte(CMD_CONVERT_T);
+
+#ifdef PARASITE_POWER
+        /* power the bus until the next activity on it */
+        ow->powerBus(true);
+#endif
+        delay(750);
+
+        uint8_t touchScrpd[] = {
+            CMD_READ_SCRATCHPAD,
+            /* the read scratchpad will be placed here (9 bytes) */
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+        };
+
+        ow->addressSingle(id);
+        ow->touchBytes(touchScrpd, sizeof(touchScrpd));
+        uint8_t *scrpd = &touchScrpd[1];  /* scratchpad data */
+
+        Serial.print("  Scratchpad:");
+        for (size_t i = 0; i < sizeof(touchScrpd)-1; i++) {
+            Serial.print(!i ? ' ' : ':');
+            Serial.print(scrpd[i], HEX);
+        }
+        Serial.println();
+
+        if (OneWireNg::crc8(scrpd, 8) != scrpd[8]) {
+            Serial.println("  Invalid CRC!");
+            continue;
+        }
+
+        long temp = ((long)(int8_t)scrpd[1] << 8) | scrpd[0];
+
+        if (id[0] != DS18S20) {
+            unsigned res = (scrpd[4] >> 5) & 3;
+            temp = (temp >> (3-res)) << (3-res);  /* zeroed undefined bits */
+            temp = (temp*1000)/16;
+        } else
+        if (scrpd[7]) {
+            temp = 1000*(temp >> 1) - 250;
+            temp += 1000*(scrpd[7] - scrpd[6]) / scrpd[7];
+        } else {
+            /* shall never happen */
+            temp = (temp*1000)/2;
+            Serial.println("  Zeroed COUNT_PER_C detected!");
+        }
+
+        Serial.print("  Temp: ");
+        if (temp < 0) {
+            temp = -temp;
+            Serial.print('-');
+        }
+        Serial.print(temp / 1000);
+        Serial.print('.');
+        Serial.print(temp % 1000);
+        Serial.println(" C");
+
+        ds_temps[ds_deviceCount] = temp;
+
+        if(ds_deviceCount < NUM_DS_SENSORS-1) {
+          ds_deviceCount++;
+        }
+        
+
+    } while (ec == OneWireNg::EC_MORE);
+
 }
