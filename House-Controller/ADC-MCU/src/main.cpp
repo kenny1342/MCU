@@ -635,17 +635,6 @@ if(Serial_SensorHub.available() > 10) {
         switch(_devid) {
           case DEVID_PROBE_PUMPHOUSE: // NEW EP32 Probe in pump house
           {
-//Serial.println("REMOTE DATA 48150");            
-            if(sid == 0x03) { // this is DS18B20 sensor
-//Serial.println("REMOTE DATA 0x03");            
-              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
-            }
-
-          }
-          break;
-          case DEVID_PROBE_BATHROOM: // EP32 Probe in pump house
-          {
-            // sid 1=temp room, 2=humidity room, 3=temp motor
             if(sid == 0x01) { 
               WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
               //Timers[TM_DataStale_50406_1]->limitMillis(10000);
@@ -654,6 +643,18 @@ if(Serial_SensorHub.available() > 10) {
             if(sid == 0x02) { 
               WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
             }
+
+            if(sid == 0x03) { // this is DS18B20 sensor
+              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
+            }
+            if(sid == 0x04) { // this is DS18B20 sensor
+              WATERPUMP.temp_inlet_val = tmp_json.getMember("data").getMember("value").as<float>();              
+            }
+
+          }
+          break;
+          case DEVID_PROBE_BATHROOM: // EP32 Probe in pump house
+          {
           }
           break;
           default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);

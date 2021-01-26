@@ -3,7 +3,7 @@
 #define __MAIN_H
 
 #define ENABLE_BUZZER               1
-#define DEVID_PROBE_PUMPHOUSE       25705 // devid of ESP32 wifi probe with pump motor/temp sensors
+#define DEVID_PROBE_PUMPHOUSE       9457 // devid of ESP32 wifi probe with pump motor/temp sensors
 #define DEVID_PROBE_BATHROOM        50406 // devid of ESP32 wifi probe
 
 // Uncomment to get ZMPT101B voltage sensors zero-point values. DISCONNECT FIRST, NO CURRENT SHOULD FLOW THROUGH SENSORS
@@ -122,6 +122,7 @@ typedef struct
   double temp_pumphouse_val = 0;
   double hum_pumphouse_val = -1.0; // to indicate no data received yet
   double temp_motor_val = 0;
+  double temp_inlet_val = 0;
   double water_pressure_bar_val;  
   uint8_t pressure_state;
   uint16_t pressure_state_t;
