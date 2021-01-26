@@ -18,7 +18,7 @@ const char *pw = "hemmelig"; // and this is the password
 
 #endif
 
-#define UART_BAUD1 19200            // Baudrate UART1
+#define UART_BAUD1 115200            // Baudrate UART1
 #define SERIAL_PARAM1 SERIAL_8N1    // Data/Parity/Stop UART1
 #define SERIAL1_RXPIN 16            // receive Pin UART1 (DevkitC 25, GPIO16)
 #define SERIAL1_TXPIN 17            // transmit Pin UART1 (DevkitC 27, GPIO17)

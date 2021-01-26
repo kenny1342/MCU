@@ -10,11 +10,13 @@ bool debug = true;
 #define USE_DHT
 #define USE_TFT
 
+#define DHTTYPE                     DHT22   // DHT 22  (AM2302)
+
+#define JSON_SIZE                   512
 #define FIRMWARE_VERSION            "4.1"
 #define PIN_SENSOR_TEMP_MOTOR       25      // DS18B20 on GPIO x (a 4.7K resistor is necessary)
 #define NUM_DS_SENSORS              2   // nr of DS18B20 we have on the 1-wire bus
 #define PIN_DHT_SENSOR              13
-#define DHTTYPE                     DHT22   // DHT 22  (AM2302)
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point

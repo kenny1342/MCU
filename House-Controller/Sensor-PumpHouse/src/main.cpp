@@ -44,15 +44,17 @@ OneWire  ds_sensors(PIN_SENSOR_TEMP_MOTOR);
 SSD1306 display(0x3c, 4, 15);
 #endif
 
+bool OTArunning = false;
+
 long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
 double sid1_value = 0.0;
 double sid2_value = 0.0;
 
-Timemark tm_DataTX(1000);
+Timemark tm_DataTX(5000);
 
 // reading buffor config
-#define BUFFER_SIZE 1024
-byte buff[BUFFER_SIZE];
+//#define BUFFER_SIZE 1024
+//byte buff[BUFFER_SIZE];
 
 uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
@@ -60,10 +62,6 @@ uint8_t hubconntries = 0;
 
 
 static OneWireNg *ow = NULL;
-
-
-
-
 
 void setup()
 {
@@ -108,6 +106,7 @@ void setup()
   ArduinoOTA
     .onStart([]() {
       String type;
+      OTArunning = true;
       if (ArduinoOTA.getCommand() == U_FLASH)
         type = "sketch";
       else // U_SPIFFS
@@ -117,12 +116,14 @@ void setup()
       Serial.println("Start updating " + type);
     })
     .onEnd([]() {
+      OTArunning = false;
       Serial.println("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
       Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     })
     .onError([](ota_error_t error) {
+      OTArunning = false;
       Serial.printf("Error[%u]: ", error);
       if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
       else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -173,8 +174,10 @@ ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
 
 void loop()
 {
-  String dataString = "";
-  StaticJsonDocument<250> doc;
+  //String dataString = "";
+  char dataString[JSON_SIZE] = {0};
+  int8_t part;
+  StaticJsonDocument<JSON_SIZE> doc;
   uint8_t i;
   int bytesAvail;
 
@@ -234,13 +237,19 @@ void loop()
           tcpServerClients[i].printf("devid: %u\n", (uint16_t)(ESP.getEfuseMac()>>32));
           tcpServerClients[i].printf("uptime: %lu\n", millis()/1000);
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
-          tcpServerClients[i].printf("DS18b20 #0 temp=%lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
-          tcpServerClients[i].printf("DS18b20 #1 temp=%lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
+
+          part = ds_temps[0] % 10;
+          if(part < 0) part = -part;
+          tcpServerClients[i].printf("DS18b20 #0 temp=%ld.%dC\n", ds_temps[0]/1000, part);
+          
+          part = ds_temps[1] % 10;
+          if(part < 0) part = -part;
+          tcpServerClients[i].printf("DS18b20 #1 temp=%ld.%dC\n", ds_temps[1]/1000, part);
 #ifdef USE_DHT          
           tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", sid1_value, sid2_value);
       #endif
           
-          tcpServerClients[i].printf("Last TX: %s\n", dataString.c_str());
+          tcpServerClients[i].printf("Last TX: %s\n", dataString);
           tcpServerClients[i].flush();
         }
 
@@ -309,10 +318,14 @@ void loop()
     sprintf(str, "IP,ID: %s,%u", WiFi.localIP().toString().c_str(), (uint16_t)(ESP.getEfuseMac()>>32));
     display.drawString(0, 10, str);
 
-    sprintf(str, "DS18b20 #0: %lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
+    part = ds_temps[0] % 10;
+    if(part < 0) part = -part;
+    sprintf(str, "DS18b20 #0: %ld.%dC\n", ds_temps[0]/1000, part );
     display.drawString(0, 30, str);
 
-    sprintf(str, "DS18b20 #1: %lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
+    part = ds_temps[1] % 10;
+    if(part < 0) part = -part;
+    sprintf(str, "DS18b20 #1: %ld.%dC\n", ds_temps[1]/1000, part);
     display.drawString(0, 40, str);
 
     #ifdef USE_DHT
@@ -362,12 +375,14 @@ void loop()
     //data["name"] = "Room";
     data["timestamp"] = millis();
 
-    dataString.clear();
+    //dataString.clear();
+    memset ( (void*)dataString, 0, JSON_SIZE );
     serializeJson(root, dataString);    
     Serial.print("TX1:");
     Serial.print(dataString);
-    SendData(dataString.c_str(), mdns_index_hub);
-//        delay(1000);
+    SendData(dataString, mdns_index_hub);
+    if(OTArunning) return;
+    delay(800);
 
     root["sid"] = 0x02; // this sensor's ID
 
@@ -376,46 +391,57 @@ void loop()
     //data["desc"] = "Room";
     data["timestamp"] = millis();
 
-    dataString.clear();
+    //dataString.clear();
+    memset ( (void*)dataString, 0, JSON_SIZE );
     serializeJson(root, dataString);
     Serial.print("TX2:");
     Serial.print(dataString);
-    SendData(dataString.c_str(), mdns_index_hub);
+    SendData(dataString, mdns_index_hub);
+    if(OTArunning) return;
+    delay(800);
 
     // ---------- TEMP 1-WIRE SENSORS ----------------
 
     Serial.println();
     root["sid"] = 0x03; // this sensor's ID
 
-    sprintf(str, "%lu.%lu", ds_temps[0]/1000, ds_temps[0] % 10);
+    part = ds_temps[0] % 10;
+    if(part < 0) part = -part;
+    sprintf(str, "%ld.%d", ds_temps[0]/1000, part);
     data["value"] = str; // ds_temps[0]; //(float) random(0,99);
     data["unit"] = "DEG_C";
     //data["desc"] = "Motor";
     data["timestamp"] = millis();
 
-    dataString.clear();
+    //dataString.clear();
+    memset ( (void*)dataString, 0, JSON_SIZE );
+    //dataString[0] = '\0';
     serializeJson(root, dataString);
     Serial.print("TX3:");
     Serial.print(dataString);
 
-    SendData(dataString.c_str(), mdns_index_hub);
-
-    delay(500);
+    SendData(dataString, mdns_index_hub);
+    if(OTArunning) return;
+    delay(800);
 
     root["sid"] = 0x04; // this sensor's ID
 
-    sprintf(str, "%lu.%lu", ds_temps[1]/1000, ds_temps[1] % 10);
+    part = ds_temps[1] % 10;
+    if(part < 0) part = -part;
+    sprintf(str, "%ld.%d", ds_temps[1]/1000, part);
     data["value"] = str; //ds_temps[1]; //(float) random(0,99);
     data["unit"] = "DEG_C";
     //data["desc"] = "Inlet";
     data["timestamp"] = millis();
 
-    dataString.clear();
+    //dataString.clear();
+    memset ( (void*)dataString, 0, JSON_SIZE );
+    dataString[0] = '\0';
     serializeJson(root, dataString);
     Serial.print("TX4:");
     Serial.print(dataString);
 
-    SendData(dataString.c_str(), mdns_index_hub);
+    SendData(dataString, mdns_index_hub);
 
     Serial.print(F("All done!...\n****************************\n"));
   }
@@ -529,7 +555,7 @@ void readDS18B20() {
 
         Serial.print("  Temp: ");
         if (temp < 0) {
-            temp = -temp;
+            //temp = -temp;
             Serial.print('-');
         }
         Serial.print(temp / 1000);
