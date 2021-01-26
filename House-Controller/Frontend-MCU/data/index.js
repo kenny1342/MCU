@@ -119,7 +119,7 @@ jQuery(document).ready(function () {
           //console.error('Error:', error);
           if($("#chktestdata").is(":checked")){
             //console.log("using test data");
-            json = JSON.parse('{"cmd":18,"devid":16,"temp_c":22.9,"temp_motor_c":30,"hum_room_pct":31.9,"pressure_bar":3.722656,"WP":{"status":"RUN","t_state":145,"susp_r":0,"cnt_starts":1,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":145,"t_press_st":3,"press_st":0}}');
+            json = JSON.parse('{"cmd":18,"devid":16,"temp_c":22.9,"temp_inlet_c":90,"temp_motor_c":30,"hum_room_pct":31.9,"pressure_bar":3.722656,"WP":{"status":"RUN","t_state":145,"susp_r":0,"cnt_starts":1,"cnt_susp":0,"t_susp":0,"t_susp_tot":0,"t_totruntime":145,"t_press_st":3,"press_st":0}}');
             //console.log(json);
             localStorage.setItem('json0x12', JSON.stringify(json));
             //localStorage.setItem('json0x12', JSON.stringify("{}"));
@@ -252,6 +252,7 @@ jQuery(document).ready(function () {
         }
         
         $("#temperature").empty().append(parseFloat(json.temp_c).toFixed(1));
+        $("#temperature_inlet").empty().append(parseFloat(json.temp_inlet_c).toFixed(1));
         $("#temperature_motor").empty().append(parseFloat(json.temp_motor_c).toFixed(1));
         $("#hum_room_pct").empty().append(parseFloat(json.hum_room_pct).toFixed(1));
         $("#waterpressure").empty().append(parseFloat(json.pressure_bar).toFixed(2));
