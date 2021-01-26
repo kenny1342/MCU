@@ -15,12 +15,23 @@
 #include <Timemark.h>
 #include <main.h>
 
+#ifdef USE_AM2320
+  #ifdef USE_DHT
+    #error Either USE_AM2302 or USE_DHT must be enabled, not both
+  #endif
+#endif
+#ifndef USE_AM2320
+  #ifndef USE_DHT
+    #error One of USE_AM2302 or USE_DHT must be enabled
+  #endif
+#endif
+
 #define MAX_SRV_CLIENTS 1
 #define TCP_PORT (2323)
 WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
 #ifdef USE_AM2320
-AM2320 am2320_pumproom(&Wire); // AM2320 sensor attached SDA, SCL
+AM2320 am2320(&Wire); // AM2320 sensor attached SDA, SCL
 #endif
 
 #ifdef USE_DHT
@@ -34,8 +45,8 @@ SSD1306 display(0x3c, 4, 15);
 #endif
 
 long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
-double dht_temp = 0.0;
-double dht_hum = 0.0;
+double sid1_value = 0.0;
+double sid2_value = 0.0;
 
 Timemark tm_DataTX(1000);
 
@@ -218,15 +229,18 @@ void loop()
         }
         if(strncmp(buffer_cmd, "dump", 4) == 0) {
 #ifdef USE_AM2320          
-          tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320_pumproom.cTemp, am2320_pumproom.Humidity);
+          tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320.cTemp, am2320.Humidity);
 #endif          
+          tcpServerClients[i].printf("devid: %u\n", (uint16_t)(ESP.getEfuseMac()>>32));
+          tcpServerClients[i].printf("uptime: %lu\n", millis()/1000);
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
           tcpServerClients[i].printf("DS18b20 #0 temp=%lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
           tcpServerClients[i].printf("DS18b20 #1 temp=%lu.%luC\n", ds_temps[1]/1000, ds_temps[1] % 10);
 #ifdef USE_DHT          
-          tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", dht_temp, dht_hum);
+          tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", sid1_value, sid2_value);
       #endif
-
+          
+          tcpServerClients[i].printf("Last TX: %s\n", dataString.c_str());
           tcpServerClients[i].flush();
         }
 
@@ -252,14 +266,31 @@ void loop()
 
     #ifdef USE_DHT  
     Serial.print(F("Trying to read DHT/AM2302 sensor..."));
-    dht_temp = dht.readTemperature(false);
-    dht_hum = dht.readHumidity();
-    if(dht_temp == NAN || dht_hum == NAN) {
+    sid1_value = dht.readTemperature(false);
+    sid2_value = dht.readHumidity();
+    if(sid1_value == NAN || sid2_value == NAN) {
       Serial.println(F("ERR: Not found!"));
     } else {
-      Serial.printf("OK! temp=%0.2fC, hum=%0.2f%%\n", dht_temp, dht_hum);
+      Serial.printf("OK! temp=%0.2fC, hum=%0.2f%%\n", sid1_value, sid2_value);
     }
   #endif
+
+#ifdef USE_AM2320
+    // ----------- AM2320 TEMP & HUM ------------
+    Serial.print(F("Getting data from AM2320...\n"));
+
+    switch(am2320.Read()) {
+      case 2:
+        Serial.println("CRC failed!");
+        break;
+      case 1:
+        Serial.println("Offline!");
+        break;
+      case 0: // OK
+        sid1_value = am2320.cTemp;
+        sid2_value = am2320.Humidity;
+    }
+#endif
 
 #ifdef USE_TFT
     char str[50];
@@ -275,7 +306,7 @@ void loop()
     }
     display.drawString(0, 0, str);
 
-    sprintf(str, "IP: %s ", WiFi.localIP().toString().c_str());
+    sprintf(str, "IP,ID: %s,%u", WiFi.localIP().toString().c_str(), (uint16_t)(ESP.getEfuseMac()>>32));
     display.drawString(0, 10, str);
 
     sprintf(str, "DS18b20 #0: %lu.%luC\n", ds_temps[0]/1000, ds_temps[0] % 10);
@@ -285,7 +316,7 @@ void loop()
     display.drawString(0, 40, str);
 
     #ifdef USE_DHT
-    sprintf(str, "DHT #1: %0.2fC - %02.f%%\n", dht_temp, dht_hum);
+    sprintf(str, "DHT #1: %0.2fC - %02.f%%\n", sid1_value, sid2_value);
     display.drawString(0, 50, str);
     #endif
 
@@ -323,53 +354,33 @@ void loop()
 
     JsonObject data = doc.createNestedObject("data");
 
-#ifdef USE_AM2320
-    // ----------- AM2320 TEMP & HUM ------------
-    Serial.print(F("Getting data from AM2320...\n"));
+    // ---------- TEMP PUMP ROOM ----------------
+    root["sid"] = 0x01; // this sensor's ID
 
-    switch(am2320_pumproom.Read()) {
-      case 2:
-        Serial.println("CRC failed!");
-        break;
-      case 1:
-        Serial.println("Offline!");
-        break;
-      case 0:
+    data["value"] = sid1_value;
+    data["unit"] = "DEG_C";
+    //data["name"] = "Room";
+    data["timestamp"] = millis();
 
-        // ---------- TEMP PUMP ROOM ----------------
-        root["sid"] = 0x01; // this sensor's ID
-
-        data["value"] = am2320_pumproom.cTemp; //(float) random(5,39);
-        data["unit"] = "DEG_C";
-        data["name"] = "Room";
-        data["timestamp"] = millis();
-
-        dataString.clear();
-        serializeJson(root, dataString);    
-        Serial.print("TX1:");
-        Serial.print(dataString);
-        SendData(dataString.c_str(), mdns_index_hub);
+    dataString.clear();
+    serializeJson(root, dataString);    
+    Serial.print("TX1:");
+    Serial.print(dataString);
+    SendData(dataString.c_str(), mdns_index_hub);
 //        delay(1000);
 
-        root["sid"] = 0x02; // this sensor's ID
+    root["sid"] = 0x02; // this sensor's ID
 
-        data["value"] = am2320_pumproom.Humidity; //(float) random(0,99);
-        data["unit"] = "RH";
-        data["desc"] = "Room";
-        data["timestamp"] = millis();
+    data["value"] = sid2_value;
+    data["unit"] = "RH";
+    //data["desc"] = "Room";
+    data["timestamp"] = millis();
 
-        dataString.clear();
-        serializeJson(root, dataString);
-        Serial.print("TX2:");
-        Serial.print(dataString);
-        SendData(dataString.c_str(), mdns_index_hub);
-
-//        delay(1000);
-
-        break;
-    }    
-
-#endif
+    dataString.clear();
+    serializeJson(root, dataString);
+    Serial.print("TX2:");
+    Serial.print(dataString);
+    SendData(dataString.c_str(), mdns_index_hub);
 
     // ---------- TEMP 1-WIRE SENSORS ----------------
 
@@ -379,7 +390,7 @@ void loop()
     sprintf(str, "%lu.%lu", ds_temps[0]/1000, ds_temps[0] % 10);
     data["value"] = str; // ds_temps[0]; //(float) random(0,99);
     data["unit"] = "DEG_C";
-    data["desc"] = "Motor";
+    //data["desc"] = "Motor";
     data["timestamp"] = millis();
 
     dataString.clear();
@@ -396,7 +407,7 @@ void loop()
     sprintf(str, "%lu.%lu", ds_temps[1]/1000, ds_temps[1] % 10);
     data["value"] = str; //ds_temps[1]; //(float) random(0,99);
     data["unit"] = "DEG_C";
-    data["desc"] = "Inlet";
+    //data["desc"] = "Inlet";
     data["timestamp"] = millis();
 
     dataString.clear();
