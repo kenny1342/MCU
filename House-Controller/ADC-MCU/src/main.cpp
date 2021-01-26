@@ -166,7 +166,7 @@ void setup()
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
-  Serial_SensorHub.begin(19200);
+  Serial_SensorHub.begin(115200);
 Serial_SensorHub.clearWriteError();
 
 
@@ -844,6 +844,7 @@ if(Serial_SensorHub.available() > 10) {
     root["cmd"] = 0x12; // ADCWATERPUMPDATA
     root["devid"] = 0x10;
     root["temp_c"] = WATERPUMP.temp_pumphouse_val; // TODO: rename to temp_room_c
+    root["temp_inlet_c"] = WATERPUMP.temp_inlet_val;
     root["temp_motor_c"] = WATERPUMP.temp_motor_val;
     root["hum_room_pct"] = WATERPUMP.hum_pumphouse_val;
     root["pressure_bar"] = WATERPUMP.water_pressure_bar_val;
