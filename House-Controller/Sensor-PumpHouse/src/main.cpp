@@ -10,8 +10,6 @@
 #include <AM2320.h>
 #include <Adafruit_Sensor.h>
 #include "DHT.h"
-//#include <OneWire.h>
-//#include <DallasTemperature.h>
 #include <Timemark.h>
 #include <main.h>
 
@@ -30,6 +28,7 @@
 #define TCP_PORT (2323)
 WiFiServer tcpServer(TCP_PORT);
 WiFiClient tcpServerClients[MAX_SRV_CLIENTS];
+
 #ifdef USE_AM2320
 AM2320 am2320(&Wire); // AM2320 sensor attached SDA, SCL
 #endif
@@ -38,30 +37,24 @@ AM2320 am2320(&Wire); // AM2320 sensor attached SDA, SCL
 DHT dht(PIN_DHT_SENSOR, DHTTYPE);
 #endif
 
-OneWire  ds_sensors(PIN_SENSOR_TEMP_MOTOR); 
-
 #ifdef USE_TFT
 SSD1306 display(0x3c, 4, 15);
 #endif
 
-bool OTArunning = false;
+static OneWireNg *ow = NULL;
 
 long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
 double sid1_value = 0.0;
 double sid2_value = 0.0;
 
 Timemark tm_DataTX(5000);
+Timemark tm_reboot(3600000);
 
-// reading buffor config
-//#define BUFFER_SIZE 1024
-//byte buff[BUFFER_SIZE];
-
+bool OTArunning = false;
 uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
 uint8_t hubconntries = 0;
 
-
-static OneWireNg *ow = NULL;
 
 void setup()
 {
@@ -153,7 +146,7 @@ void setup()
 dht.begin();
 #endif
 
-ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
+ow = new OneWireNg_CurrentPlatform(PIN_DALLAS_SENSORS, false);
 #if (CONFIG_MAX_SRCH_FILTERS > 0)
     /* if filtering is enabled - filter to supported devices only;
        CONFIG_MAX_SRCH_FILTERS must be large enough to embrace all code ids */
@@ -169,24 +162,31 @@ ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
   }
 
   tm_DataTX.start();
+  tm_reboot.start();
+
 }
  
 
 void loop()
 {
-  //String dataString = "";
-  //char dataString[JSON_SIZE] = {0};
+  
   int8_t part;
   StaticJsonDocument<JSON_SIZE> doc;
   uint8_t i;
   int bytesAvail;
+  bool doDataTX = tm_DataTX.expired();
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi connection gone, reboot");
-    ESP.restart();
     delay(1000);
+    ESP.restart();    
   }
 
+  if(tm_reboot.expired()) {
+    Serial.print("\n*** SCHEDULED DEBUG REBOOT....\n");
+    delay(1000); 
+    ESP.restart();
+  }
 
   ArduinoOTA.handle();
 
@@ -213,7 +213,7 @@ void loop()
     if (tcpServerClients[i] && tcpServerClients[i].connected()) {
       //get data from the telnet client and push it to the UART
       
-      if((bytesAvail = tcpServerClients[i].available()) > 0) {
+      if(doDataTX || (bytesAvail = tcpServerClients[i].available()) > 0) {
         Serial.print(bytesAvail);
         Serial.println(" BYTES FROM TCP:");
 
@@ -230,10 +230,10 @@ void loop()
           delay(2000);
           ESP.restart();
         }
-        if(strncmp(buffer_cmd, "dump", 4) == 0) {
-#ifdef USE_AM2320          
+        if(doDataTX || strncmp(buffer_cmd, "dump", 4) == 0) {
+          #ifdef USE_AM2320          
           tcpServerClients[i].printf("AM2320: temp=%0.2f hum=%0.2f\n", am2320.cTemp, am2320.Humidity);
-#endif          
+          #endif          
           tcpServerClients[i].printf("devid: %u\n", (uint16_t)(ESP.getEfuseMac()>>32));
           tcpServerClients[i].printf("uptime: %lu\n", millis()/1000);
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
@@ -245,23 +245,12 @@ void loop()
           part = ds_temps[1] % 10;
           if(part < 0) part = -part;
           tcpServerClients[i].printf("DS18b20 #1 temp=%ld.%dC\n", ds_temps[1]/1000, part);
-#ifdef USE_DHT          
+          #ifdef USE_DHT          
           tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", sid1_value, sid2_value);
-      #endif
+          #endif
           
-          //tcpServerClients[i].printf("Last TX: %s\n", dataString);
           tcpServerClients[i].flush();
         }
-
-      }
-
-      // read data from TCP client
-      int size = 0;
-      while ((size = tcpServerClients[i].available())) {
-                /*size = (size >= BUFFER_SIZE ? BUFFER_SIZE : size);
-                tcpServerClients[i].read(buff, size);
-                Serial.write(buff, size);
-                Serial.flush();*/
 
       }
     }
@@ -269,9 +258,9 @@ void loop()
 /*
 */
 
-  if(tm_DataTX.expired()) {
+  if(doDataTX) {
 
-      readDS18B20();
+    readDS18B20();
 
     #ifdef USE_DHT  
     Serial.print(F("Trying to read DHT/AM2302 sensor..."));

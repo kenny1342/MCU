@@ -14,7 +14,7 @@ bool debug = true;
 
 #define JSON_SIZE                   512
 #define FIRMWARE_VERSION            "4.1"
-#define PIN_SENSOR_TEMP_MOTOR       25      // DS18B20 on GPIO x (a 4.7K resistor is necessary)
+#define PIN_DALLAS_SENSORS          25      // DS18B20 on GPIO x (a 4.7K resistor is necessary)
 #define NUM_DS_SENSORS              2   // nr of DS18B20 we have on the 1-wire bus
 #define PIN_DHT_SENSOR              13
 
