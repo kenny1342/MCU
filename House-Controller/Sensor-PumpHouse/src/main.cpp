@@ -212,8 +212,8 @@ void loop()
   for (i = 0; i < MAX_SRV_CLIENTS; i++) {
     if (tcpServerClients[i] && tcpServerClients[i].connected()) {
       //get data from the telnet client and push it to the UART
-      
-      if(doDataTX || (bytesAvail = tcpServerClients[i].available()) > 0) {
+      bytesAvail = tcpServerClients[i].available();
+      if(doDataTX || bytesAvail > 0) {
         Serial.print(bytesAvail);
         Serial.println(" BYTES FROM TCP:");
 
@@ -238,13 +238,12 @@ void loop()
           tcpServerClients[i].printf("uptime: %lu\n", millis()/1000);
           tcpServerClients[i].printf("DS18b20 device count:%u\n", ds_deviceCount);
 
-          part = ds_temps[0] % 10;
-          if(part < 0) part = -part;
-          tcpServerClients[i].printf("DS18b20 #0 temp=%ld.%dC\n", ds_temps[0]/1000, part);
-          
-          part = ds_temps[1] % 10;
-          if(part < 0) part = -part;
-          tcpServerClients[i].printf("DS18b20 #1 temp=%ld.%dC\n", ds_temps[1]/1000, part);
+          for (int x=0; x < ds_deviceCount; x++) {
+            part = ds_temps[x] % 10;
+            if(part < 0) part = -part;
+            tcpServerClients[i].printf("DS18b20 #%u temp=%ld.%dC\n", x, ds_temps[x]/1000, part);
+          }
+
           #ifdef USE_DHT          
           tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", sid1_value, sid2_value);
           #endif
@@ -304,18 +303,17 @@ void loop()
     }
     display.drawString(0, 0, str);
 
-    sprintf(str, "IP,ID: %s,%u", WiFi.localIP().toString().c_str(), (uint16_t)(ESP.getEfuseMac()>>32));
+    sprintf(str, "%s,%u", WiFi.localIP().toString().c_str(), (uint16_t)(ESP.getEfuseMac()>>32));
     display.drawString(0, 10, str);
 
-    part = ds_temps[0] % 10;
-    if(part < 0) part = -part;
-    sprintf(str, "DS18b20 #0: %ld.%dC\n", ds_temps[0]/1000, part );
-    display.drawString(0, 30, str);
-
-    part = ds_temps[1] % 10;
-    if(part < 0) part = -part;
-    sprintf(str, "DS18b20 #1: %ld.%dC\n", ds_temps[1]/1000, part);
-    display.drawString(0, 40, str);
+    uint8_t line=30;
+    for (int x=0; x < ds_deviceCount; x++) {
+      part = ds_temps[x] % 10;
+      if(part < 0) part = -part;
+      sprintf(str, "DS #%u:  %ld.%dC\n", x, ds_temps[x]/1000, part );
+      display.drawString(0, line, str);
+      line += 10;
+    }
 
     #ifdef USE_DHT
     sprintf(str, "DHT #1: %0.2fC - %02.f%%\n", sid1_value, sid2_value);
@@ -360,52 +358,34 @@ void loop()
 
     SendData(root, mdns_index_hub);
 
-    // ---------- TEMP PUMP ROOM ----------------
+    // ---------- TEMP/HUM  ----------------
     root["sid"] = 0x01; // this sensor's ID
     data.clear();
     data["value"] = sid1_value;
-    //data["unit"] = "DEG_C";
-    //data["name"] = "Room";
-    //data["timestamp"] = millis();
 
     SendData(root, mdns_index_hub);
 
     root["sid"] = 0x02; // this sensor's ID
     data.clear();
     data["value"] = sid2_value;
-    //data["unit"] = "RH";
-    //data["desc"] = "Room";
-    //data["timestamp"] = millis();
 
     SendData(root, mdns_index_hub);
 
-    // ---------- TEMP 1-WIRE SENSORS ----------------
+    // ---------- DALLAS 1-WIRE SENSORS ----------------
 
-    root["sid"] = 0x03; // this sensor's ID
-    data.clear();
+    uint8_t sid=0x03;
+    for (int x=0; x < ds_deviceCount; x++) {
+      root["sid"] = sid; // this sensor's ID
+      data.clear();
 
-    part = ds_temps[0] % 10;
-    if(part < 0) part = -part;
-    sprintf(str, "%ld.%d", ds_temps[0]/1000, part);
-    data["value"] = str; // ds_temps[0]; //(float) random(0,99);
-    //data["unit"] = "DEG_C";
-    //data["desc"] = "Motor";
-    //data["timestamp"] = millis();
+      part = ds_temps[x] % 10;
+      if(part < 0) part = -part;
 
-    SendData(root, mdns_index_hub);
-
-    root["sid"] = 0x04; // this sensor's ID
-    data.clear();
-
-    part = ds_temps[1] % 10;
-    if(part < 0) part = -part;
-    sprintf(str, "%ld.%d", ds_temps[1]/1000, part);
-    data["value"] = str; //ds_temps[1]; //(float) random(0,99);
-    //data["unit"] = "DEG_C";
-    //data["desc"] = "Inlet";
-    //data["timestamp"] = millis();
-
-    SendData(root, mdns_index_hub);
+      sprintf(str, "%ld.%d", ds_temps[x]/1000, part);
+      data["value"] = str;
+      SendData(root, mdns_index_hub);
+      sid++;
+    }
 
     Serial.print(F("All done!...\n****************************\n"));
   }
