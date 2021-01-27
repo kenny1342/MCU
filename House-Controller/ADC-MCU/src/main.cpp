@@ -66,7 +66,7 @@ Timemark tm_100ms_setAlarms(10);
 Timemark tm_UpdateEMON(500);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
-Timemark tm_DataStale_50406_1(3600000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
+Timemark TM_DataStale_WATERPUMP_1(3600000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
 Timemark tm_SerialDebug(5000);
 Timemark tm_ClearLastAlarm(1*3600000); // clear last alarm
 
@@ -81,7 +81,7 @@ Timemark *Timers[NUM_TIMERS] = {
   &tm_UpdateEMON,
   &tm_DataTX, 
   &tm_buzzer, 
-  &tm_DataStale_50406_1, 
+  &TM_DataStale_WATERPUMP_1, 
   &tm_SerialDebug,
   &tm_ClearLastAlarm 
   };
@@ -93,7 +93,7 @@ enum Timers {   TM_blinkAlarm,
   TM_UpdateEMON,
   TM_DataTX, 
   TM_buzzer, 
-  TM_DataStale_50406_1, 
+  TM_DataStale_WATERPUMP_1, 
   TM_SerialDebug,
   TM_ClearLastAlarm 
 };
@@ -454,8 +454,8 @@ ISR (TIMER2_COMPA_vect)
 
       ALARMS_WP.sensor_error_room = 0;
 
-      if(!Timers[TM_DataStale_50406_1]->running() || Timers[TM_DataStale_50406_1]->expired() || WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
-        Timers[TM_DataStale_50406_1]->stop();
+      if(!Timers[TM_DataStale_WATERPUMP_1]->running() || Timers[TM_DataStale_WATERPUMP_1]->expired() || WATERPUMP.temp_pumphouse_val < -20.0 || WATERPUMP.temp_pumphouse_val > 40.0) {
+        Timers[TM_DataStale_WATERPUMP_1]->stop();
         ALARMS_WP.sensor_error_room = 1;
         WATERPUMP.hum_pumphouse_val = -1.0;
         WATERPUMP.temp_motor_val = 0.0;
@@ -633,12 +633,12 @@ if(Serial_SensorHub.available() > 10) {
         uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
         uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
         switch(_devid) {
-          case DEVID_PROBE_PUMPHOUSE: // NEW EP32 Probe in pump house
+          case DEVID_PROBE_WATERPUMP: // NEW EP32 Probe in pump house
           {
             if(sid == 0x01) { 
               WATERPUMP.temp_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();
-              //Timers[TM_DataStale_50406_1]->limitMillis(10000);
-              Timers[TM_DataStale_50406_1]->start(); // restart "old data" timer
+              //Timers[TM_DataStale_WATERPUMP_1]->limitMillis(10000);
+              Timers[TM_DataStale_WATERPUMP_1]->start(); // restart "old data" timer
             }
             if(sid == 0x02) { 
               WATERPUMP.hum_pumphouse_val = tmp_json.getMember("data").getMember("value").as<float>();

@@ -165,7 +165,7 @@ void loop()
             byte c = serverClients[i].read();
             Serial.write(c);
             Serial_one.write(c);
-            delay(10); // so the slower Mega can keep up...
+            delayMicroseconds(2500); // so the slower Mega can keep up...
           }
             byte c = '\n';
             Serial.write(c);

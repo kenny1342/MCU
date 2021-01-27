@@ -34,7 +34,7 @@ const uint16_t port = 8880;
 //const char * host = "192.168.4.1";
 const char * host = "SENSORHUB.local"; // mDNS name
 
-void SendData(const char * json, const uint8_t mdns_index);
+void SendData(JsonObject &jsonObj, uint8_t mdns_index);
 bool readDS18B20(OneWire *ds, bool parasitePower/*, double *celsius*/);
 int getStrength(int points);
 

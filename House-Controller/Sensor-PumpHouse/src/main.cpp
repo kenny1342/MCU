@@ -175,7 +175,7 @@ ow = new OneWireNg_CurrentPlatform(PIN_SENSOR_TEMP_MOTOR, false);
 void loop()
 {
   //String dataString = "";
-  char dataString[JSON_SIZE] = {0};
+  //char dataString[JSON_SIZE] = {0};
   int8_t part;
   StaticJsonDocument<JSON_SIZE> doc;
   uint8_t i;
@@ -249,7 +249,7 @@ void loop()
           tcpServerClients[i].printf("DHT: temp=%0.2fC - %0.2f%%\n", sid1_value, sid2_value);
       #endif
           
-          tcpServerClients[i].printf("Last TX: %s\n", dataString);
+          //tcpServerClients[i].printf("Last TX: %s\n", dataString);
           tcpServerClients[i].flush();
         }
 
@@ -359,101 +359,77 @@ void loop()
 
     root["cmd"] = 0x45; // REMOTE_SENSOR_DATA
     root["devid"] = (uint16_t)(ESP.getEfuseMac()>>32); // this device ID
-    root["firmware"] = FIRMWARE_VERSION;
-    root["IP"] = WiFi.localIP().toString();
-    root["port"] = TCP_PORT;
-    root["uptime_sec"] = (uint32_t) millis() / 1000;
-    root["rssi"] = getStrength(5);
+    root["sid"] = 0x00; // this sensor's ID (0=probe system data)
 
     JsonObject data = doc.createNestedObject("data");
+    
+    data["firmware"] = FIRMWARE_VERSION;
+    data["IP"] = WiFi.localIP().toString();
+    data["port"] = TCP_PORT;
+    data["uptime_sec"] = (uint32_t) millis() / 1000;
+    data["rssi"] = getStrength(5);
+
+    SendData(root, mdns_index_hub);
 
     // ---------- TEMP PUMP ROOM ----------------
     root["sid"] = 0x01; // this sensor's ID
-
+    data.clear();
     data["value"] = sid1_value;
-    data["unit"] = "DEG_C";
+    //data["unit"] = "DEG_C";
     //data["name"] = "Room";
-    data["timestamp"] = millis();
+    //data["timestamp"] = millis();
 
-    //dataString.clear();
-    memset ( (void*)dataString, 0, JSON_SIZE );
-    serializeJson(root, dataString);    
-    Serial.print("TX1:");
-    Serial.print(dataString);
-    SendData(dataString, mdns_index_hub);
-    if(OTArunning) return;
-    delay(800);
+    SendData(root, mdns_index_hub);
 
     root["sid"] = 0x02; // this sensor's ID
-
+    data.clear();
     data["value"] = sid2_value;
-    data["unit"] = "RH";
+    //data["unit"] = "RH";
     //data["desc"] = "Room";
-    data["timestamp"] = millis();
+    //data["timestamp"] = millis();
 
-    //dataString.clear();
-    memset ( (void*)dataString, 0, JSON_SIZE );
-    serializeJson(root, dataString);
-    Serial.print("TX2:");
-    Serial.print(dataString);
-    SendData(dataString, mdns_index_hub);
-    if(OTArunning) return;
-    delay(800);
+    SendData(root, mdns_index_hub);
 
     // ---------- TEMP 1-WIRE SENSORS ----------------
 
-    Serial.println();
     root["sid"] = 0x03; // this sensor's ID
+    data.clear();
 
     part = ds_temps[0] % 10;
     if(part < 0) part = -part;
     sprintf(str, "%ld.%d", ds_temps[0]/1000, part);
     data["value"] = str; // ds_temps[0]; //(float) random(0,99);
-    data["unit"] = "DEG_C";
+    //data["unit"] = "DEG_C";
     //data["desc"] = "Motor";
-    data["timestamp"] = millis();
+    //data["timestamp"] = millis();
 
-    //dataString.clear();
-    memset ( (void*)dataString, 0, JSON_SIZE );
-    //dataString[0] = '\0';
-    serializeJson(root, dataString);
-    Serial.print("TX3:");
-    Serial.print(dataString);
-
-    SendData(dataString, mdns_index_hub);
-    if(OTArunning) return;
-    delay(800);
+    SendData(root, mdns_index_hub);
 
     root["sid"] = 0x04; // this sensor's ID
+    data.clear();
 
     part = ds_temps[1] % 10;
     if(part < 0) part = -part;
     sprintf(str, "%ld.%d", ds_temps[1]/1000, part);
     data["value"] = str; //ds_temps[1]; //(float) random(0,99);
-    data["unit"] = "DEG_C";
+    //data["unit"] = "DEG_C";
     //data["desc"] = "Inlet";
-    data["timestamp"] = millis();
+    //data["timestamp"] = millis();
 
-    //dataString.clear();
-    memset ( (void*)dataString, 0, JSON_SIZE );
-    dataString[0] = '\0';
-    serializeJson(root, dataString);
-    Serial.print("TX4:");
-    Serial.print(dataString);
-
-    SendData(dataString, mdns_index_hub);
+    SendData(root, mdns_index_hub);
 
     Serial.print(F("All done!...\n****************************\n"));
   }
 
-
-
 }
 
-void SendData(const char * json, uint8_t mdns_index) {
+void SendData(JsonObject &jsonObj, uint8_t mdns_index) {
 
+    char dataString[JSON_SIZE] = {0};
     WiFiClient client;
  
+    if(OTArunning) return;
+
     if (!client.connect(MDNS.IP(mdns_index), MDNS.port(mdns_index))) {
       if(++hubconntries > 20) {
         Serial.println(F("too many HUB conn tries, rebooting"));
@@ -464,8 +440,16 @@ void SendData(const char * json, uint8_t mdns_index) {
         return;
     }
 
+    //memset ( (void*)dataString, 0, JSON_SIZE );
+    //JsonObject root = doc.to<JsonObject>();
+    serializeJson(jsonObj, dataString);    
+    Serial.print("TX:");
+    Serial.print(dataString);
+    
+    
+    delay(600);
 
-  client.print(json);
+  client.print(dataString);
   
   client.stop();
 
@@ -556,7 +540,7 @@ void readDS18B20() {
         Serial.print("  Temp: ");
         if (temp < 0) {
             //temp = -temp;
-            Serial.print('-');
+            //Serial.print('-');
         }
         Serial.print(temp / 1000);
         Serial.print('.');
