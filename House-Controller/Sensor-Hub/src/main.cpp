@@ -13,9 +13,14 @@
 #include <SPI.h>
 #include <ESPmDNS.h>
 #include <Timemark.h>
+#include <esp_task_wdt.h>
+
+//3 seconds WDT
+#define WDT_TIMEOUT 8
 
 Timemark tm_SendData(5000);
 Timemark tm_reboot(3600000);
+Timemark tm_WDT_reset(500);
 
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
@@ -25,6 +30,7 @@ char JSON_STRINGS[1][bufferSize] = {0};
 
 char buffer[1];
 uint16_t cnt;
+
 
 void setup() {
   delay(500);
@@ -36,6 +42,11 @@ void setup() {
   Serial_one.begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 
   if(debug) Serial.println("\n\nSensor-HUP WiFi serial bridge Vx.xx");
+
+  Serial.println("Configuring WDT...");
+  esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL); //add current thread to WDT watch
+
   #ifdef MODE_AP 
    if(debug) Serial.println("Open ESP Access Point mode");
   //AP mode (phone connects directly to ESP) (no router)
@@ -114,6 +125,7 @@ void setup() {
  
   tm_SendData.start();
   tm_reboot.start();
+  tm_WDT_reset.start();
 }
 
 
@@ -121,6 +133,11 @@ void loop()
 { 
   
   ArduinoOTA.handle();
+
+  // resetting WDT every 2s, 5 times only
+  if (tm_WDT_reset.expired()) {
+      esp_task_wdt_reset();
+  }
 
   if(tm_SendData.expired()) {
 
