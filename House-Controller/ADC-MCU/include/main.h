@@ -14,7 +14,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.23"
+#define FIRMWARE_VERSION            "2.24"
 #define JSON_SIZE                   512
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
@@ -60,13 +60,13 @@
 
 #define DEF_EMON_ICAL_K2            0.40
 #define DEF_EMON_ICAL_K3            3.02
-#define DEF_CONF_WP_LOWER           3.75 // water pressure lower threshold (bar*100) before starting pump
+#define DEF_CONF_WP_LOWER           3.55 // water pressure lower threshold (bar*100) before starting pump
 #define DEF_CONF_WP_UPPER           4.10 // water pressure upper threshold (bar*100) before stopping pump
 #define DEF_CONF_WP_MAX_RUNTIME     1800L  // max duration we should let pump run (seconds) (1800=30min)
 #define DEF_CONF_WP_SUSPENDTIME     180L  // seconds to wait after alarms are cleared before we start pump again
-#define DEF_CONF_WP_RUNTIME_ACC_ALARM  4U    // if we run shorter than this we raise accumulator/low air pressure alarm
-#define DEF_CONF_MIN_TEMP_PUMPHOUSE 0U   // uint8_t! minimum temp pumphouse in degrees C*10 before raising alarm
-#define LOWMEM_LIMIT                100  // minimum free memory before raising alarm
+#define DEF_CONF_WP_RUNTIME_ACC_ALARM  4U    // if we run shorter than n sec we raise accumulator/low air pressure alarm
+#define DEF_CONF_MIN_TEMP_PUMPHOUSE 6U   // uint8_t! minimum temp pumphouse in degrees C*10 before raising alarm
+#define LOWMEM_LIMIT                500  // minimum free memory before raising alarm
 
 
 // Structs

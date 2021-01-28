@@ -457,7 +457,11 @@ ISR (TIMER2_COMPA_vect)
 
       ALARMS_WP.temperature_pumphouse = 0;
       if(!ALARMS_WP.sensor_error_room && WATERPUMP.temp_pumphouse_val < APPCONFIG.min_temp_pumphouse) {
-        ALARMS_WP.temperature_pumphouse = 1;
+        
+        // make sure we actually have gotten some valid data before alarming
+        if(WATERPUMP.temp_pumphouse_val != 0.0 && WATERPUMP.hum_pumphouse_val != -1.0 ) {
+          ALARMS_WP.temperature_pumphouse = 1;
+        }
       } else {    
           if(ALARMS_WP.temperature_pumphouse) {
             start_wp_suspension = 1; // was active until now, start suspension period
@@ -644,10 +648,10 @@ void loop() // run over and over
             }
 
             if(sid == 0x03) { // this is DS18B20 sensor
-              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
-            }
-            if(sid == 0x04) { // this is DS18B20 sensor
               WATERPUMP.temp_inlet_val = tmp_json.getMember("data").getMember("value").as<float>();              
+            }
+            if(sid == 0x04) { // this is DS18B20 sensor              
+              WATERPUMP.temp_motor_val = tmp_json.getMember("data").getMember("value").as<float>();              
             }
 
           }
@@ -668,7 +672,7 @@ void loop() // run over and over
     currentMicros = micros();
     for(int c=0; c<freq_sample_count; c++){
       samples[c] = analogRead(ADC_CH_VOLT_L_N);
-      _delay_us(100); // get a higher resolution delay
+      _delay_us(10); // get a higher resolution delay
     }
     duration = micros() - currentMicros;
 
