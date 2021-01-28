@@ -32,7 +32,7 @@ char lastAlarm[20] = "-";
 
 // For SPI data processing/ISR
 volatile uint16_t indx;
-volatile bool SPI_dataready = false;
+volatile bool HUB_dataready = false;
 char buffer_sensorhub[JSON_SIZE];
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
@@ -66,7 +66,7 @@ Timemark tm_100ms_setAlarms(10);
 Timemark tm_UpdateEMON(500);
 Timemark tm_DataTX(DATA_TX_INTERVAL);
 Timemark tm_buzzer(0);
-Timemark TM_DataStale_WATERPUMP_1(3600000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
+Timemark tm_DataStale_WATERPUMP_1(3600000); // We expect Pump House temperature updated within n min, if not we clear/alarm it
 Timemark tm_SerialDebug(5000);
 Timemark tm_ClearLastAlarm(1*3600000); // clear last alarm
 
@@ -81,7 +81,7 @@ Timemark *Timers[NUM_TIMERS] = {
   &tm_UpdateEMON,
   &tm_DataTX, 
   &tm_buzzer, 
-  &TM_DataStale_WATERPUMP_1, 
+  &tm_DataStale_WATERPUMP_1, 
   &tm_SerialDebug,
   &tm_ClearLastAlarm 
   };
@@ -296,7 +296,7 @@ ISR(USART3_RX_vect)
 */
 
 /**
- * ISR to handle incoming data from SPI (remote probes via WiFi Hub)
+ * ISR to handle incoming data from HUB (remote probes via WiFi Hub)
  */
 //ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 ISR(TIMER1_COMPA_vect)
@@ -304,26 +304,10 @@ ISR(TIMER1_COMPA_vect)
   TCNT1 = timer1_counter;   // preload timer
   if(millis() < 1000) return; // just powered up, let things stabilize
 
-  //bool doSerialDebug = true;
-  //const char * SPIData = buffer_sensorhub;
+  TIMSK1 |= (1 << OCIE1A); // disable ISR
 
 
-  //--------- forward JSON data string received from Sensor-Hub via SPI (data from sensors connected via wifi) to the Frontend -------
-  /*
-  noInterrupts();
-  strcpy(SPIData, (char *)buffer_sensorhub);
-  NewSPIData=SPI_dataready;
-  SPI_dataready = false;
-  interrupts();
-  */
-
-  
-  if(SPI_dataready && !APPFLAGS.isUpdatingData) {
-    SPI_dataready = false;
-    APPFLAGS.isUpdatingData = true;
-  }
-
-  APPFLAGS.isUpdatingData = false;
+  TIMSK1 &= (1 << OCIE1A); // enable ISR
 }
 
 
@@ -594,24 +578,19 @@ void loop() // run over and over
 
   APPFLAGS.isUpdatingData = true;
 
-//if(Serial_SensorHub.find('}')) {
-if(Serial_SensorHub.available() > 10) {
-  //Serial.println("RXHUB:");
-
-  //buffer_sensorhub[0] = '\0';
-  memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
+  if(Serial_SensorHub.available() > 10) {
+    memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
     Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
-    SPI_dataready = true;
+    HUB_dataready = true;
     Serial.print("RXHUB:");
     Serial.print(buffer_sensorhub);
     //Serial.println("***");
 
-    const char * SPIData = buffer_sensorhub;
-    if(doSerialDebug) { Serial.print (SPIData); Serial.print("\n"); } //print the array on serial monitor    
+    const char * buffer_sensorhub_ptr = buffer_sensorhub;
+    if(doSerialDebug) { Serial.print (buffer_sensorhub_ptr); Serial.print("\n"); } //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
-    // TODO: change to SPI
-    Serial_Frontend.write(SPIData);
+    Serial_Frontend.write(buffer_sensorhub_ptr);
     Serial_Frontend.write('\n');
   
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
@@ -622,14 +601,14 @@ if(Serial_SensorHub.available() > 10) {
     //tmp_json.shrinkToFit();
 
     if (error) {
-      Serial.write(SPIData);
+      Serial.write(buffer_sensorhub_ptr);
       Serial.print(F("\n^JSON_ERR:"));
       Serial.println(error.f_str());
       
     } else {
 
       if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-//Serial.println("REMOTE DATA 0x45");
+        //Serial.println("REMOTE DATA 0x45");
         uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
         uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
         switch(_devid) {
@@ -662,10 +641,6 @@ if(Serial_SensorHub.available() > 10) {
       } // 0x45
     } // no json error
 
-
-
-
-
   }
 
     //----------- Update EMON (Mains) AC Frequency data -------------
@@ -673,7 +648,7 @@ if(Serial_SensorHub.available() > 10) {
     currentMicros = micros();
     for(int c=0; c<freq_sample_count; c++){
       samples[c] = analogRead(ADC_CH_VOLT_L_N);
-      _delay_us(50); // get a higher resolution delay
+      _delay_us(100); // get a higher resolution delay
     }
     duration = micros() - currentMicros;
 
@@ -748,19 +723,6 @@ if(Serial_SensorHub.available() > 10) {
     
     APPFLAGS.isSendingData = 1;
 
-
-
-/*
-  EnergyMonitor emon1;             // Create an instance
-  emon1.voltage(ADC_CH_VOLT_L_N, 50.26, 1.1);  // Voltage: input pin, calibration, phase_shift
-  emon1.current(ADC_CH_CT_K1, 2.1);       // Current: input pin, calibration.
-  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
-  emon1.serialprint();           // Print out all variables (realpower, apparent power, Vrms, Irms, power factor)
-  */
-
-
-
-
     DynamicJsonDocument doc(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     JsonObject root = doc.to<JsonObject>();
     
@@ -773,38 +735,34 @@ if(Serial_SensorHub.available() > 10) {
     root["freemem"] = freeMemory();
 
     data = doc.createNestedArray("alarms");
-
-    //if(getAlarmStatus_WP(ALARMS_WP.allBits) || getAlarmStatus_EMON(ALARMS_EMON.allBits) || getAlarmStatus_SYS(ALARMS_SYS.allBits)) { // any alarm bit set?
       
-      for(uint8_t x=0; x<8; x++) {
-        if( (ALARMS_SYS.allBits >> x) & 1) { // is bit set?
-          const char * text = alarm_Text_SYS[x];
-          data.add(text);
-          strncpy(lastAlarm, text, sizeof(lastAlarm));
-        }
-      }      
+    for(uint8_t x=0; x<8; x++) {
+      if( (ALARMS_SYS.allBits >> x) & 1) { // is bit set?
+        const char * text = alarm_Text_SYS[x];
+        data.add(text);
+        strncpy(lastAlarm, text, sizeof(lastAlarm));
+      }
+    }      
+    
+    for(uint8_t x=0; x<8; x++) {
       
-      for(uint8_t x=0; x<8; x++) {
-        
-        const char * text = alarm_Text_WP[x];
-        if( (ALARMS_WP.allBits >> x) & 1) { // is bit set?
-          data.add(text);
-          strncpy(lastAlarm, text, sizeof(lastAlarm));
-        }
+      const char * text = alarm_Text_WP[x];
+      if( (ALARMS_WP.allBits >> x) & 1) { // is bit set?
+        data.add(text);
+        strncpy(lastAlarm, text, sizeof(lastAlarm));
       }
+    }
 
-      for(uint8_t x=0; x<8; x++) {
-        if( (ALARMS_EMON.allBits >> x) & 1) { // is bit set?
-          const char * text = alarm_Text_EMON[x];
-          data.add(text);
-          strncpy(lastAlarm, text, sizeof(lastAlarm));
-        }
+    for(uint8_t x=0; x<8; x++) {
+      if( (ALARMS_EMON.allBits >> x) & 1) { // is bit set?
+        const char * text = alarm_Text_EMON[x];
+        data.add(text);
+        strncpy(lastAlarm, text, sizeof(lastAlarm));
       }
+    }
 
-    //}
     root["lastAlarm"] = lastAlarm;
 
-    //dataString = "";
     dataString[0] = '\0';
     serializeJson(root, dataString);
     if(doSerialDebug) Serial.println(dataString);
@@ -831,7 +789,6 @@ if(Serial_SensorHub.available() > 10) {
       circuit["PF"] = KRAEMONS[x]->powerFactor;
     }
 
-    //dataString = "";
     dataString[0] = '\0';
     serializeJson(root, dataString);
     if(doSerialDebug) Serial.println(dataString);
