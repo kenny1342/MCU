@@ -33,7 +33,7 @@ char lastAlarm[20] = "-";
 // For SPI data processing/ISR
 volatile uint16_t indx;
 volatile bool HUB_dataready = false;
-char buffer_sensorhub[JSON_SIZE];
+char buffer_sensorhub_isr[JSON_SIZE];
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
@@ -304,10 +304,19 @@ ISR(TIMER1_COMPA_vect)
   TCNT1 = timer1_counter;   // preload timer
   if(millis() < 1000) return; // just powered up, let things stabilize
 
-  TIMSK1 |= (1 << OCIE1A); // disable ISR
-
-
-  TIMSK1 &= (1 << OCIE1A); // enable ISR
+//  TIMSK1 |= (1 << OCIE1A); // disable ISR
+/*
+  if(Serial_SensorHub.available() > 10) {
+    //memset ( (void*)buffer_sensorhub_isr, 0, JSON_SIZE );
+    //Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub_isr, sizeof(buffer_sensorhub_isr));
+    if(readline(Serial_SensorHub.read(), buffer_sensorhub_isr, JSON_SIZE) > 0) {
+      HUB_dataready = true;
+      memset ( (void*)buffer_sensorhub_isr, 0, JSON_SIZE );
+    }  
+  }
+*/
+  //TIMSK1 &= (1 << OCIE1A); // enable ISR
+  
 }
 
 
@@ -572,16 +581,27 @@ void loop() // run over and over
   const uint8_t freq_sample_count = 250;
   uint16_t samples[freq_sample_count];
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
-
+  char buffer_sensorhub[JSON_SIZE] = {0};
   wdt_reset();
 
 
   APPFLAGS.isUpdatingData = true;
 
+
   if(Serial_SensorHub.available() > 10) {
     memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
     Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
-    HUB_dataready = true;
+/*
+  if(HUB_dataready) {
+    uint8_t SREG_bak = SREG; // back up the global interrupt state
+    strncpy(buffer_sensorhub, (char*)buffer_sensorhub_isr, sizeof(buffer_sensorhub));
+    HUB_dataready = false;
+    // restore interrupt state, turning them back ON if they were ON before, 
+    // or leaving them OFF if they were OFF before.
+    SREG = SREG_bak; 
+*/
+
+
     Serial.print("RXHUB:");
     Serial.print(buffer_sensorhub);
     //Serial.println("***");
