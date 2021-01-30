@@ -1,17 +1,28 @@
+
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h> 
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <Wire.h>
+
 #include "OneWireNg_CurrentPlatform.h" // Instead of stock OneWire lib, because it malfunctions when Wire is used too (on ESP32 at least)
 #include <KRA_DallasTemp.h>
-#include "SSD1306.h"
-#include <AM2320.h>
-#include <Adafruit_Sensor.h>
-#include "DHT.h"
 #include <Timemark.h>
 #include <main.h>
+
+#ifdef USE_SSD1306
+#include "SSD1306.h"
+#endif
+#ifdef USE_AM2320
+#include <Wire.h>
+#include <AM2320.h>
+#endif
+#ifdef USE_DHT
+#include <Adafruit_Sensor.h>
+#include "DHT.h"
+#endif
+
 
 #ifdef USE_AM2320
   #ifdef USE_DHT
@@ -34,10 +45,10 @@ AM2320 am2320(&Wire); // AM2320 sensor attached SDA, SCL
 #endif
 
 #ifdef USE_DHT
-DHT dht(PIN_DHT_SENSOR, DHTTYPE);
+DHT dht(PIN_INTERNAL_SENSOR, DHTTYPE);
 #endif
 
-#ifdef USE_TFT
+#ifdef USE_SSD1306
 SSD1306 display(0x3c, 4, 15);
 #endif
 
@@ -64,7 +75,7 @@ void setup()
     ; // wait for serial port to connect. Needed for Native USB only
   }
 
-  #ifdef USE_TFT
+  #ifdef USE_SSD1306
   pinMode(16,OUTPUT);
     
   digitalWrite(16, LOW);    // set GPIO16 low to reset OLED
@@ -175,6 +186,7 @@ void loop()
   uint8_t i;
   int bytesAvail;
   bool doDataTX = tm_DataTX.expired();
+  char str[50];
 
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("wifi connection gone, reboot");
@@ -289,8 +301,8 @@ void loop()
     }
 #endif
 
-#ifdef USE_TFT
-    char str[50];
+#ifdef USE_SSD1306
+    
 
     display.clear();
     display.setFont(ArialMT_Plain_10);

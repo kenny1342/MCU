@@ -3,20 +3,29 @@
 
 bool debug = true;
 
-
+#define HW_MODEL   2 // 1 is first hw (esp32 devkit + AM2320), 2 is pumphouse hw (ttgo t-display + DHT22/alias AM2302)
 
 #define MODE_STA
-//#define USE_AM2320
-#define USE_DHT
-#define USE_TFT
 
+#if HW_MODEL == 1
+#define USE_AM2320 // OBS - doesn't mix with OLED SPI display SSD1306
+//#define USE_DHT
+//#define USE_SSD1306
+#endif
+
+#if HW_MODEL == 2
+#define USE_DHT
+#define USE_SSD1306
+#define PIN_INTERNAL_SENSOR         13
 #define DHTTYPE                     DHT22   // DHT 22  (AM2302)
+#endif
+
+
 
 #define JSON_SIZE                   512
-#define FIRMWARE_VERSION            "4.1"
-#define PIN_DALLAS_SENSORS          25      // DS18B20 on GPIO x (a 4.7K resistor is necessary)
+#define FIRMWARE_VERSION            "4.2"
+#define PIN_DALLAS_SENSORS          25      // DS18B20 on GPIO x (a 4.7K pullup is necessary)
 #define NUM_DS_SENSORS              5       // Max nr of DS18B20 we will have on the 1-wire bus
-#define PIN_DHT_SENSOR              13
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
