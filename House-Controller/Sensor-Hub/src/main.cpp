@@ -145,7 +145,7 @@ void loop()
       Serial_one.print(b);
       Serial_one.write('\n');
 
-      delayMicroseconds(5000); // so the slower Mega can keep up...
+      delay(40); // so the slower Mega can keep up...
 
       Serial.printf("%u/%u items in TX queue\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
     }            
