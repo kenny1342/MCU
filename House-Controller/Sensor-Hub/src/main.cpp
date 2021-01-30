@@ -14,9 +14,12 @@
 #include <ESPmDNS.h>
 #include <Timemark.h>
 #include <esp_task_wdt.h>
+#include <CircularBuffer.h>
 
 //3 seconds WDT
 #define WDT_TIMEOUT 8
+
+CircularBuffer<char*, 10> queue_tx;
 
 Timemark tm_SendData(5000);
 Timemark tm_reboot(3600000);
@@ -25,12 +28,6 @@ Timemark tm_WDT_reset(500);
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
 WiFiClient serverClients[4];
-
-char JSON_STRINGS[1][bufferSize] = {0};
-
-char buffer[1];
-uint16_t cnt;
-
 
 void setup() {
   delay(500);
@@ -141,6 +138,18 @@ void loop()
 
   if(tm_SendData.expired()) {
 
+    while (!queue_tx.isEmpty()) {
+        
+      char *b = queue_tx.pop();
+      Serial.printf("TX:%s\n", b);
+      Serial_one.print(b);
+      Serial_one.write('\n');
+
+      delayMicroseconds(5000); // so the slower Mega can keep up...
+
+      Serial.printf("%u/%u items in TX queue\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+    }            
+
     Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
   }
 
@@ -160,7 +169,7 @@ void loop()
         if (!serverClients[i] || !serverClients[i].connected()){
           if(serverClients[i]) serverClients[i].stop();
           serverClients[i] = server.available();
-          if (!serverClients[i]) Serial.println("available broken");
+          //if (!serverClients[i]) Serial.println("available broken");
           Serial.print("New client: ");
           Serial.print(i); Serial.print(' ');
           Serial.println(serverClients[i].remoteIP());
@@ -176,18 +185,14 @@ void loop()
     for(i = 0; i < MAX_SRV_CLIENTS; i++){
       if (serverClients[i] && serverClients[i].connected()){
         if(serverClients[i].available()){
-          //get data from the telnet client and push it to the UART
-          //while(serverClients[i].available()) Serial.write(serverClients[i].read());
-          while(serverClients[i].available()) {
-            byte c = serverClients[i].read();
-            Serial.write(c);
-            Serial_one.write(c);
-            delayMicroseconds(2500); // so the slower Mega can keep up...
-          }
-            byte c = '\n';
-            Serial.write(c);
-            Serial_one.write(c);
-
+          char buffer_tmp[bufferSize] = {0};
+          //  memset ( (void*)buffer_tmp, 0, bufferSize );
+          //  buffer_tmp[0] = {0};
+          while(serverClients[i].available()) {              
+            serverClients[i].readBytesUntil('\n', buffer_tmp, sizeof(buffer_tmp)-1);
+          }          
+          queue_tx.unshift(buffer_tmp);
+          Serial.printf("RX:%s\n", buffer_tmp);
         }
       }
       else {
