@@ -16,6 +16,7 @@
 #include <NTPClient.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+#include <CircularBuffer.h>
 #include <BlynkSimpleEsp32.h>
 #include <ArduinoOTA.h>
 #include <logger.h>
@@ -35,19 +36,13 @@ char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
-//const char* _def_hostname = CONF_DEF_HOSTNAME;
-//const char* _def_port = CONF_DEF_PORT;
+CircularBuffer<char*, 10> queue_rx;
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, CONF_DEF_NTP_SERVER, 3600, 20);
-
-//const char* ntpServer = DEF_CONF_NTP_SERVER;
-//const long  gmtOffset_sec = 3600;
-//const int   daylightOffset_sec = 3600;
-//struct tm timeinfo;
 
 int blynk_button_V2 = 0;
 uint8_t menu_page_current = 0;
@@ -59,9 +54,6 @@ Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable i
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
-//StaticJsonDocument<JSON_SIZE> tmp_json;
-
-//StaticJsonDocument<JSON_SIZE> JSON_DOCS[4];
 
 char JSON_STRINGS[JSON_DOC_COUNT][JSON_SIZE] = {0};
 
@@ -311,7 +303,10 @@ void setup(void) {
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   
-
+  logger.print(F("Configuring OTA..."));
+  Setup::OTA();
+  if(!DEBUG) delay(700);
+  
   logger.print(F("Starting Blynk..."));
   if(ConnectBlynk()) {
     logger.println(F("OK - Connected to Blynk server"));
@@ -484,10 +479,11 @@ void saveConfigCallback () {
 
 void loop(void) {
   double t = 0;
-  char data_string[JSON_SIZE] = "";
-  const char* data_string_ptr = data_string;
+  //char data_string[JSON_SIZE] = "";
+  //const char* data_string_ptr = data_string;
   bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
 
+  ArduinoOTA.handle();
   Blynk.run();
   CheckButtons();
 
@@ -548,13 +544,18 @@ void loop(void) {
 
   if(Serial_DATA.available())
   {
-        Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
+        //Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
+        char buffer_rx[JSON_SIZE] = {0};
+        Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
+        if(strlen(buffer_rx) > 10) {
+          queue_rx.unshift(buffer_rx);
+        }
   }
     
-  
-  if(strlen(data_string) > 10) {
-    // Forward data to Frontend, then parse JSON string into document tmp_json  
-    
+  // Iterate over the RX queue and update JSON_DOCS, FIFO style
+
+  while (!queue_rx.isEmpty()) {
+    const char *data_string = queue_rx.pop();
     bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
@@ -569,7 +570,8 @@ void loop(void) {
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     
     //DeserializationError error = deserializeJson(tmp_json, buffer_datain); // writeable (zero-copy method)
-    DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
+    //DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
+    DeserializationError error = deserializeJson(tmp_json, data_string); // read-only input (duplication)
     
     if (error) {
         Serial.print("\n");

@@ -12,11 +12,11 @@
 
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "2.90"
+#define FIRMWARE_VERSION    "3.0"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
-const char FIRMWARE_VERSION_LONG[] PROGMEM = "PumpController (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
+const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 
 #define CONF_DEF_HOSTNAME            "websrv-mcu"
 #define CONF_DEF_PORT                "80"

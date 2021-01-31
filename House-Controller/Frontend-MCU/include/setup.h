@@ -21,6 +21,7 @@ class Setup {
     static bool SaveConfig();
     static bool FileSystem();
     static bool WebServer();
+    static void OTA();
 };
 
 #endif
