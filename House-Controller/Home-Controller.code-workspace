@@ -7,18 +7,15 @@
 			"path": "ADC-MCU"
 		},
 		{
-			"name": "Sensor-Hub",
-			"path": "Sensor-Hub"
-		},
-		{
 			"path": "Frontend-MCU"
-		},
-		{
-			"path": "Sensor-PumpHouse"
 		},
 		{
 			"name": "WiFi-Probe",
 			"path": "../../../../home/kenny/Development/MCU/House-Controller/WiFi-Probe"
+		},
+		{
+			"name": "WiFi-HUB",
+			"path": "../../../../home/kenny/Development/MCU/House-Controller/WiFi-HUB"
 		}
 	],
 	"settings": {
