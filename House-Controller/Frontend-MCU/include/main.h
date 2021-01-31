@@ -11,8 +11,9 @@
 #define STR(x) XSTR(x)
 
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
+//#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.0"
+#define FIRMWARE_VERSION    "3.01"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -66,8 +67,9 @@ union ISRFLAGS_struct {
 };
 */
 
-
+#ifdef USE_BLYNK
 bool ConnectBlynk();
+#endif
 void ReconnectWiFi();
 int readline(int readch, char *buffer, int len);
 String HTMLProcessor(const String& var);
@@ -76,5 +78,5 @@ void CheckButtons(void);
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
 
 extern Config config;
-
+extern bool OTArunning;
 #endif

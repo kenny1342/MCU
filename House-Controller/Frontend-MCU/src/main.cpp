@@ -17,7 +17,9 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <CircularBuffer.h>
+#ifdef USE_BLYNK
 #include <BlynkSimpleEsp32.h>
+#endif
 #include <ArduinoOTA.h>
 #include <logger.h>
 #include <TFT_eSPI.h>
@@ -44,7 +46,9 @@ bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, CONF_DEF_NTP_SERVER, 3600, 20);
 
-int blynk_button_V2 = 0;
+#ifdef USE_BLYNK
+  int blynk_button_V2 = 0;
+#endif
 uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
 MENUPAGES_t MenuPages;
@@ -80,6 +84,7 @@ const uint8_t NUM_TIMERS = 8;
 enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_SyncNTP };
 Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_SyncNTP };
 
+bool OTArunning = false;
 volatile int interruptCounter;
 
 hw_timer_t * timer = NULL;
@@ -96,6 +101,7 @@ void IRAM_ATTR onTimer() {
   
 }
 
+#ifdef USE_BLYNK
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
   // Request the latest state from the server
@@ -107,6 +113,7 @@ BLYNK_WRITE(V2) {
   blynk_button_V2 = param.asInt();
   digitalWrite(PIN_LED_1, blynk_button_V2);
 }
+#endif
 
 void setup(void) {
   
@@ -306,13 +313,15 @@ void setup(void) {
   logger.print(F("Configuring OTA..."));
   Setup::OTA();
   if(!DEBUG) delay(700);
-  
+
+#ifdef USE_BLYNK
   logger.print(F("Starting Blynk..."));
   if(ConnectBlynk()) {
     logger.println(F("OK - Connected to Blynk server"));
   } else {
     logger.println(F("FAILED to connect to Blynk server!"));
   }
+#endif
 
   logger.print(F("Starting MDNS..."));
   if (MDNS.begin(config.hostname)) {
@@ -378,21 +387,20 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
   // Connect to WiFi KRA-TECH and open http://192.168.255.255 in a browser to complete configuration
 }
 
+#ifdef USE_BLYNK
 bool ConnectBlynk() {
   Serial.print(F("Connecting to Blynk servers (timeout 10 sec), token="));
   Serial.println(STR(BLYNK_TOKEN));
   Blynk.config(STR(BLYNK_TOKEN));  // in place of Blynk.begin(auth, ssid, pass);
   Blynk.connect(500);  // timeout set to 10 seconds and then continue without Blynk
-  //while (Blynk.connect() == false) {
-    // Wait until connected
-  //}
+
   if(Blynk.connected()) {
     return true;
   } else {
     return false;
   }
-
 }
+#endif
 
 void ReconnectWiFi() {  
 
@@ -481,10 +489,18 @@ void loop(void) {
   double t = 0;
   //char data_string[JSON_SIZE] = "";
   //const char* data_string_ptr = data_string;
-  bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
+  
 
   ArduinoOTA.handle();
+  if(OTArunning) return;
+  
+#ifdef USE_BLYNK
   Blynk.run();
+  bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
+  if(pushToBlynk) {
+    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
+  }
+#endif
   CheckButtons();
 
   if(shouldReboot){
@@ -504,9 +520,6 @@ void loop(void) {
     timeClient.update();
   }
 
-  if(pushToBlynk) {
-    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
-  }
 
   if(Timers[TM_CheckConnections]->expired()) {
     if (!WiFi.isConnected())
@@ -534,10 +547,12 @@ void loop(void) {
         Serial.println(F("NTP update FAILED"));
       }
 */
+#ifdef USE_BLYNK
       if(!Blynk.connected()) {
         Serial.println(F("Blynk disconnected, reconnecting..."));
         ConnectBlynk();
       }
+#endif
     }
 
   }
@@ -602,11 +617,13 @@ void loop(void) {
    
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
 
+          #ifdef USE_BLYNK
           // TESTING - send some circuit data to Blynk
           if(pushToBlynk) {
             Blynk.virtualWrite(V0, tmp_json.getMember("pressure_bar").as<float>());
             Blynk.virtualWrite(V1, tmp_json.getMember("temp_c").as<float>());      
           }
+          #endif
         break;        
         case 0x45: // REMOTE_SENSOR_DATA
         break;

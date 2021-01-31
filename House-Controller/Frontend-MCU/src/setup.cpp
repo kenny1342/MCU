@@ -169,6 +169,7 @@ void Setup::OTA()
   ArduinoOTA
     .onStart([]() {
       String type;
+      OTArunning = true;
       if (ArduinoOTA.getCommand() == U_FLASH)
         type = "sketch";
       else // U_SPIFFS
@@ -178,12 +179,14 @@ void Setup::OTA()
       Serial.println("Start updating " + type);
     })
     .onEnd([]() {
+      OTArunning = false;
       Serial.println("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
       Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     })
     .onError([](ota_error_t error) {
+      OTArunning = false;
       Serial.printf("Error[%u]: ", error);
       if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
       else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
