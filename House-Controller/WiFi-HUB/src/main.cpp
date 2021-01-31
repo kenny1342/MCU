@@ -23,7 +23,6 @@ CircularBuffer<char*, 10> queue_tx;
 
 Timemark tm_SendData(5000);
 Timemark tm_reboot(3600000);
-Timemark tm_WDT_reset(500);
 
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
@@ -122,7 +121,6 @@ void setup() {
  
   tm_SendData.start();
   tm_reboot.start();
-  tm_WDT_reset.start();
 }
 
 
@@ -131,10 +129,7 @@ void loop()
   
   ArduinoOTA.handle();
 
-  // resetting WDT every 2s, 5 times only
-  if (tm_WDT_reset.expired()) {
-      esp_task_wdt_reset();
-  }
+  esp_task_wdt_reset();
 
   if(tm_SendData.expired()) {
 
