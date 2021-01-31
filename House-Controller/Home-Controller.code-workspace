@@ -15,6 +15,10 @@
 		},
 		{
 			"path": "Sensor-PumpHouse"
+		},
+		{
+			"name": "WiFi-Probe",
+			"path": "../../../../home/kenny/Development/MCU/House-Controller/WiFi-Probe"
 		}
 	],
 	"settings": {
