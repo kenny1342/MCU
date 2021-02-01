@@ -105,10 +105,35 @@ void Webserver::AddRoutes() {
     request->send(200, "application/json", JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
   });
 
-  // cmd 0x45 = REMOTE_SENSOR_DATA (fex from Sensor-PumpHouse)
+  // cmd 0x45 = REMOTE_PROBES (return JSON array with last 0x45 json lines (content from circular buffer) from remote probes)
   server.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
-    char output[JSON_SIZE] = "NOT IMPLEMENTED";
-    request->send(200, "application/json", output);
+    //char output[JSON_SIZE] = "NOT IMPLEMENTED";
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+    //char ValueArray[(JSON_SIZE * MAX_REMOTE_SIDS) + (MAX_REMOTE_SIDS) + 1] = {'\0'}; // strings + \n + 1
+    //strcpy (ValueArray, "[");
+    response->print("[\n");
+
+		using index_t = decltype(remote_data)::index_t;
+		for (index_t i = 0; i < remote_data.size(); i++) {
+      char _tmp[JSON_SIZE] = {0};
+      serializeJson(remote_data[i], _tmp);
+      response->printf("%s\n", _tmp);
+      //strcat (ValueArray, remote_data[i]);
+      //strcat (ValueArray, "\n");
+		}
+    
+    //strcat (ValueArray, "]");
+    //ValueArray [strlen(ValueArray)] = '\0'; // terminate correct
+    
+    response->print("\n]");
+    //response->print(ValueArray);
+
+    //response->addHeader("Connection", "close");
+    request->send(response);
+    
+    //ValueArray[0] = '\0';
+
   });
 
   server.on("/json/frontend", HTTP_GET, [](AsyncWebServerRequest *request){

@@ -8,7 +8,7 @@
 //#include <WiFi.h>
 //#include <Esp.h>
 #include <ESPAsyncWebServer.h>
-
+#include <CircularBuffer.h>
 #include <ArduinoJson.h>
 #include <NTPClient.h>
 
@@ -33,6 +33,7 @@ extern AsyncWebServer server;
 extern bool shouldReboot;
 extern bool shouldSaveConfig;
 extern const char* _def_hostname;
+extern CircularBuffer<StaticJsonDocument<JSON_SIZE>, MAX_REMOTE_SIDS> remote_data;
 //extern StaticJsonDocument<JSON_SIZE> data_json_adcemon;
 //extern StaticJsonDocument<JSON_SIZE> data_json_sensors;
 //extern StaticJsonDocument<JSON_SIZE> JSON_DOCS[JSON_DOC_COUNT];
