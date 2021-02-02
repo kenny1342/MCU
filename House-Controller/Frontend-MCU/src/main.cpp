@@ -18,6 +18,7 @@
 #include <ArduinoJson.h>
 #include <CircularBuffer.h>
 //#include <RingBuf.h>
+#include <MD_CirQueue.h>
 #ifdef USE_BLYNK
 #include <BlynkSimpleEsp32.h>
 #endif
@@ -38,9 +39,8 @@ char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 
-
-CircularBuffer<char*, 10> queue_rx;
-//char _queue_rx[JSON_SIZE] = {0};
+const uint8_t QUEUE_SIZE = 6;
+MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
 
@@ -204,7 +204,7 @@ void setup(void) {
   if(!DEBUG) delay(500);
   logger.println(F("Starting WiFi..."));
 
-  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  //WiFi.setTxPower(WIFI_POWER_19_5dBm);
 
   //WiFiManager custom parameters/config
   ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
@@ -496,37 +496,6 @@ void saveConfigCallback () {
 }
 
 
-
-
-
-
-
-
-void printBuffer() {
-	if (queue_rx.isEmpty()) {
-		Serial.println("empty");
-	} else {
-		Serial.print("[");
-		for (decltype(queue_rx)::index_t i = 0; i < queue_rx.size() - 1; i++) {
-			Serial.print(queue_rx[i]);
-			Serial.print(",");
-		}
-		Serial.print(queue_rx[queue_rx.size() - 1]);
-		Serial.print("] (");
-
-		Serial.print(queue_rx.size());
-		Serial.print("/");
-		Serial.print(queue_rx.size() + queue_rx.available());
-		if (queue_rx.isFull()) {
-			Serial.print(" full");
-		}
-
-		Serial.println(")");
-	}
-}
-
-
-
 void loop(void) {
   double t = 0;
   //static CircularBuffer<StaticJsonDocument<JSON_SIZE>, MAX_REMOTE_SIDS> remote_data;
@@ -599,25 +568,46 @@ void loop(void) {
 
   }
 
+  // TODO: move to ISR (else queue really isn't needed...)
   if(Serial_DATA.available())
   {
         //Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
         char buffer_rx[JSON_SIZE] = {0};
         Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
         if(strlen(buffer_rx) > 10) {
-          queue_rx.unshift(buffer_rx);
+          //queue_rx.unshift(buffer_rx);
+          Q_rx.setFullOverwrite(true); // move to Setup
+          Q_rx.push((uint8_t *)buffer_rx);
+          if(Q_rx.isFull()) {
+            Serial.printf("\nALERT: Q_rx is full!!!" );
+          }
+/*
           for(int i=0; i<remote_data.size() -1; i++) {
-            Serial.printf("\nQRX:%u=%s", i, queue_rx[i] ); //
+            //Serial.printf("\nQ1RX:%u=%s", i, queue_rx[i] ); //
           }          
+
+          if(Q_rx.isFull()) {
+            for(int i=0; i<QUEUE_SIZE; i++) {
+              char t[JSON_SIZE] = {0};
+              
+                Q_rx.pop((uint8_t *) &t);
+                Serial.printf("\nQ2RX:%u=%s", i, t ); //
+              }
+          }          
+*/
           //printBuffer();
         }
   }
     
+
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
 
-  while (!queue_rx.isEmpty()) {
-    //const char *data_string = queue_rx.pop();
-    char *data_string = queue_rx.pop();
+  while (!Q_rx.isEmpty()) {
+  //while (!queue_rx.isEmpty()) {    
+    
+    //char *data_string = queue_rx.pop();
+    char data_string[JSON_SIZE] = {0};
+    Q_rx.pop((uint8_t *) &data_string);
     const char *data_string_ptr = data_string;
 
     bool doSerialDebug = Timers[TM_SerialDebug]->expired();
@@ -640,7 +630,7 @@ void loop(void) {
     if (error) {
         Serial.print("\n");
         Serial.print(data_string);
-        Serial.print(F("^JSON_ERR"));
+        Serial.print(F("\n^JSON_ERR: "));
         Serial.println(error.f_str());
     } else {
 
@@ -680,13 +670,19 @@ void loop(void) {
           // Clone the json doc and add it to the end of circular buffer
           DynamicJsonDocument tmp_doc = tmp_json;
           remote_data.push( tmp_doc);
-
+          
+          /*
+          char d[JSON_SIZE_REMOTEPROBES] = {0};
+          serializeJson(tmp_doc, d);
+          Serial.printf("QRX, PUSHED: **%s**\n", d);
+          */
+/*
           for(int i=0; i<remote_data.size() -1; i++) {
             JsonObject data = remote_data[i].getMember("data");
             Serial.printf("\n%u=%0.2f", i, data.getMember("value").as<float>() ); //
           }
-
-          Serial.printf("***************DONE**********\n");
+*/
+          //Serial.printf("***************DONE**********\n");
         }
         break;
         default: Serial.printf("Unknown CMD in JSON: %u", cmd);

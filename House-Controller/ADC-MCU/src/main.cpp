@@ -833,8 +833,8 @@ void loop() // run over and over
     JsonObject json = root.createNestedObject("WP");
 
     switch(WATERPUMP.status) {
-      case RUNNING: json["status"] = "RUN"; break;
-      case STOPPED: json["status"] = "STOP"; break;
+      case RUNNING: json["status"] = "ON"; break;
+      case STOPPED: json["status"] = "OFF"; break;
       case SUSPENDED: json["status"] = "SUSPENDED"; break;
       case ALARM: json["status"] = "ALARM"; break;
       default: json["status"] = WATERPUMP.status;

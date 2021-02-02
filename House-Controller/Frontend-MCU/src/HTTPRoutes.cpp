@@ -8,6 +8,7 @@
 //#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 
 #include <ESPmDNS.h>
+#include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <HTTPRoutes.h>
@@ -59,36 +60,6 @@ void Webserver::AddRoutes() {
 
 
   // GET command routes
-/*
-  // return data fields from json as requested in /sensordata?fieldname
-  server.on("/sensordata", HTTP_GET, [](AsyncWebServerRequest *request){
-    int paramsNr = request->params();
-    if(paramsNr == 0) {
-      request->send(200, "text/plain", "no param");
-      return;
-    }
-
-    for(int i=0;i<paramsNr;i++){
-    
-        AsyncWebParameter* p = request->getParam(i);
-        //Serial.print(p->name()); Serial.print("="); Serial.println(p->value());
-      if(p->name() == "wp_t_state") {
-        request->send(200, "text/plain", data_json["wp_t_state"]);
-        return;    
-      }
-
-      if(data_json.getMember(p->name()).isNull() ) {
-        request->send(200, "text/plain", String(p->name()) +  F(" not found in json"));
-        return;    
-      } else {
-        request->send(200, "text/plain", data_json.getMember(p->name()) );
-        return;
-      }
-
-    }    
-    request->send(200, "text/plain", F("Unknown parameter"));
-  });
-*/
 
   // cmd 0x10 = ADCSYSDATA (from ADC-MCU)
   server.on("/json/0x10", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -107,33 +78,30 @@ void Webserver::AddRoutes() {
 
   // cmd 0x45 = REMOTE_PROBES (return JSON array with last 0x45 json lines (content from circular buffer) from remote probes)
   server.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
-    //char output[JSON_SIZE] = "NOT IMPLEMENTED";
     AsyncResponseStream *response = request->beginResponseStream("application/json");
 
-    //char ValueArray[(JSON_SIZE * MAX_REMOTE_SIDS) + (MAX_REMOTE_SIDS) + 1] = {'\0'}; // strings + \n + 1
-    //strcpy (ValueArray, "[");
-    response->print("[\n");
+    response->print("[");
 
 		using index_t = decltype(remote_data)::index_t;
 		for (index_t i = 0; i < remote_data.size(); i++) {
+      /*
       char _tmp[JSON_SIZE] = {0};
       serializeJson(remote_data[i], _tmp);
-      response->printf("%s\n", _tmp);
-      //strcat (ValueArray, remote_data[i]);
-      //strcat (ValueArray, "\n");
+      response->printf("\n%s", _tmp);
+      */
+      serializeJson(remote_data[i], *response);
+      if( remote_data.size() > 0 && (remote_data.size() - i) > 1) {
+        response->print(",\n");
+      }
 		}
     
-    //strcat (ValueArray, "]");
-    //ValueArray [strlen(ValueArray)] = '\0'; // terminate correct
-    
     response->print("\n]");
-    //response->print(ValueArray);
-
-    //response->addHeader("Connection", "close");
+    response->print("\r\n\r\n");
+    
+    //size_t cs = sizeof(remote_data) * JSON_SIZE_REMOTEPROBES;
+    //response->setContentLength(cs);
     request->send(response);
     
-    //ValueArray[0] = '\0';
-
   });
 
   server.on("/json/frontend", HTTP_GET, [](AsyncWebServerRequest *request){

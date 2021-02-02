@@ -59,7 +59,6 @@ a:hover {
   -webkit-transform: translate(1%, 0);
   transform: translate(1%, 0);
   width: 99%; 
-  xborder: 1px solid red;
   white-space: nowrap;
   border-spacing: 1px;
   margin: 1em 1em 1em 1em;
@@ -75,10 +74,14 @@ a:hover {
   text-align: right;  
 }
 
+#table_probes {
+  width:60%;
+}
+
 #table_utility td {
   padding: 20px;
 }
-#table_pump td, #table_emon td {
+#table_pump td, #table_emon td, #table_probes td {
   padding: 5px;
 }
 
@@ -112,6 +115,18 @@ a:hover {
   font-size: 1.7rem;
 }
 
+#table_probes .td_title {
+  text-align: left;
+  font-size: 2em;  
+}
+#table_probes .td_value {
+  text-align: left;
+  font-size: 3em;  
+}
+#table_probes .small {
+  font-size: 1.7rem;
+}
+
 .td_value {
   white-space: nowrap;
 }
@@ -120,7 +135,7 @@ a:hover {
 }*/
 
 
-#table_main th, #table_pump th, #table_emon th {
+#table_main th, #table_pump th, #table_emon th, #table_probes th {
   font-size: 2em;
   color:rgb(148, 122, 5);
 }
@@ -160,10 +175,10 @@ a:hover {
 .SUSPENDED {
   color:rgb(219, 45, 1);
 }
-.RUN {  
+.ON {  
   color:rgb(0, 126, 10);
 }
-.STOP {
+.OFF {
   color:rgb(1, 63, 145);
 }
 
@@ -248,13 +263,16 @@ h1 {
     #author {
       font-size:0.5em;
     }
-    #table_utility td, #table_pump td, #table_emon_circuits td {
+    #table_utility td, #table_pump td, #table_emon_circuits td, #table_probes td {
       padding:0.2rem;
     }
     #table_pump .small {
       font-size: 0.7rem;
     }
     #table_utility .small {
+      font-size: 0.7rem;
+    }
+    #table_probes .small {
       font-size: 0.7rem;
     }
 
@@ -291,7 +309,7 @@ h1 {
       white-space: nowrap;
     }
 
-    #table_utility td, #table_pump td, #table_emon_circuits td {
+    #table_utility td, #table_pump td, #table_emon_circuits td, #table_probes td {
       padding:0.2rem;
     }
     #table_utility .td_title {
@@ -303,6 +321,10 @@ h1 {
     #table_utility .small {
       font-size: 0.5rem;
     }
+    #table_probes .small {
+      font-size: 0.5rem;
+    }
+
     #table_emon_circuits tbody {
       font-size:0.3rem;
     }

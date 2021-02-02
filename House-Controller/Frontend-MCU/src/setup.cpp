@@ -37,12 +37,13 @@ bool Setup::GetConfig() {
       File configFile = SPIFFS.open(_configfile, "r");
       if (configFile) {
 
-        StaticJsonDocument<512> doc;
+        DynamicJsonDocument doc(2048);
 
         // Deserialize the JSON document
         DeserializationError error = deserializeJson(doc, configFile);
         if (error) {
-            Serial.println(F("FAILED - JSON data not found, using default configuration"));
+            Serial.println(F("FAILED - JSON data invalid, using default configuration"));
+            Serial.println(error.f_str());
         } else {
             Serial.println("OK");
         }
