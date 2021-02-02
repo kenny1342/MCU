@@ -21,7 +21,7 @@
       "emon_gndfault": "Ground fault detected (voltages out of range)",
       "emon_sensor": "Voltage/current sensor error"
     },
-    "probe_devid_bathroom": "9457",
-    "probe_devid_pumphouse": "50406",
+    "probe_devid_bathroom": "50406",
+    "probe_devid_pumphouse": "9457",
     "version": "1.2"
   }
