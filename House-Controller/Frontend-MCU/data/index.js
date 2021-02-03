@@ -75,26 +75,6 @@ jQuery(document).ready(function () {
       }
     ); // fetch
     
-    fetch('/json/0x11') //ADCEMONDATA
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        localStorage.setItem('json0x11', JSON.stringify(data));
-        } // data =>
-    )
-    .catch(error => {
-        //console.error('Error:', error);
-        if($("#chktestdata").is(":checked")){
-          console.log("using test data");
-          json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50.2008,"emon_vrms_L_N":239.2254,"emon_vrms_L_PE":135.3039,"emon_vrms_N_PE":123.7783,"circuits":{"1":{"I":19.02676,"P_a":4551.683,"PF":0.18295},"2":{"I":15.572593,"P_a":376.0423,"PF":0},"3":{"I":0.753701,"P_a":180.2182,"PF":0},"7":{"I":5.753701,"P_a":100.2182,"PF":0},"13":{"I":6.06794,"P_a":1451.714,"PF":0.072817}}}');
-          console.log(json); 
-          localStorage.setItem('json0x11', JSON.stringify(json));
-        } else {
-          //console.log("NOT using test data");
-          localStorage.setItem('json0x11', JSON.stringify("{}"));
-        }
-      }
-    ); // fetch
 
     fetch('/json/0x12') //ADCWATERPUMPDATA
     .then(response => response.json())
@@ -122,6 +102,28 @@ jQuery(document).ready(function () {
   }
 
   function updateData_Pri2() {
+
+    fetch('/json/0x11') //ADCEMONDATA
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        localStorage.setItem('json0x11', JSON.stringify(data));
+        } // data =>
+    )
+    .catch(error => {
+        //console.error('Error:', error);
+        if($("#chktestdata").is(":checked")){
+          console.log("using test data");
+          json = JSON.parse('{"cmd":17,"devid":16,"emon_freq":50.2008,"emon_vrms_L_N":239.2254,"emon_vrms_L_PE":135.3039,"emon_vrms_N_PE":123.7783,"circuits":{"1":{"I":19.02676,"P_a":4551.683,"PF":0.18295},"2":{"I":15.572593,"P_a":376.0423,"PF":0},"3":{"I":0.753701,"P_a":180.2182,"PF":0},"7":{"I":5.753701,"P_a":100.2182,"PF":0},"13":{"I":6.06794,"P_a":1451.714,"PF":0.072817}}}');
+          console.log(json); 
+          localStorage.setItem('json0x11', JSON.stringify(json));
+        } else {
+          //console.log("NOT using test data");
+          localStorage.setItem('json0x11', JSON.stringify("{}"));
+        }
+      }
+    ); // fetch
+
     // Get Frontend data from JSON
     fetch('/json/frontend')
     .then(response => response.json())
@@ -145,7 +147,6 @@ jQuery(document).ready(function () {
     fetch('/json/0x45') //REMOTE_SENSOR_DATA
     .then(response => response.json())
     .then(data => {
-      console.log("0x45 DATA:");
         console.log(data);
         localStorage.setItem('json0x45', JSON.stringify(data));
         } // data =>
@@ -166,11 +167,6 @@ jQuery(document).ready(function () {
 
 
   }
-
-
-  setInterval(updateData_Pri1, 2000 ) ;
-  setInterval(updateData_Pri2, 4000 ) ;
-  setInterval(updateData_Pri3, 30000 ) ;
 
     // Update the page
     setInterval(function ( ) {
@@ -375,7 +371,6 @@ jQuery(document).ready(function () {
           }
 
           let objid = "probe_devid_" + devid + "_sid_" + sid;
-console.log("looking for objid " + objid);
           if($("#" + objid).length > 0) {
             $("#" + objid).empty().append(probedata.data["value"]);
           }
@@ -389,6 +384,11 @@ console.log("looking for objid " + objid);
       }
       
       
-    }, 500 ) ;
+    }, 900 ) ;
 
+
+    setInterval(updateData_Pri1, 1000 ) ;
+    setInterval(updateData_Pri2, 2000 ) ;
+    setInterval(updateData_Pri3, 5000 ) ;
+  
   }); // page loaded

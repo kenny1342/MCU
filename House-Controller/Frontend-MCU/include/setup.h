@@ -24,4 +24,6 @@ class Setup {
     static void OTA();
 };
 
+extern bool OTArunning;
+
 #endif

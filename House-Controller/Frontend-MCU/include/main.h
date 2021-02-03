@@ -13,7 +13,7 @@
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 //#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.05"
+#define FIRMWARE_VERSION    "3.06"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -83,5 +83,5 @@ void CheckButtons(void);
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
 
 extern Config config;
-extern bool OTArunning;
+
 #endif
