@@ -1,10 +1,12 @@
+#include <TFT_eSPI.h>
+
 #define OTA_HANDLER 
 //#define MODE_AP // phone connects directly to ESP
 #define MODE_STA
 
 bool debug = true;
 
-#define VERSION "5.10"
+#define VERSION "5.11"
 #define MAX_SRV_CLIENTS 4
 
 #ifdef MODE_AP
@@ -25,5 +27,15 @@ const char *pw = "hemmelig"; // and this is the password
 #define SERIAL1_TCP_PORT 8880       // Wifi Port UART1
 
 #define bufferSize 512
+
+//ST7789 OLED display
+#define txtsize 2
+
+struct LCD_state_struct {
+    bool clear = true; // flag to clear display
+    //bool textwrap = true;
+    uint16_t bgcolor = TFT_BLACK;
+    uint16_t fgcolor = TFT_GREEN;    
+} ;
 
 //////////////////////////////////////////////////////////////////////////

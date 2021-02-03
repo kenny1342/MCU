@@ -14,8 +14,7 @@
 			"path": "../../../../home/kenny/Development/MCU/House-Controller/WiFi-Probe"
 		},
 		{
-			"name": "WiFi-HUB",
-			"path": "../../../../home/kenny/Development/MCU/House-Controller/WiFi-HUB"
+			"path": "WiFi-HUB"
 		}
 	],
 	"settings": {

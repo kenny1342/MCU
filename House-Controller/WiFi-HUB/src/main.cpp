@@ -15,11 +15,18 @@
 #include <Timemark.h>
 #include <esp_task_wdt.h>
 #include <CircularBuffer.h>
+#include <TFT_eSPI.h>
+#include <logo_kra-tech.h>
 
 //3 seconds WDT
 #define WDT_TIMEOUT 8
 
+bool OTArunning = false;
+uint8_t stat_q_tx;
+uint8_t stat_tcp_count;
+
 CircularBuffer<char*, 10> queue_tx;
+LCD_state_struct LCD_state;
 
 Timemark tm_SendData(5000);
 Timemark tm_reboot(3600000);
@@ -27,6 +34,7 @@ Timemark tm_reboot(3600000);
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
 WiFiClient serverClients[4];
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
 void setup() {
   delay(500);
@@ -38,6 +46,37 @@ void setup() {
   Serial_one.begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 
   if(debug) Serial.println("\n\nSensor-HUP WiFi serial bridge Vx.xx");
+
+
+  tft.init();
+  tft.setRotation(3); // 1
+  tft.fillScreen(LCD_state.bgcolor);
+  //tft.setTextSize(2);
+  tft.setTextColor(LCD_state.fgcolor);
+  tft.setCursor(0, 0);
+  tft.setTextDatum(MC_DATUM);
+
+  tft.setSwapBytes(true);
+  //tft.pushImage(0, 0,  240, 135, ttgo);
+  tft.pushImage(0, 0,  240, 135, kra_tech);
+  delay(10000);
+
+  tft.fillScreen(TFT_RED);
+  delay(300);
+  tft.fillScreen(TFT_BLUE);
+  delay(300);
+  tft.fillScreen(TFT_GREEN);
+  delay(300);
+
+  tft.setTextWrap(true);
+
+  tft.setTextSize(3);
+  tft.fillScreen(LCD_state.bgcolor);
+  tft.setCursor(0 ,0);
+
+  tft.println("\n\n Starting HUB...  ");
+  tft.setTextSize(txtsize);
+  delay(700);
 
   Serial.println("Configuring WDT...");
   esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
@@ -80,6 +119,7 @@ void setup() {
   ArduinoOTA
     .onStart([]() {
       String type;
+      OTArunning = true;
       if (ArduinoOTA.getCommand() == U_FLASH)
         type = "sketch";
       else // U_SPIFFS
@@ -89,12 +129,14 @@ void setup() {
       Serial.println("Start updating " + type);
     })
     .onEnd([]() {
+      OTArunning = false;
       Serial.println("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
       Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     })
     .onError([](ota_error_t error) {
+      OTArunning = false;
       Serial.printf("Error[%u]: ", error);
       if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
       else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
@@ -121,6 +163,11 @@ void setup() {
  
   tm_SendData.start();
   tm_reboot.start();
+
+  //tft.println("\n\n   Ready ");
+  tft.fillScreen(LCD_state.bgcolor);
+  tft.setCursor(0, 0);
+  tft.printf("      WIFI HUB       \n");  
 }
 
 
@@ -128,10 +175,22 @@ void loop()
 { 
   
   ArduinoOTA.handle();
-
+  
   esp_task_wdt_reset();
 
+  if(OTArunning) return;
+
+  tft.setCursor(0, 30);
+  tft.printf("Client conn: %u  ", stat_tcp_count);
+
+  tft.setCursor(0, 60);
+  tft.printf("RX Queue:    %u  ", stat_q_tx);
+  
   if(tm_SendData.expired()) {
+
+
+    tft.fillScreen(LCD_state.bgcolor);
+
 
     while (!queue_tx.isEmpty()) {
         
@@ -165,6 +224,7 @@ void loop()
           if(serverClients[i]) serverClients[i].stop();
           serverClients[i] = server.available();
           //if (!serverClients[i]) Serial.println("available broken");
+          stat_tcp_count++;
           Serial.print("New client: ");
           Serial.print(i); Serial.print(' ');
           Serial.println(serverClients[i].remoteIP());
@@ -194,6 +254,11 @@ void loop()
         if (serverClients[i]) {
           serverClients[i].stop();
         }
+
+        if(stat_tcp_count > 0) {
+          stat_tcp_count--;
+        }
+
       }
     }
 
