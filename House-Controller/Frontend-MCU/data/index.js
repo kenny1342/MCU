@@ -357,8 +357,6 @@ jQuery(document).ready(function () {
           return;
         }
 
-        let probe_devid_bathroom = config.probe_devid_bathroom;     
-
         for(var idx in json) {
           let probedata = json[idx];
           let devid = probedata["devid"];
@@ -366,8 +364,11 @@ jQuery(document).ready(function () {
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
-          if(devid == probe_devid_bathroom) {
+          if(devid == config.probe_devid_bathroom) {
             devid = "bathroom";
+          }
+          if(devid == config.probe_devid_outside) {
+            devid = "outside";
           }
 
           let objid = "probe_devid_" + devid + "_sid_" + sid;
