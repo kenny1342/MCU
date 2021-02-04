@@ -201,6 +201,7 @@ void loop()
   }
 
   ArduinoOTA.handle();
+  if(OTArunning) return;
 
   //check if there are any new clients
   if (tcpServer.hasClient()) {
@@ -459,6 +460,8 @@ void readDS18B20() {
     OneWireNg::Id id;
     OneWireNg::ErrorCode ec;
 
+    Serial.print("Searching for DS18B20 devices...");
+
     ow->searchReset();
     ds_deviceCount = 0;
     do
@@ -469,6 +472,8 @@ void readDS18B20() {
 
         if (!KRA_DallasTemp::printId(id))
             continue;
+
+        Serial.println("Found!");
 
         /* start temperature conversion */
         ow->addressSingle(id);
@@ -538,7 +543,7 @@ void readDS18B20() {
     } while (ec == OneWireNg::EC_MORE);
 
     if ( ds_deviceCount == 0) {
-      Serial.println("ERR: No device found!");
+      Serial.println("Not found!");
     }
 
 }
