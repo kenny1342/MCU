@@ -187,7 +187,7 @@ void loop()
   }
 
   if(tm_UpdateDisplay.expired()) {
-    LCD_state.fgcolor = TFT_GREEN;
+    LCD_state.fgcolor = TFT_MAGENTA;
     LCD_state.bgcolor = TFT_BLACK;
 
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
@@ -196,6 +196,10 @@ void loop()
     tft.setTextSize(3);
     tft.printf("  WIFI HUB \n\n");  
     tft.setTextSize(2);
+
+    LCD_state.fgcolor = TFT_GREEN;
+    LCD_state.bgcolor = TFT_BLACK;
+    tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
     tft.printf("Client conns: %u   \n", stat_tcp_count);
     tft.println();
