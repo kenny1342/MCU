@@ -359,9 +359,12 @@ jQuery(document).ready(function () {
 
         for(var idx in json) {
           let probedata = json[idx];
+          if(probedata.data["value"] == null || probedata.data["value"] == "") continue;
+
           let devid = probedata["devid"];
           let sid = probedata["sid"];
-
+          let value = probedata.data["value"];
+          
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
           if(devid == config.probe_devid_bathroom) {
@@ -373,7 +376,7 @@ jQuery(document).ready(function () {
 
           let objid = "probe_devid_" + devid + "_sid_" + sid;
           if($("#" + objid).length > 0) {
-            $("#" + objid).empty().append(probedata.data["value"]);
+            $("#" + objid).empty().append(value);
           }
 
         }

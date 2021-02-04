@@ -136,6 +136,7 @@ void setup() {
     })
     .onProgress([](unsigned int progress, unsigned int total) {
       Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      esp_task_wdt_reset();
     })
     .onError([](ota_error_t error) {
       OTArunning = false;
@@ -176,9 +177,9 @@ void setup() {
 void loop() 
 { 
   
-  ArduinoOTA.handle();
-  
   esp_task_wdt_reset();
+
+  ArduinoOTA.handle();
 
   if(OTArunning) return;
 
@@ -187,7 +188,7 @@ void loop()
   }
 
   if(tm_UpdateDisplay.expired()) {
-    LCD_state.fgcolor = TFT_MAGENTA;
+    LCD_state.fgcolor = TFT_GOLD;
     LCD_state.bgcolor = TFT_BLACK;
 
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);

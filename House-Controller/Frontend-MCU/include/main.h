@@ -13,7 +13,7 @@
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 //#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.06"
+#define FIRMWARE_VERSION    "3.07"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -24,8 +24,8 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define CONF_DEF_NTP_SERVER          "192.168.30.13"
 
 #define JSON_SIZE                   768
-#define JSON_SIZE_REMOTEPROBES      480
-#define MAX_REMOTE_SIDS             10 // number of remote sensor id's JSON strings to store in memory/circular buffer
+#define JSON_SIZE_REMOTEPROBES      250
+#define MAX_REMOTE_SIDS             20 // number of remote sensor id's JSON strings to store in memory/circular buffer
 
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
