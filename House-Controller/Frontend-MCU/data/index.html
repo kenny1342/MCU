@@ -81,7 +81,7 @@
       <td id="table_main_td2">
         <table id="table_pump">
           <tr>
-            <th colspan="2">Water Pump</th>
+            <th colspan="2">Water Pump <span id="table_pump_expand">+</span></th>
           </tr>
           <tr style="font-size: 1.3em;">
             <td class="td_title">Pressure</td>
@@ -107,15 +107,15 @@
             <td class="td_title">Status duration</td>
             <td class="td_value"> </td>
           </tr>-->
-          <tr>
+          <tr class="tr_minimized">
             <td class="td_title">Starts #</td>
             <td class="td_value"> <span id="wp_cnt_starts">-</span></td>
           </tr>
-          <tr>
+          <tr class="tr_minimized">
             <td class="td_title small">Total Runtime</td>
             <td class="td_value small"> <span id="wp_t_totruntime">-</span></td>
           </tr>
-          <tr>
+          <tr class="tr_minimized">
             <td class="td_title small">Suspended</td>
             <td class="td_value small"> <span id="wp_cnt_susp">0</span> times <span id="wp_susp_r">last reason</span>
               <br /><span id="wp_t_susp_tot">00:00:00</span>
@@ -123,10 +123,14 @@
           </tr>
 
         </table>
-        
+        <hr />
         <table id="table_probes" border="0">
           <tr>
             <th colspan="2">Probes</th>
+          </tr>
+          <tr>
+            <td class="td_title">Outside</td>
+            <td class="td_value"> <span id="probe_devid_outside_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="probe_devid_outside_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
           <tr>
             <td class="td_title">Bathroom</td>

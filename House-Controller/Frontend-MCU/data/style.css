@@ -165,6 +165,13 @@ a:hover {
   font-weight: 800;
 }
 
+.tr_minimized {
+  display: none;
+}
+.tr_maximized {
+  display: block;
+}
+
 .OK {
   color:rgb(16, 95, 0);
 }

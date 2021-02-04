@@ -23,5 +23,6 @@
     },
     "probe_devid_bathroom": "50406",
     "probe_devid_pumphouse": "9457",
+    "probe_devid_outside": "33832",
     "version": "1.2"
   }

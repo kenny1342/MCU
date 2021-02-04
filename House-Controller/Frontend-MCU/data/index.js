@@ -391,4 +391,14 @@ jQuery(document).ready(function () {
     setInterval(updateData_Pri2, 2000 ) ;
     setInterval(updateData_Pri3, 5000 ) ;
   
+    $("#table_pump_expand").click(function(){
+
+      $('.tr_minimized').each(function(i, obj) {
+        if("a certain condition") {
+          $(this).toggleClass('tr_maximized'); // trying to access the index 0 of the array that contains the elements of that class;
+         }
+      });
+
+  });
+
   }); // page loaded
