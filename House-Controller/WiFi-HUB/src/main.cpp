@@ -22,14 +22,16 @@
 #define WDT_TIMEOUT 8
 
 bool OTArunning = false;
-uint8_t stat_q_tx;
-uint8_t stat_tcp_count;
+uint16_t stat_q_rx;
+uint16_t stat_tcp_count;
 
 CircularBuffer<char*, 10> queue_tx;
 LCD_state_struct LCD_state;
 
 Timemark tm_SendData(5000);
-Timemark tm_reboot(3600000);
+Timemark tm_reboot(86400 * 1000); 
+Timemark tm_ClearDisplay(300000);
+Timemark tm_UpdateDisplay(200);
 
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
@@ -74,7 +76,7 @@ void setup() {
   tft.fillScreen(LCD_state.bgcolor);
   tft.setCursor(0 ,0);
 
-  tft.println("\n\n Starting HUB...  ");
+  tft.println("\n\nStarting HUB...");
   tft.setTextSize(txtsize);
   delay(700);
 
@@ -163,11 +165,11 @@ void setup() {
  
   tm_SendData.start();
   tm_reboot.start();
+  tm_ClearDisplay.start();
+  tm_UpdateDisplay.start();
 
   //tft.println("\n\n   Ready ");
   tft.fillScreen(LCD_state.bgcolor);
-  tft.setCursor(0, 0);
-  tft.printf("      WIFI HUB       \n");  
 }
 
 
@@ -180,16 +182,36 @@ void loop()
 
   if(OTArunning) return;
 
-  tft.setCursor(0, 30);
-  tft.printf("Client conn: %u  ", stat_tcp_count);
+  if(tm_ClearDisplay.expired()) {
+    tft.fillScreen(LCD_state.bgcolor);
+  }
 
-  tft.setCursor(0, 60);
-  tft.printf("RX Queue:    %u  ", stat_q_tx);
-  
+  if(tm_UpdateDisplay.expired()) {
+    LCD_state.fgcolor = TFT_GREEN;
+    LCD_state.bgcolor = TFT_BLACK;
+
+    tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+    tft.setTextWrap(false);
+    tft.setCursor(0, 0);
+    tft.setTextSize(3);
+    tft.printf("  WIFI HUB \n\n");  
+    tft.setTextSize(2);
+
+    tft.printf("Client conns: %u   \n", stat_tcp_count);
+    tft.println();
+    
+    tft.printf("RX->TX Msg:   %u   \n", stat_q_rx);
+    tft.println();
+    
+    tft.printf("TX Queue:     %u/%u  \n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+    tft.println();
+
+  }
+
   if(tm_SendData.expired()) {
 
 
-    tft.fillScreen(LCD_state.bgcolor);
+    
 
 
     while (!queue_tx.isEmpty()) {
@@ -248,15 +270,12 @@ void loop()
           }          
           queue_tx.unshift(buffer_tmp);
           Serial.printf("RX:%s\n", buffer_tmp);
+          stat_q_rx++;
         }
       }
       else {
         if (serverClients[i]) {
           serverClients[i].stop();
-        }
-
-        if(stat_tcp_count > 0) {
-          stat_tcp_count--;
         }
 
       }
