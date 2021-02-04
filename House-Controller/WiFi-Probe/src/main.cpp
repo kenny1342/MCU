@@ -58,7 +58,7 @@ long ds_temps[NUM_DS_SENSORS];// = {0, 0}; //{0.0, 0.0};
 double sid1_value = 0.0;
 double sid2_value = 0.0;
 
-Timemark tm_DataTX(5000);
+Timemark tm_DataTX(2500);
 Timemark tm_reboot(3600000);
 
 bool OTArunning = false;
@@ -372,17 +372,25 @@ void loop()
     SendData(root, mdns_index_hub);
 
     // ---------- TEMP/HUM  ----------------
-    root["sid"] = 0x01; // this sensor's ID
-    data.clear();
-    data["value"] = sid1_value;
+    if(sid1_value != NULL) {
+      root["sid"] = 0x01; // this sensor's ID
+      data.clear();
+      data["value"] = sid1_value;
 
-    SendData(root, mdns_index_hub);
+      SendData(root, mdns_index_hub);
+    } else {
+      Serial.println(F("ERR: NULL value, skipping TX!"));
+    }
 
-    root["sid"] = 0x02; // this sensor's ID
-    data.clear();
-    data["value"] = sid2_value;
+    if(sid2_value != NULL) {
+      root["sid"] = 0x02; // this sensor's ID
+      data.clear();
+      data["value"] = sid2_value;
 
-    SendData(root, mdns_index_hub);
+      SendData(root, mdns_index_hub);
+    } else {
+      Serial.println(F("ERR: NULL value, skipping TX!"));
+    }
 
     // ---------- DALLAS 1-WIRE SENSORS ----------------
 

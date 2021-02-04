@@ -8,8 +8,8 @@ bool debug = true;
 #define HW_ESP32_AM2320          1 // ESP32 board minimal/devkit c + AM2320 I2C sensor (bathroom use this)
 
 
-//#define HW_MODEL HW_ESP32_DHT
-#define HW_MODEL HW_ESP32_AM2320
+#define HW_MODEL HW_ESP32_DHT
+//#define HW_MODEL HW_ESP32_AM2320
 
 #if HW_MODEL == HW_ESP32_AM2320
 #define USE_AM2320 // OBS - doesn't mix with OLED SPI display SSD1306
