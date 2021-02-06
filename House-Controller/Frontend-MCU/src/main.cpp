@@ -665,24 +665,24 @@ void loop(void) {
           }
           #endif
         break;        
-        case 0x45: // REMOTE_SENSOR_DATA
+        case 0x45: // REMOTE_PROBE_DATA
         {
           // Clone the json doc and add it to the end of circular buffer
           DynamicJsonDocument tmp_doc = tmp_json;
-          remote_data.push( tmp_doc);
+          //JsonObject root = tmp_doc.to<JsonObject>();
           
-          /*
-          char d[JSON_SIZE_REMOTEPROBES] = {0};
-          serializeJson(tmp_doc, d);
-          Serial.printf("QRX, PUSHED: **%s**\n", d);
-          */
-/*
-          for(int i=0; i<remote_data.size() -1; i++) {
-            JsonObject data = remote_data[i].getMember("data");
-            Serial.printf("\n%u=%0.2f", i, data.getMember("value").as<float>() ); //
+          for(int i=0; i<remote_data.size(); i++) {
+            if(
+              remote_data[i].getMember("devid") == tmp_doc.getMember("devid") &&
+              remote_data[i].getMember("sid") == tmp_doc.getMember("sid") &&
+              remote_data[i].getMember("value") == tmp_doc.getMember("value")
+            ) {
+              Serial.println(F("0x45 data already exists in buffer, ignoring"));
+            } else {
+              remote_data.push( tmp_doc);
+            }
           }
-*/
-          //Serial.printf("***************DONE**********\n");
+
         }
         break;
         default: Serial.printf("Unknown CMD in JSON: %u", cmd);
