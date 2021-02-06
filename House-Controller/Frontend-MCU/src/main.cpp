@@ -81,7 +81,7 @@ Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(5000);
 Timemark tm_PushToBlynk(2000);
-Timemark tm_SerialDebug(5000);
+Timemark tm_SerialDebug(1000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
 Timemark tm_SyncNTP(180000);
@@ -670,22 +670,27 @@ void loop(void) {
           // Clone the json doc and add it to the end of circular buffer
           DynamicJsonDocument tmp_doc = tmp_json;
           //JsonObject root = tmp_doc.to<JsonObject>();
-          
+          bool duplicate = false;
           for(int i=0; i<remote_data.size(); i++) {
             if(
-              remote_data[i].getMember("devid") == tmp_doc.getMember("devid") &&
-              remote_data[i].getMember("sid") == tmp_doc.getMember("sid") &&
-              remote_data[i].getMember("value") == tmp_doc.getMember("value")
+              remote_data[i].getMember("devid").as<uint16_t>() == tmp_doc.getMember("devid").as<uint16_t>() &&
+              remote_data[i].getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>() &&
+              remote_data[i].getMember("data")["value"] == tmp_doc.getMember("data")["value"]
             ) {
-              Serial.println(F("0x45 data already exists in buffer, ignoring"));
-            } else {
-              remote_data.push( tmp_doc);
+              //serializeJson(tmp_doc, Serial);
+              Serial.println(F("\n0x45 data already exists in buffer, ignoring"));
+              duplicate = true;
             }
+          }
+
+          if(!duplicate) {
+            remote_data.push( tmp_doc);
+            Serial.println(F("0x45 doc added to buffer"));
           }
 
         }
         break;
-        default: Serial.printf("Unknown CMD in JSON: %u", cmd);
+        default: Serial.printf("Unknown CMD in JSON: %u\n", cmd);
 
       } // switch
 

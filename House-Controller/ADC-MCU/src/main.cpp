@@ -166,8 +166,7 @@ void setup()
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
-  Serial_SensorHub.begin(115200);
-Serial_SensorHub.clearWriteError();
+  Serial_SensorHub.begin(57600);
 
 
   // easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
@@ -604,32 +603,45 @@ void loop() // run over and over
     // or leaving them OFF if they were OFF before.
     SREG = SREG_bak; 
 */
-
-
+/*
+    if(buffer_sensorhub[strlen(buffer_sensorhub)] != '\n') {
+      buffer_sensorhub[strlen(buffer_sensorhub)] = '\n';
+    }
+    buffer_sensorhub[strlen(buffer_sensorhub)+1] = {0};
+*/
     Serial.print("RXHUB:");
     Serial.print(buffer_sensorhub);
-    //Serial.println("***");
+    Serial.println();
 
-    const char * buffer_sensorhub_ptr = buffer_sensorhub;
-    if(doSerialDebug) { Serial.print (buffer_sensorhub_ptr); Serial.print("\n"); } //print the array on serial monitor    
+    //const char * buffer_sensorhub_ptr = buffer_sensorhub;
+    //if(doSerialDebug) { Serial.print (buffer_sensorhub); Serial.print("\n"); } //print the array on serial monitor    
 
     // Send to Frontend unchanged via serial
-    Serial_Frontend.write(buffer_sensorhub_ptr);
-    Serial_Frontend.write('\n');
+    //Serial_Frontend.write(buffer_sensorhub_ptr);
+    //Serial_Frontend.write('\n');
   
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     //tmp_json.clear();
-    const char* p = buffer_sensorhub;// SPIData;
-    DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
-    //tmp_json.shrinkToFit();
+    //const char* p = buffer_sensorhub;// SPIData;
+    //DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
+    DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub);
 
     if (error) {
-      Serial.write(buffer_sensorhub_ptr);
-      Serial.print(F("\n^JSON_ERR:"));
+      //Serial.write(buffer_sensorhub);
+      Serial.print(F("^JSON_ERR:"));
       Serial.println(error.f_str());
       
     } else {
+      // Write/pass on to Frontend
+      serializeJson(tmp_json, Serial_Frontend);
+      Serial_Frontend.write('\n');
+
+      Serial.print("TX:");
+      serializeJson(tmp_json, Serial);
+      Serial.write('\n');
+      
+      
 
       if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
         //Serial.println("REMOTE DATA 0x45");
@@ -660,7 +672,7 @@ void loop() // run over and over
           {
           }
           break;
-          default: Serial.print(F("got data from unknown devid: ")); Serial.println(_devid);
+          default: Serial.print(F("ignoring data from unknown devid: ")); Serial.println(_devid);
         }
       } // 0x45
     } // no json error
