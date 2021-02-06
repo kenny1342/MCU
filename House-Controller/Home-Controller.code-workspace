@@ -25,7 +25,11 @@
 			"functional": "cpp",
 			"random": "cpp",
 			"memory": "cpp",
-			"type_traits": "cpp"
+			"type_traits": "cpp",
+			"*.tcc": "cpp",
+			"optional": "cpp",
+			"system_error": "cpp",
+			"regex": "cpp"
 		}
 	}
 }
