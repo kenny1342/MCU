@@ -155,9 +155,7 @@ jQuery(document).ready(function () {
         //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data");
-          json = JSON.parse('[{"cmd":69,"devid":9457,"sid":1,"data":{"value":50.6}},{"cmd":69,"devid":50406,"sid":1,"data":{"value":22.8}},{"cmd":69,"devid":9457,"sid":2,"data":{"value":99.8}}]');
-          console.log(json);
-          localStorage.setItem('json0x45', JSON.stringify(json));
+          localStorage.setItem('json0x45', "[{\"cmd\":69,\"devid\":50406,\"sid\":2,\"data\":{\"value\":30.4}},{\"cmd\":69,\"devid\":33832,\"sid\":1,\"data\":{\"value\":0.5}},{\"cmd\":69,\"devid\":9457,\"sid\":1,\"data\":{\"value\":\"8.5\"}},{\"cmd\":69,\"devid\":33832,\"sid\":1,\"data\":{\"value\":0.6}},{\"cmd\":69,\"devid\":50406,\"sid\":2,\"data\":{\"value\":30.5}},{\"cmd\":69,\"devid\":50406,\"sid\":1,\"data\":{\"value\":22.7}}]");
         } else {
           //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
@@ -345,26 +343,39 @@ jQuery(document).ready(function () {
       } catch(e) {
         let str="Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);
-        return;
+        //return;
       }
 
       // -------------- REMOTE SENSORS ---------------------------------
+      
+      json = JSON.parse('[{"cmd":69,"devid":50406,"sid":2,"data":{"value":30.4}}]');
       try {
-        json = JSON.parse(localStorage.getItem('json0x45'));
         
+        json = JSON.parse(localStorage.getItem('json0x45'));
+        //json = JSON.parse('{"cmd":69,"devid":50406,"sid":2,"data":{"value":30.4}}');
         if(!typeof json == "object" || Object.keys(json).length < 1) {
           console.log("0x45 invalid data, len=" + Object.keys(json).length);
           return;
         }
 
+        // build array "probedata" only containing the last line for the devid and sid (newest data) found in source json (no duplicates)
+        let probedata = {};
         for(var idx in json) {
-          let probedata = json[idx];
-          if(probedata.data["value"] == null || probedata.data["value"] == "") continue;
+          let json_probedata = json[idx];
 
-          let devid = probedata["devid"];
-          let sid = probedata["sid"];
-          let value = probedata.data["value"];
+          if(json_probedata.data["value"] == null || json_probedata.data["value"] == "") continue;
+
+          let devid = json_probedata["devid"];
+          let sid = json_probedata["sid"];
+          probedata[devid + sid] =  json_probedata;
           
+        }
+
+        for(var key in probedata) {
+          let devid = probedata[key].devid;  
+          let sid = probedata[key].sid; 
+          let value = probedata[key].data["value"];
+  
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
           if(devid == config.probe_devid_bathroom) {
@@ -375,18 +386,36 @@ jQuery(document).ready(function () {
           }
 
           let objid = "probe_devid_" + devid + "_sid_" + sid;
+          //console.log("OBJID: " + objid);
           if($("#" + objid).length > 0) {
-            $("#" + objid).empty().append(value);
+                        
+            if(value != $("#" + objid).html()) {
+              $("#" + objid).empty().append(value);
+
+              if(!$("#" + objid).is(':animated') )  {
+                $("#" + objid).stop(true, true).fadeOut(500).fadeIn(800);            
+              } 
+            }
+            
+            if(devid == "outside") {
+              if(value < 0.0) {
+                $("#" + objid).removeClass().addClass("temp_negative");
+              } else {
+                $("#" + objid).removeClass("temp_negative");
+              }
+            }
+
           }
 
         }
-          //$("#probe_devid9999_sid1").empty().append(parseFloat(json["50406"]["1"].toFixed(1))); // fridge wifi sensor - devid=50406, sid=1
+
       } catch(e) {
+        
+        console.log(json);
         let str="ox45 Failed to parse JSON, len=" + Object.keys(json).length + " EX="+e;
         console.log(str);
-        return;
+        //return;
       }
-      
       
     }, 900 ) ;
 
@@ -405,4 +434,7 @@ jQuery(document).ready(function () {
 
   });
 
+  json = JSON.parse('{"cmd":99,"devid":50406,"sid":2,"data":{"value":30.4}}');
+  console.log("DEBUG");
+  console.log(json);
   }); // page loaded
