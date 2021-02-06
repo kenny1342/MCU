@@ -6,7 +6,7 @@
 
 bool debug = true;
 
-#define VERSION "5.11"
+#define VERSION "5.12"
 #define MAX_SRV_CLIENTS 4
 
 #ifdef MODE_AP

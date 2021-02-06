@@ -25,7 +25,8 @@ bool OTArunning = false;
 uint16_t stat_q_rx;
 uint16_t stat_tcp_count;
 
-CircularBuffer<char*, 10> queue_tx;
+// Ring buffer with all chars received via TCP, to be written to serial
+CircularBuffer<char, 2048> queue_tx; // chars we queue (3 probes accumulates ~400 chars between each SendData every 5 sec)
 LCD_state_struct LCD_state;
 
 Timemark tm_SendData(5000);
@@ -47,7 +48,7 @@ void setup() {
   }
   Serial_one.begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 
-  if(debug) Serial.println("\n\nSensor-HUP WiFi serial bridge Vx.xx");
+  if(debug) Serial.println("\n\nSensor-HUP WiFi serial bridge V" VERSION);
 
 
   tft.init();
@@ -205,31 +206,37 @@ void loop()
     tft.printf("Client conns: %u   \n", stat_tcp_count);
     tft.println();
     
-    tft.printf("RX->TX Msg:   %u   \n", stat_q_rx);
+    tft.printf("RX->TX Bytes: %u   \n", stat_q_rx);
     tft.println();
     
-    tft.printf("TX Queue:     %u/%u  \n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+    tft.printf("TX Queue:     %u/%u   ", queue_tx.size(), queue_tx.size() + queue_tx.available());
     tft.println();
 
   }
 
   if(tm_SendData.expired()) {
 
+    Serial.printf("%u/%u bytes in TX queue\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
 
-    
-
+    if(!queue_tx.isEmpty()) {
+      Serial.printf("TXc:");  
+    }
 
     while (!queue_tx.isEmpty()) {
         
-      char *b = queue_tx.pop();
-      Serial.printf("TX:%s\n", b);
-      Serial_one.print(b);
-      Serial_one.write('\n');
+      char c = queue_tx.pop();
+      if(c == '\n') {
+        delay(200);
+      }
+      if(c == '\0') break;
 
-      delay(40); // so the slower Mega can keep up...
-
-      Serial.printf("%u/%u items in TX queue\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+      Serial_one.write(c);
+      Serial.write(c);  
+      delayMicroseconds(40); // don't stress ATMega
+      //Serial.write('\n');  
+      //Serial_one.write('\n');
     }            
+    delay(200); 
 
     Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
   }
@@ -267,14 +274,16 @@ void loop()
     for(i = 0; i < MAX_SRV_CLIENTS; i++){
       if (serverClients[i] && serverClients[i].connected()){
         if(serverClients[i].available()){
-          char buffer_tmp[bufferSize] = {0};
-          //  memset ( (void*)buffer_tmp, 0, bufferSize );
-          //  buffer_tmp[0] = {0};
+          //char buffer_tmp[bufferSize] = {0};
+          Serial.print("RX:");
           while(serverClients[i].available()) {              
-            serverClients[i].readBytesUntil('\n', buffer_tmp, sizeof(buffer_tmp)-1);
+            //serverClients[i].readBytesUntil('\n', buffer_tmp, sizeof(buffer_tmp)-1);
+            char c = serverClients[i].read();
+            queue_tx.unshift(c); // add a char to buffer
+            Serial.write(c);
           }          
-          queue_tx.unshift(buffer_tmp);
-          Serial.printf("RX:%s\n", buffer_tmp);
+          queue_tx.unshift('\n');
+          Serial.print("\n");
           stat_q_rx++;
         }
       }
