@@ -393,7 +393,7 @@ jQuery(document).ready(function () {
               $("#" + objid).empty().append(value);
 
               if(!$("#" + objid).is(':animated') )  {
-                $("#" + objid).stop(true, true).fadeOut(500).fadeIn(800);            
+                $("#" + objid).stop(true, true).fadeOut(500).fadeIn(800).fadeOut(500).fadeIn(800).fadeOut(500).fadeIn(800);            
               } 
             }
             
