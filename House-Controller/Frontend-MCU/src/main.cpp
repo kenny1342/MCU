@@ -17,11 +17,11 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <CircularBuffer.h>
-//#include <RingBuf.h>
 #include <MD_CirQueue.h>
 #ifdef USE_BLYNK
 #include <BlynkSimpleEsp32.h>
 #endif
+#include <TimeLib.h>
 #include <ArduinoOTA.h>
 #include <logger.h>
 #include <TFT_eSPI.h>
@@ -30,14 +30,20 @@
 #include <Button_KRA.h>
 #include <setup.h>
 
+#ifdef USE_WIFIMGR
 #define _ESPASYNC_WIFIMGR_LOGLEVEL_    4 // Use from 0 to 4. Higher number, more debugging messages and memory usage.
 #include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
+#endif
+
 #include <main.h>
 
 char WEBIF_VERSION[6] = "N/A"; // read from file (/WEBIF_VERSION)
 char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
+#ifdef USE_WIFIMGR
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
+DNSServer dnsServer;
+#endif
 
 const uint8_t QUEUE_SIZE = 6;
 MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
@@ -45,10 +51,13 @@ MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
+#ifdef USE_WIFIMGR
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
+#endif
 
+const int timeZone = 1;
+unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, CONF_DEF_NTP_SERVER, 3600, 20);
 
 #ifdef USE_BLYNK
   int blynk_button_V2 = 0;
@@ -70,7 +79,6 @@ char JSON_STRINGS[JSON_DOC_COUNT][JSON_SIZE] = {0};
 uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
-DNSServer dnsServer;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events"); // event source (Server-Sent events)
@@ -81,14 +89,14 @@ Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(120000); 
 Timemark tm_CheckDataAge(5000);
 Timemark tm_PushToBlynk(2000);
-Timemark tm_SerialDebug(1000);
+Timemark tm_SerialDebug(10000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
-Timemark tm_SyncNTP(180000);
+//Timemark tm_SyncNTP(180000);
 
-const uint8_t NUM_TIMERS = 8;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay, TM_SyncNTP };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay, &tm_SyncNTP };
+const uint8_t NUM_TIMERS = 7;
+enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
+Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay};
 
 bool OTArunning = false;
 volatile int interruptCounter;
@@ -206,6 +214,7 @@ void setup(void) {
 
   //WiFi.setTxPower(WIFI_POWER_19_5dBm);
 
+#ifdef USE_WIFIMGR
   //WiFiManager custom parameters/config
   ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
   ESPAsync_WMParameter custom_port("port", "HTTP port", config.port, 6);
@@ -226,7 +235,7 @@ void setup(void) {
   ESPAsync_wifiManager.setSaveConfigCallback(saveConfigCallback);
   //set static ip
   //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
-
+#endif
 
   // reset settings if flagfile exists
   if(SPIFFS.exists("/doreset.dat")) {
@@ -234,7 +243,9 @@ void setup(void) {
     SPIFFS.remove("/doreset.dat");
 
     delay(500);
-    ESPAsync_wifiManager.resetSettings();  // esp8266, not esp32
+    #ifdef USE_WIFIMGR 
+    ESPAsync_wifiManager.resetSettings(); 
+    #endif // esp8266, not esp32
     delay(5000);
     ESP.restart();
 
@@ -270,26 +281,13 @@ void setup(void) {
 
   logger.println(F("Connecting to WiFi..."));
 
+#ifdef USE_WIFIMGR
   // our custom parameters
   ESPAsync_wifiManager.addParameter(&custom_hostname);
   ESPAsync_wifiManager.addParameter(&custom_port);
   ESPAsync_wifiManager.addParameter(&custom_ntpserver);
-
   //ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
 
-
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.begin("kra-stb", "escort82");
-  delay(1000);
-  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
-
-  } else {
-    Serial.println("connection failed!");
-    delay(1000);
-    ESP.restart();
-  }
-
-/*
   ESPAsync_wifiManager.autoConnect("KRATECH-AP");
   if (WiFi.status() != WL_CONNECTED) { 
     logger.println(F("Failed to connect, will restart"));
@@ -297,8 +295,6 @@ void setup(void) {
     ESP.restart();
     delay(5000);
   }
- */
-
 
   //save the custom parameters to FS
   if (shouldSaveConfig) {
@@ -313,10 +309,26 @@ void setup(void) {
     } 
   }
 
+  Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
+#endif
+
+#ifndef USE_WIFIMGR
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
+  delay(2000);
+  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+
+  } else {
+    Serial.println("connection failed, rebooting!");
+    delay(2000);
+    ESP.restart();
+    return;
+  }
+  Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
+#endif
+
   WiFi.setAutoReconnect(true);
 
-  //Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
-  Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   
@@ -342,14 +354,22 @@ void setup(void) {
 
   logger.print(F("Configuring NTP server "));
   logger.println(config.ntpserver);
-  NTPClient timeClient = NTPClient(ntpUDP, config.ntpserver, 3600, 10);
+  /*
+  NTPClient timeClient = NTPClient(ntpUDP, config.ntpserver, 3600, 30000);
   timeClient.begin();
   if(!DEBUG) delay(700);
   if(!timeClient.update()){
     logger.println(F("Failed to obtain time"));
   } else {
     logger.println(SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
-  }  
+  } 
+  */ 
+ 
+ ntpUDP.begin(localPortNTP);
+  Serial.println("waiting for sync");
+  setSyncProvider(getNtpTime);
+  setSyncInterval(300);
+
   if(!DEBUG) delay(700);
 
   logger.print(F("Starting HTTP server..."));
@@ -380,9 +400,10 @@ void setup(void) {
   //tft.fillScreen(TFT_BLACK);
   LCD_state.clear = 1;
 
-  timeClient.forceUpdate();
+  //timeClient.forceUpdate();
 }
 
+#ifdef USE_WIFIMGR
 //gets called when WiFiManager enters configuration mode
 void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
   Serial.println("Entered config mode");
@@ -396,6 +417,7 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
   //delay(2000);
   // Connect to WiFi KRA-TECH and open http://192.168.255.255 in a browser to complete configuration
 }
+#endif
 
 #ifdef USE_BLYNK
 bool ConnectBlynk() {
@@ -417,15 +439,21 @@ void ReconnectWiFi() {
   reconnects_wifi++;
   uint8_t cnt = 0;
 
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
+  
 
   if(WiFi.isConnected()) {
     return;
   }
     
-  Serial.print(F("Reconnecting to "));
+  Serial.print(F("Reconnecting wifi... "));
+#ifdef USE_WIFIMGR
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
   Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
   ESPAsync_wifiManager.autoConnect();
+#endif
+#ifndef USE_WIFIMGR
+  WiFi.reconnect();
+#endif
 
   while (WiFi.status() != WL_CONNECTED) {  
     if(cnt++ > 6) {
@@ -489,20 +517,20 @@ String HTMLProcessor(const String& var) {
   return String();
 }
 
+#ifdef USE_WIFIMGR
 //WifiManager callback notifying us of the need to save config
 void saveConfigCallback () {
   Serial.println("Should save config");
   shouldSaveConfig = true;
 }
-
+#endif
 
 void loop(void) {
   double t = 0;
-  //static CircularBuffer<StaticJsonDocument<JSON_SIZE>, MAX_REMOTE_SIDS> remote_data;
 
   ArduinoOTA.handle();
   if(OTArunning) return;
-  
+
   ws.cleanupClients();
 
 #ifdef USE_BLYNK
@@ -526,12 +554,6 @@ void loop(void) {
     portEXIT_CRITICAL(&timerMux);
   }
 
-
-  if(Timers[TM_SyncNTP]->expired()) {
-    timeClient.update();
-  }
-
-
   if(Timers[TM_CheckConnections]->expired()) {
     if (!WiFi.isConnected())
     {
@@ -551,13 +573,7 @@ void loop(void) {
         }
     } else {
       Serial.println(F("WiFi OK"));
-/*
-      if(getLocalTime(&timeinfo)){
-        Serial.println(F("NTP update OK..."));
-      } else {
-        Serial.println(F("NTP update FAILED"));
-      }
-*/
+
 #ifdef USE_BLYNK
       if(!Blynk.connected()) {
         Serial.println(F("Blynk disconnected, reconnecting..."));
@@ -571,7 +587,6 @@ void loop(void) {
   // TODO: move to ISR (else queue really isn't needed...)
   if(Serial_DATA.available())
   {
-        //Serial_DATA.readBytesUntil('\n', data_string, sizeof(data_string));
         char buffer_rx[JSON_SIZE] = {0};
         Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
         if(strlen(buffer_rx) > 10) {
@@ -581,31 +596,12 @@ void loop(void) {
           if(Q_rx.isFull()) {
             Serial.printf("\nALERT: Q_rx is full!!!" );
           }
-/*
-          for(int i=0; i<remote_data.size() -1; i++) {
-            //Serial.printf("\nQ1RX:%u=%s", i, queue_rx[i] ); //
-          }          
-
-          if(Q_rx.isFull()) {
-            for(int i=0; i<QUEUE_SIZE; i++) {
-              char t[JSON_SIZE] = {0};
-              
-                Q_rx.pop((uint8_t *) &t);
-                Serial.printf("\nQ2RX:%u=%s", i, t ); //
-              }
-          }          
-*/
-          //printBuffer();
         }
   }
     
-
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
 
   while (!Q_rx.isEmpty()) {
-  //while (!queue_rx.isEmpty()) {    
-    
-    //char *data_string = queue_rx.pop();
     char data_string[JSON_SIZE] = {0};
     Q_rx.pop((uint8_t *) &data_string);
     const char *data_string_ptr = data_string;
@@ -614,7 +610,7 @@ void loop(void) {
     dataAge = millis();
 
     if(doSerialDebug) {
-      Serial.printf("RX (%s):\n", SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
+      Serial.printf("RX (%s):\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
       Serial.println(data_string); 
     } else {
       Serial.print(".");
@@ -634,13 +630,7 @@ void loop(void) {
         Serial.println(error.f_str());
     } else {
 
-      JsonVariant jsonVal;
-      
-      jsonVal = tmp_json.getMember("cmd");
-      uint8_t cmd = jsonVal.as<uint8_t>();
-      //jsonVal = tmp_json.getMember("devid");
-      //uint16_t devid = jsonVal.as<uint16_t>();
-      //Serial.printf("cmd=%u\n", cmd);
+      uint8_t cmd = tmp_json.getMember("cmd").as<uint8_t>();
 
       switch(cmd) {
         case 0x10: // ADCSYSDATA          
@@ -669,7 +659,6 @@ void loop(void) {
         {
           // Clone the json doc and add it to the end of circular buffer
           DynamicJsonDocument tmp_doc = tmp_json;
-          //JsonObject root = tmp_doc.to<JsonObject>();
           bool duplicate = false;
           for(int i=0; i<remote_data.size(); i++) {
             if(
@@ -678,14 +667,15 @@ void loop(void) {
               remote_data[i].getMember("data")["value"] == tmp_doc.getMember("data")["value"]
             ) {
               //serializeJson(tmp_doc, Serial);
-              Serial.println(F("\n0x45 data already exists in buffer, ignoring"));
+              if(doSerialDebug) Serial.println(F("\n0x45 data already exists in buffer, ignoring"));
               duplicate = true;
             }
           }
 
           if(!duplicate) {
+            tmp_doc["ts"] = now(); // timeClient.getEpochTime();
             remote_data.push( tmp_doc);
-            Serial.println(F("0x45 doc added to buffer"));
+            if(doSerialDebug) Serial.println(F("0x45 doc added to buffer"));
           }
 
         }
@@ -884,7 +874,8 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         
         tft.setCursor(0, 0);
-        tft.printf("%-14s\n", SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
+        tft.printf("%-14s\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+        //tft.printf("%-14s\n", );
         tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
         tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
         tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
@@ -1016,4 +1007,62 @@ char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
     default: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate);
   }
   return dateString;
+}
+
+/*-------- NTP code ----------*/
+//const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
+byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
+
+time_t getNtpTime()
+{
+  IPAddress ntpServerIP; // NTP server's ip address
+
+  while (ntpUDP.parsePacket() > 0) ; // discard any previously received packets
+  Serial.println("Transmit NTP Request");
+  // get a random server from the pool
+  WiFi.hostByName(config.ntpserver, ntpServerIP);
+  Serial.print(config.ntpserver);
+  Serial.print(": ");
+  Serial.println(ntpServerIP);
+  sendNTPpacket(ntpServerIP);
+  uint32_t beginWait = millis();
+  while (millis() - beginWait < 1500) {
+    int size = ntpUDP.parsePacket();
+    if (size >= NTP_PACKET_SIZE) {
+      Serial.println("Receive NTP Response");
+      ntpUDP.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
+      unsigned long secsSince1900;
+      // convert four bytes starting at location 40 to a long integer
+      secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
+      secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
+      secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
+      secsSince1900 |= (unsigned long)packetBuffer[43];
+      return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
+    }
+  }
+  Serial.println("No NTP Response :-(");
+  return 0; // return 0 if unable to get the time
+}
+
+// send an NTP request to the time server at the given address
+void sendNTPpacket(IPAddress &address)
+{
+  // set all bytes in the buffer to 0
+  memset(packetBuffer, 0, NTP_PACKET_SIZE);
+  // Initialize values needed to form NTP request
+  // (see URL above for details on the packets)
+  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+  packetBuffer[1] = 0;     // Stratum, or type of clock
+  packetBuffer[2] = 6;     // Polling Interval
+  packetBuffer[3] = 0xEC;  // Peer Clock Precision
+  // 8 bytes of zero for Root Delay & Root Dispersion
+  packetBuffer[12] = 49;
+  packetBuffer[13] = 0x4E;
+  packetBuffer[14] = 49;
+  packetBuffer[15] = 52;
+  // all NTP fields have been given values, now
+  // you can send a packet requesting a timestamp:
+  ntpUDP.beginPacket(address, 123); //NTP requests are to port 123
+  ntpUDP.write(packetBuffer, NTP_PACKET_SIZE);
+  ntpUDP.endPacket();
 }

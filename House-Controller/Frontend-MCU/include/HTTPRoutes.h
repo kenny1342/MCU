@@ -36,7 +36,7 @@ extern const char* _def_hostname;
 extern CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
 extern char JSON_STRINGS[4][JSON_SIZE];
 //extern struct tm timeinfo;
-extern NTPClient timeClient;
+//extern NTPClient timeClient;
 
 void onRequest(AsyncWebServerRequest *request);
 void onNotFound(AsyncWebServerRequest *request);

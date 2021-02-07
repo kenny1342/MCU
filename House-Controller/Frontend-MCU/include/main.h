@@ -6,6 +6,10 @@
 #include <TFT_eSPI.h>
 #include <setup.h>
 
+//#define USE_WIFIMGR
+#define DEF_WIFI_SSID  "service_wifi"
+#define DEF_WIFI_PW    "hemmelig"
+
 // Helpers to read strings from build options macros
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
@@ -23,9 +27,9 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define CONF_DEF_PORT                "80"
 #define CONF_DEF_NTP_SERVER          "192.168.30.13"
 
-#define JSON_SIZE                   768
-#define JSON_SIZE_REMOTEPROBES      250
-#define MAX_REMOTE_SIDS             20 // number of remote sensor id's JSON strings to store in memory/circular buffer
+#define JSON_SIZE                   1024
+#define JSON_SIZE_REMOTEPROBES      100
+#define MAX_REMOTE_SIDS             10 // number of remote sensor id's JSON strings to store in memory/circular buffer
 
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
@@ -63,14 +67,6 @@ struct LCD_state_struct {
     uint16_t bgcolor = TFT_BLACK;
     uint16_t fgcolor = TFT_GREEN;    
 } ;
-/*
-union ISRFLAGS_struct {
-  byte allBits;
-    struct {
-        bool lcd_clear = false;
-    };
-};
-*/
 
 #ifdef USE_BLYNK
 bool ConnectBlynk();
@@ -81,6 +77,9 @@ String HTMLProcessor(const String& var);
 void saveConfigCallback ();
 void CheckButtons(void);
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
+time_t sync();
+time_t getNtpTime();
+void sendNTPpacket(IPAddress &address);
 
 extern Config config;
 
