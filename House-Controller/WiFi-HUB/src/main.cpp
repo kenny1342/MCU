@@ -19,7 +19,7 @@
 #include <logo_kra-tech.h>
 
 //3 seconds WDT
-#define WDT_TIMEOUT 8
+#define WDT_TIMEOUT 3
 
 bool OTArunning = false;
 uint16_t stat_q_rx;
@@ -30,7 +30,7 @@ CircularBuffer<char, 2048> queue_tx; // chars we queue (3 probes accumulates ~40
 LCD_state_struct LCD_state;
 
 Timemark tm_SendData(5000);
-Timemark tm_reboot(86400 * 1000); 
+Timemark tm_reboot(1440 * 1000); 
 Timemark tm_ClearDisplay(300000);
 Timemark tm_UpdateDisplay(200);
 
@@ -203,13 +203,13 @@ void loop()
     LCD_state.bgcolor = TFT_BLACK;
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-    tft.printf("Client conns: %u   \n", stat_tcp_count);
+    tft.printf("TCP conns: %u   \n", stat_tcp_count);
     tft.println();
     
-    tft.printf("RX->TX Bytes: %u   \n", stat_q_rx);
+    tft.printf("RX->TX B: %u   \n", stat_q_rx);
     tft.println();
     
-    tft.printf("TX Queue:     %u/%u   ", queue_tx.size(), queue_tx.size() + queue_tx.available());
+    tft.printf("TX Queue: %u/%u   ", queue_tx.size(), queue_tx.size() + queue_tx.available());
     tft.println();
 
   }

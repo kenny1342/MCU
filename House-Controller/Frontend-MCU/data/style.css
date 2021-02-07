@@ -61,7 +61,7 @@ a:hover {
   width: 99%; 
   white-space: nowrap;
   border-spacing: 1px;
-  margin: 1em 1em 1em 1em;
+  margin: 0em 1em 1em 1em;
 }
 
 #table_main td {
@@ -195,7 +195,9 @@ a:hover {
 
 h1 {
     color: #0F3376;
-    padding: 1.5vh;
+    padding: 1.0vh;
+    margin-block-start: 0.09em;
+    margin-block-end: 0.09em;
   }
 
   p {
@@ -207,7 +209,7 @@ h1 {
   #alarms {
     text-align: center;
     white-space: nowrap;
-    font-size: 2em;
+    font-size: 1.1em;
     color: red;
     font-weight: 600;
   }
