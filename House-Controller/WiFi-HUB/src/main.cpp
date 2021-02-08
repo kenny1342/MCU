@@ -6,7 +6,7 @@
  */
 
 #include <Arduino.h>
-#include "config.h"
+#include "main.h"
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h> 
@@ -203,14 +203,13 @@ void loop()
     LCD_state.bgcolor = TFT_BLACK;
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-    tft.printf("TCP conns: %u   \n", stat_tcp_count);
-    tft.println();
+    tft.printf("TCP conns: %u  \n", stat_tcp_count);
     
     tft.printf("RX->TX B: %u   \n", stat_q_rx);
-    tft.println();
     
-    tft.printf("TX Queue: %u/%u   ", queue_tx.size(), queue_tx.size() + queue_tx.available());
-    tft.println();
+    tft.printf("TX Queue: %u/%u \n\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+
+    tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
 
   }
 
@@ -295,4 +294,31 @@ void loop()
       }
     }
 
+}
+
+char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
+{
+  time_t curSec;
+  struct tm *curDate;
+  static char dateString[32];
+  
+  curSec = time(NULL) + seconds;
+  curDate = localtime(&curSec);
+
+  switch(format) {    
+    case TFMT_LONG: strftime(dateString, sizeof(dateString), "%A, %B %d %Y %H:%M:%S", curDate); break;
+    case TFMT_DATETIME: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate); break;
+    case TFMT_HOURS: 
+    {
+      long h = seconds / 3600;
+      uint32_t t = seconds % 3600;
+      int m = t / 60;
+      int s = t % 60;
+      sprintf(dateString, "%04ld:%02d:%02d", h, m, s);
+    }
+      break;
+
+    default: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate);
+  }
+  return dateString;
 }

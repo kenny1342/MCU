@@ -112,7 +112,19 @@ void IRAM_ATTR onTimer() {
   portENTER_CRITICAL_ISR(&timerMux);
   interruptCounter++;
   portEXIT_CRITICAL_ISR(&timerMux);
-  
+/*  
+  timerAlarmDisable(timer);
+  if(Serial_DATA.available())
+  {
+        char buffer_rx[JSON_SIZE] = {0};
+        Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
+        if(strlen(buffer_rx) > 10) {
+          //queue_rx.unshift(buffer_rx);
+          Q_rx.push((uint8_t *)buffer_rx);
+        }
+  }
+  timerAlarmEnable(timer);
+  */
 }
 
 #ifdef USE_BLYNK
@@ -150,6 +162,7 @@ void setup(void) {
   logger.println("");
   if(!DEBUG) delay(1000);
 
+  Q_rx.setFullOverwrite(true);
 
   tft.init();
   tft.setRotation(3); // 1
@@ -386,8 +399,9 @@ void setup(void) {
   logger.println(F("Starting timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
-    timerAlarmEnable(timer);
+  timerAlarmWrite(timer, 500000, true); // 1000us=1ms, 1000000us=1s
+  timerAlarmEnable(timer);
+
 
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
@@ -593,16 +607,18 @@ void loop(void) {
           //queue_rx.unshift(buffer_rx);
           Q_rx.setFullOverwrite(true); // move to Setup
           Q_rx.push((uint8_t *)buffer_rx);
-          if(Q_rx.isFull()) {
-            Serial.printf("\nALERT: Q_rx is full!!!" );
-          }
         }
   }
-    
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
+
 
   while (!Q_rx.isEmpty()) {
     char data_string[JSON_SIZE] = {0};
+
+    if(Q_rx.isFull()) {
+      Serial.printf("\nALERT: Q_rx is full!!!" );
+    }
+
     Q_rx.pop((uint8_t *) &data_string);
     const char *data_string_ptr = data_string;
 

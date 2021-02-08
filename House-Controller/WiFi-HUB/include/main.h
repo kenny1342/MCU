@@ -39,3 +39,5 @@ struct LCD_state_struct {
 } ;
 
 //////////////////////////////////////////////////////////////////////////
+enum TIME_STRING_FORMATS { TFMT_LONG, TFMT_DATETIME, TFMT_HOURS };
+char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
