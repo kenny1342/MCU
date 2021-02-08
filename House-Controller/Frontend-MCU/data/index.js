@@ -384,6 +384,9 @@ jQuery(document).ready(function () {
           if(devid == config.probe_devid_outside) {
             devid = "outside";
           }
+          if(devid == config.probe_devid_bedroom) {
+            devid = "bedroom";
+          }
 
           let objid = "probe_devid_" + devid + "_sid_" + sid;
           //console.log("OBJID: " + objid);

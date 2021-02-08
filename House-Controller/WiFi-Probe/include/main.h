@@ -3,9 +3,9 @@
 
 bool debug = true;
 
-#define HW_ESP32_OLEDSSD1306_DHT 2 // ESP32 board with 0.96" OLED (fex Lilygo LoraWan board, some devkits etc) + DHT11/DHT22/AM2302 sensor
-#define HW_ESP32_DHT             3 // ESP32 board + DHT11/DHT22/AM2302 sensor
-#define HW_ESP32_AM2320          1 // ESP32 board minimal/devkit c + AM2320 I2C sensor (bathroom use this)
+#define HW_ESP32_OLEDSSD1306_DHT 2 // ESP32 board with 0.96" OLED (fex Lilygo LoraWan board, some devkits etc) + DHT11/DHT22/AM2302 sensor (pumproom)
+#define HW_ESP32_DHT             3 // ESP32 board + DHT11/DHT22/AM2302 sensor (bedroom, outside)
+#define HW_ESP32_AM2320          1 // ESP32 board minimal/devkit c + AM2320 I2C sensor (bathroom)
 
 
 #define HW_MODEL HW_ESP32_DHT
