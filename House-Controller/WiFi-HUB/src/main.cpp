@@ -321,10 +321,10 @@ void loop()
             char c = serverClients[i].read();
             queue_tx.unshift(c); // add a char to buffer
             Serial.write(c);
+            stat_q_rx++;
           }          
           queue_tx.unshift('\n');
-          Serial.print("\n");
-          stat_q_rx++;
+          Serial.print("\n");          
         }
       }
       else {

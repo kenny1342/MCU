@@ -342,7 +342,7 @@ void loop()
       
     if (nrOfServices == 0) {
       Serial.println("No mDNS rs232-1 (HUB) service found! Hub offline?");
-      return;
+      //return;
     } else {
       Serial.print(nrOfServices, DEC);
       Serial.println(" mDNS rs232-1 (HUB) services found: ");
@@ -352,7 +352,13 @@ void loop()
       Serial.printf("%s (%s:%u)\n", MDNS.hostname(i).c_str(), MDNS.IP(i).toString().c_str(), MDNS.port(i));
     }
 
-    uint8_t mdns_index_hub = 0; // for now just assume the first is the correct (and only)...
+    int8_t mdns_index_hub = 0; // for now just assume the first is the correct (and only)...
+    if(nrOfServices == 0) {
+      mdns_index_hub = -1;
+      Serial.print("No mDNS, will try IP ");
+      Serial.println(hub_ip_fallback);
+    } 
+    
 
     doc.clear();
     JsonObject root = doc.to<JsonObject>();
@@ -372,7 +378,7 @@ void loop()
     SendData(root, mdns_index_hub);
 
     // ---------- TEMP/HUM  ----------------
-    if(sid1_value != NULL) {
+    if(sid1_value != NAN) {
       root["sid"] = 0x01; // this sensor's ID
       data.clear();
       data["value"] = sid1_value;
@@ -382,7 +388,7 @@ void loop()
       Serial.println(F("ERR: NULL value, skipping TX!"));
     }
 
-    if(sid2_value != NULL) {
+    if(sid2_value != NAN) {
       root["sid"] = 0x02; // this sensor's ID
       data.clear();
       data["value"] = sid2_value;
@@ -413,21 +419,34 @@ void loop()
 
 }
 
-void SendData(JsonObject &jsonObj, uint8_t mdns_index) {
+void SendData(JsonObject &jsonObj, int8_t mdns_index) {
 
     char dataString[JSON_SIZE] = {0};
     WiFiClient client;
  
     if(OTArunning) return;
 
-    if (!client.connect(MDNS.IP(mdns_index), MDNS.port(mdns_index))) {
-      if(++hubconntries > 20) {
-        Serial.println(F("too many HUB conn tries, rebooting"));
-        ESP.restart();
+    if(mdns_index == -1) { // use IP
+      if (!client.connect(hub_ip_fallback, hub_port)) {
+        if(++hubconntries > 20) {
+          Serial.println(F("too many HUB conn tries, rebooting"));
+          ESP.restart();
+        }
+          Serial.printf("Connection to HUB (%s:%u) failed!", hub_ip_fallback, hub_port);
+          delay(2000);
+          return;
       }
-        Serial.printf("Connection to HUB (%s:%u) failed!", MDNS.IP(mdns_index).toString().c_str(), MDNS.port(mdns_index));
-        delay(2000);
-        return;
+
+    } else { // use mDNS
+      if (!client.connect(MDNS.IP(mdns_index), MDNS.port(mdns_index))) {
+        if(++hubconntries > 20) {
+          Serial.println(F("too many HUB conn tries, rebooting"));
+          ESP.restart();
+        }
+          Serial.printf("Connection to HUB (%s:%u) failed!", MDNS.IP(mdns_index).toString().c_str(), MDNS.port(mdns_index));
+          delay(2000);
+          return;
+      }
     }
 
     //memset ( (void*)dataString, 0, JSON_SIZE );

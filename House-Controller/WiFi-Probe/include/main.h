@@ -8,8 +8,9 @@ bool debug = true;
 #define HW_ESP32_AM2320          1 // ESP32 board minimal/devkit c + AM2320 I2C sensor (bathroom)
 
 
-#define HW_MODEL HW_ESP32_DHT
+//#define HW_MODEL HW_ESP32_DHT
 //#define HW_MODEL HW_ESP32_AM2320
+#define HW_MODEL HW_ESP32_OLEDSSD1306_DHT
 
 #if HW_MODEL == HW_ESP32_AM2320
 #define USE_AM2320 // OBS - doesn't mix with OLED SPI display SSD1306
@@ -31,7 +32,7 @@ bool debug = true;
 #define MODE_STA
 
 #define JSON_SIZE                   512
-#define FIRMWARE_VERSION            "4.3"
+#define FIRMWARE_VERSION            "4.4"
 #define PIN_DALLAS_SENSORS          25      // DS18B20 on GPIO x (a 4.7K pullup is necessary)
 #define NUM_DS_SENSORS              5       // Max nr of DS18B20 we can have on the 1-wire bus
 
@@ -47,10 +48,11 @@ const char *pw = "hemmelig"; // and this is the password
 #endif
 
 //******** HUB connection details **********/
-const uint16_t port = 8880;
-const char * host = "SENSORHUB.local"; // mDNS name or IP
+const uint16_t hub_port = 8880;
+const char * hub_host = "SENSORHUB.local"; // mDNS name or IP
+const char * hub_ip_fallback = "192.168.30.60"; // Hub IP if no mDNS found
 
-void SendData(JsonObject &jsonObj, uint8_t mdns_index);
+void SendData(JsonObject &jsonObj, int8_t mdns_index);
 bool readDS18B20(OneWire *ds, bool parasitePower/*, double *celsius*/);
 int getStrength(int points);
 
