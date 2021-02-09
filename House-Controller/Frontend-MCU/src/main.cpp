@@ -677,7 +677,7 @@ void loop(void) {
         {
           Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
           // Clone the json doc and add it to the end of circular buffer
-          tmp_json["ts"] = now();
+          tmp_json["ts"] = now(); // + (timeZone * 3600);
           DynamicJsonDocument tmp_doc = tmp_json;
           
           bool need_to_add = true;

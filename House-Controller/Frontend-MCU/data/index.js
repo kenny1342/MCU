@@ -43,7 +43,7 @@ jQuery(document).ready(function () {
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
       $("#chktestdata").prop('checked', true);
-      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"probe_devid_bathroom": "9457","probe_devid_pumphouse": "50406","version":"1.2"  }');
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"probe_devid_bathroom": "9457","probe_devid_pumphouse": "50406", "probe_devid_outside": "33832","probe_devid_bedroom": "22664","version":"1.2"  }');
       localStorage.setItem('config', JSON.stringify(json));
     }
   ); // fetch
@@ -154,8 +154,8 @@ jQuery(document).ready(function () {
     .catch(error => {
         //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
-          console.log("using test data");
-          localStorage.setItem('json0x45', "[{\"cmd\":69,\"devid\":50406,\"sid\":2,\"data\":{\"value\":30.4}},{\"cmd\":69,\"devid\":33832,\"sid\":1,\"data\":{\"value\":0.5}},{\"cmd\":69,\"devid\":9457,\"sid\":1,\"data\":{\"value\":\"8.5\"}},{\"cmd\":69,\"devid\":33832,\"sid\":1,\"data\":{\"value\":0.6}},{\"cmd\":69,\"devid\":50406,\"sid\":2,\"data\":{\"value\":30.5}},{\"cmd\":69,\"devid\":50406,\"sid\":1,\"data\":{\"value\":22.7}}]");
+          console.log("using test data json0x45");
+          localStorage.setItem('json0x45', '[{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
         } else {
           //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
@@ -347,8 +347,6 @@ jQuery(document).ready(function () {
       }
 
       // -------------- REMOTE SENSORS ---------------------------------
-      
-      json = JSON.parse('[{"cmd":69,"devid":50406,"sid":2,"data":{"value":30.4}}]');
       try {
         
         json = JSON.parse(localStorage.getItem('json0x45'));
@@ -374,8 +372,12 @@ jQuery(document).ready(function () {
         for(var key in probedata) {
           let devid = probedata[key].devid;  
           let sid = probedata[key].sid; 
-          let value = probedata[key].data["value"];
-  
+          let value = probedata[key].data["value"];          
+          let age = Math.floor(Date.now() / 1000) - parseInt(probedata[key].ts, 10);
+          // TODO, figure out better handling
+          age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
+          console.log("age=" + age + " secs");
+
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
           if(devid == config.probe_devid_bathroom) {
@@ -408,6 +410,11 @@ jQuery(document).ready(function () {
               }
             }
 
+            if(age > 600) {
+              $("#" + objid).removeClass().addClass("OLD_DATA");
+            } else {
+              $("#" + objid).removeClass("OLD_DATA");
+            }
           }
 
         }

@@ -172,6 +172,10 @@ a:hover {
   display: block;
 }
 
+.OLD_DATA {
+  color:rgba(63, 63, 63, 0.5);
+}
+
 .temp_negative {
   color:rgb(0, 3, 167);
 }
