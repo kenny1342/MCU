@@ -188,8 +188,10 @@ void loop()
   if(OTArunning) return;
 
   if(tm_CheckWifi.expired()) {
+    
     if (!WiFi.isConnected())
     {
+        MDNS.end();
         delay(5000);
         if(!WiFi.isConnected()) {
           Serial.print(F("Trying WiFi reconnect #"));
@@ -207,7 +209,7 @@ void loop()
             Serial.print(".");
           }  
           Serial.println(F("Reconnected OK!"));
-
+          MDNS.begin("SENSORHUB");
           
           if (reconnects_wifi == 20)
           {
@@ -222,7 +224,7 @@ void loop()
     }
   }
 
-  
+
   if(tm_ClearDisplay.expired()) {
     tft.fillScreen(LCD_state.bgcolor);
   }
