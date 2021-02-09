@@ -376,7 +376,6 @@ jQuery(document).ready(function () {
           let age = Math.floor(Date.now() / 1000) - parseInt(probedata[key].ts, 10);
           // TODO, figure out better handling
           age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
-          console.log("age=" + age + " secs");
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid

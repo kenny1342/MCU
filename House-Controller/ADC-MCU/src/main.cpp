@@ -21,6 +21,7 @@
 #include <KRA-Emon.h>
 //#include <EmonLib.h>
 
+
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
@@ -575,6 +576,7 @@ ISR (TIMER2_COMPA_vect)
 }
 
 
+
 void loop() // run over and over
 {
   JsonArray data;
@@ -591,24 +593,22 @@ void loop() // run over and over
   APPFLAGS.isUpdatingData = true;
 
 
+  
+  //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
   if(Serial_SensorHub.available() > 10) {
     memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
     Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
 /*
-  if(HUB_dataready) {
-    uint8_t SREG_bak = SREG; // back up the global interrupt state
-    strncpy(buffer_sensorhub, (char*)buffer_sensorhub_isr, sizeof(buffer_sensorhub));
-    HUB_dataready = false;
-    // restore interrupt state, turning them back ON if they were ON before, 
-    // or leaving them OFF if they were OFF before.
-    SREG = SREG_bak; 
-*/
-/*
-    if(buffer_sensorhub[strlen(buffer_sensorhub)] != '\n') {
-      buffer_sensorhub[strlen(buffer_sensorhub)] = '\n';
-    }
-    buffer_sensorhub[strlen(buffer_sensorhub)+1] = {0};
-*/
+    int number_of_bytes_received = Serial_SensorHub.readBytesUntil ('\n',buffer_sensorhub,JSON_SIZE); // read bytes (max. JSON_SIZE) from buffer, untill <NL> (10). store bytes in buffer_sensorhub. count the bytes recieved.
+    buffer_sensorhub[number_of_bytes_received] = 0; // add a 0 terminator to the char array
+    Serial.print("RXHUB TMP:");
+    Serial.print(buffer_sensorhub); Serial.println();
+    Serial.print("RXHUB LAST2:"); Serial.print( buffer_sensorhub[strlen(buffer_sensorhub)-2] ); Serial.println();
+    Serial.print("RXHUB LAST1:"); Serial.print( buffer_sensorhub[strlen(buffer_sensorhub)-1] ); Serial.println();
+  }
+
+  if(buffer_sensorhub[strlen(buffer_sensorhub)-1] == '}') {
+  */  
     Serial.print("RXHUB:");
     Serial.print(buffer_sensorhub);
     Serial.println();
@@ -626,6 +626,8 @@ void loop() // run over and over
     //const char* p = buffer_sensorhub;// SPIData;
     //DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
     DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub);
+
+    
 
     if (error) {
       //Serial.write(buffer_sensorhub);

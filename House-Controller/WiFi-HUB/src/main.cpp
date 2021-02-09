@@ -105,6 +105,8 @@ void setup() {
   #ifdef MODE_STA
    if(debug) Serial.println("Open ESP Station mode");
   
+  WiFi.setAutoReconnect(true);
+  
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pw);
   if(debug) Serial.print("try to Connect to Wireless network: ");
@@ -188,10 +190,10 @@ void loop()
   if(OTArunning) return;
 
   if(tm_CheckWifi.expired()) {
-    
+
     if (!WiFi.isConnected())
     {
-        MDNS.end();
+        //MDNS.end();
         delay(5000);
         if(!WiFi.isConnected()) {
           Serial.print(F("Trying WiFi reconnect #"));
@@ -209,7 +211,7 @@ void loop()
             Serial.print(".");
           }  
           Serial.println(F("Reconnected OK!"));
-          MDNS.begin("SENSORHUB");
+          //MDNS.begin("SENSORHUB");
           
           if (reconnects_wifi == 20)
           {
@@ -266,13 +268,13 @@ void loop()
         
       char c = queue_tx.pop();
       if(c == '\n') {
-        delay(200);
+        delay(400);
       }
       if(c == '\0') break;
 
       Serial_one.write(c);
       Serial.write(c);  
-      delayMicroseconds(40); // don't stress ATMega
+      delayMicroseconds(50); // don't stress ATMega
       //Serial.write('\n');  
       //Serial_one.write('\n');
     }            
@@ -295,19 +297,21 @@ void loop()
       for(i = 0; i < MAX_SRV_CLIENTS; i++){
         //find free/disconnected spot
         if (!serverClients[i] || !serverClients[i].connected()){
-          if(serverClients[i]) serverClients[i].stop();
+          if(serverClients[i]) {
+            serverClients[i].stop();
+            Serial.printf("i=%u, serverClients[i].stop()\n", i);
+          }
           serverClients[i] = server.available();
           //if (!serverClients[i]) Serial.println("available broken");
           stat_tcp_count++;
-          Serial.print("New client: ");
-          Serial.print(i); Serial.print(' ');
-          Serial.println(serverClients[i].remoteIP());
+          Serial.printf("i=%u, New client! IP=%s\n", i, serverClients[i].remoteIP().toString().c_str());
           break;
         }
       }
       if (i >= MAX_SRV_CLIENTS) {
         //no free/disconnected spot so reject
         server.available().stop();
+        Serial.printf("i=%u, server.available().stop()\n", i);
       }
     }
     //check clients for data
@@ -323,7 +327,9 @@ void loop()
             Serial.write(c);
             stat_q_rx++;
           }          
-          queue_tx.unshift('\n');
+          //queue_tx.unshift('\r');
+          queue_tx.unshift('\n');          
+          //queue_tx.unshift(10);
           Serial.print("\n");          
         }
       }
