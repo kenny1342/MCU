@@ -24,11 +24,13 @@
 bool OTArunning = false;
 uint16_t stat_q_rx;
 uint16_t stat_tcp_count;
+uint8_t reconnects_wifi;
 
 // Ring buffer with all chars received via TCP, to be written to serial
 CircularBuffer<char, 2048> queue_tx; // chars we queue (3 probes accumulates ~400 chars between each SendData every 5 sec)
 LCD_state_struct LCD_state;
 
+Timemark tm_CheckWifi(5000);
 Timemark tm_SendData(5000);
 Timemark tm_reboot(1440 * 1000); 
 Timemark tm_ClearDisplay(300000);
@@ -77,7 +79,7 @@ void setup() {
   tft.fillScreen(LCD_state.bgcolor);
   tft.setCursor(0 ,0);
 
-  tft.println("\n\nStarting HUB...");
+  tft.println("\n\nStarting HUB");
   tft.setTextSize(txtsize);
   delay(700);
 
@@ -169,6 +171,7 @@ void setup() {
   tm_reboot.start();
   tm_ClearDisplay.start();
   tm_UpdateDisplay.start();
+  tm_CheckWifi.start();
 
   //tft.println("\n\n   Ready ");
   tft.fillScreen(LCD_state.bgcolor);
@@ -184,6 +187,42 @@ void loop()
 
   if(OTArunning) return;
 
+  if(tm_CheckWifi.expired()) {
+    if (!WiFi.isConnected())
+    {
+        delay(5000);
+        if(!WiFi.isConnected()) {
+          Serial.print(F("Trying WiFi reconnect #"));
+          Serial.println(reconnects_wifi);
+
+          WiFi.reconnect();
+          
+          uint8_t cnt = 0;
+          while (WiFi.status() != WL_CONNECTED) {  
+            if(cnt++ > 6) {
+              Serial.println(F("Failed, giving up!"));
+              return;
+            }
+            delay(500);  
+            Serial.print(".");
+          }  
+          Serial.println(F("Reconnected OK!"));
+
+          
+          if (reconnects_wifi == 20)
+          {
+            Serial.println(F("Too many failures, rebooting..."));          
+            //reconnects_wifi = 0;
+            ESP.restart();
+            return;
+          }
+        }
+    } else {
+      Serial.println(F("WiFi OK"));
+    }
+  }
+
+  
   if(tm_ClearDisplay.expired()) {
     tft.fillScreen(LCD_state.bgcolor);
   }
