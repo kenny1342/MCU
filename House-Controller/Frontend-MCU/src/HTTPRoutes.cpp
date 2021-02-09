@@ -82,17 +82,17 @@ void Webserver::AddRoutes() {
 
     response->print("[");
 
-		using index_t = decltype(remote_data)::index_t;
-		for (index_t i = 0; i < remote_data.size(); i++) {
-      /*
-      char _tmp[JSON_SIZE] = {0};
-      serializeJson(remote_data[i], _tmp);
-      response->printf("\n%s", _tmp);
-      */
-      serializeJson(remote_data[i], *response);
-      if( remote_data.size() > 0 && (remote_data.size() - i) > 1) {
-        response->print(",\n");
+		
+		for (uint8_t i = 0; i < MAX_REMOTE_SIDS; i++) {
+      if(remote_data[i].isNull()) {
+        continue;
+      } else {
+        if( i != 0) {
+          response->print(",\n");
+        }
+        serializeJson(remote_data[i], *response);
       }
+
 		}
     
     response->print("\n]");

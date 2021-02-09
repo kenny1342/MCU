@@ -16,7 +16,7 @@
 #include <NTPClient.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <CircularBuffer.h>
+//#include <CircularBuffer.h>
 #include <MD_CirQueue.h>
 #ifdef USE_BLYNK
 #include <BlynkSimpleEsp32.h>
@@ -48,7 +48,9 @@ DNSServer dnsServer;
 const uint8_t QUEUE_SIZE = 6;
 MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
-CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
+//CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
+
+StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 #ifdef USE_WIFIMGR
@@ -673,27 +675,44 @@ void loop(void) {
         break;        
         case 0x45: // REMOTE_PROBE_DATA
         {
+          Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
           // Clone the json doc and add it to the end of circular buffer
+          tmp_json["ts"] = now();
           DynamicJsonDocument tmp_doc = tmp_json;
-          bool duplicate = false;
-          for(int i=0; i<remote_data.size(); i++) {
+          
+          bool need_to_add = true;
+          //for(int i=0; i<remote_data.size(); i++) {
+          for(int i=0; i<MAX_REMOTE_SIDS; i++) {  
             if(
               remote_data[i].getMember("devid").as<uint16_t>() == tmp_doc.getMember("devid").as<uint16_t>() &&
-              remote_data[i].getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>() &&
-              remote_data[i].getMember("data")["value"] == tmp_doc.getMember("data")["value"]
+              remote_data[i].getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>()              
             ) {
-              //serializeJson(tmp_doc, Serial);
-              if(doSerialDebug) Serial.println(F("\n0x45 data already exists in buffer, ignoring"));
-              duplicate = true;
+
+              //if(doSerialDebug) 
+              Serial.printf("0x45 data exists in buffer #%u, updating\n", i);
+              remote_data[i] = tmp_json;
+              need_to_add = false;
             }
           }
 
-          if(!duplicate) {
-            tmp_doc["ts"] = now(); // timeClient.getEpochTime();
-            remote_data.push( tmp_doc);
-            if(doSerialDebug) Serial.println(F("0x45 doc added to buffer"));
+          bool is_added = false;
+          if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
+            for(int i=0; i<MAX_REMOTE_SIDS; i++) {  
+              if(remote_data[i].isNull()) {
+                remote_data[i] = tmp_json;
+                is_added = true;
+                Serial.printf("0x45 data added to buffer #%u\n", i);
+                break;
+              } else {
+                Serial.printf("0x45 buffer #%u already used\n", i);
+              }
+            }
           }
 
+          // check if we ran out of space in array (more devid/sid than MAX_REMOTE_SIDS)
+          if(need_to_add && !is_added) {
+            Serial.printf("ERROR: 0x45 failed to add to buffer/no space, increase MAX_REMOTE_SIDS (%u)\n", MAX_REMOTE_SIDS);
+          }
         }
         break;
         default: Serial.printf("Unknown CMD in JSON: %u\n", cmd);

@@ -33,7 +33,7 @@ extern AsyncWebServer server;
 extern bool shouldReboot;
 extern bool shouldSaveConfig;
 extern const char* _def_hostname;
-extern CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
+extern StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
 extern char JSON_STRINGS[4][JSON_SIZE];
 //extern struct tm timeinfo;
 //extern NTPClient timeClient;
