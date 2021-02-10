@@ -229,23 +229,29 @@ void loop()
     if (NULL != clients[i]) {
       client_count++;
 
+      // Clean up stale/dead connections
       if(clientdata[i].tm.expired()) {
         clientdata[i].conntime++;
       }
 
-      if(clientdata[i].conntime > 10) {
-        Serial.printf("Client %u (%s) has been connected > 10 secs (%u)\n", i, clients[i]->remoteIP().toString().c_str(), clientdata[i].conntime);
-        if(clientdata[i].bytes_rx < 100) {
-          Serial.printf("has sent < 100 Bytes (%u), disconnecting!\n", clientdata[i].bytes_rx);
-
-          clients[i]->stop();
-          delete clients[i];
-          clients[i] = NULL;
-          if(printDebug) Serial.printf("client deleted slot #%u\n", i);
-          continue;
-        }
+      bool deleteclient = false;
+      if(clientdata[i].conntime > 10 && clientdata[i].bytes_rx == 0) {
+        
+        deleteclient = true;
       }
-
+      if(clientdata[i].conntime > 60) {
+          deleteclient = true;
+      }
+      if(deleteclient) {
+        Serial.printf("Client %u (%s) connected %u secs (>10/max 60) and sent %u bytes, will delete!\n", i, clients[i]->remoteIP().toString().c_str(), clientdata[i].conntime, clientdata[i].bytes_rx);          
+        clients[i]->stop();
+        delete clients[i];
+        clients[i] = NULL;
+        if(printDebug) Serial.printf("client deleted from slot #%u\n", i);
+        continue;
+      }
+      
+      // Process data from clients
       if(clients[i]->available() ) {
       
         //uint16_t bytes_rx = 0;
@@ -356,6 +362,15 @@ void loop()
   }
 
   if(tm_SendData.expired()) {
+    
+    // First send our local system data (sid 0)
+    char sid0[200] = {0};
+    uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+    sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu}}\n", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis());
+    
+    Serial_one.print(sid0);
+    if(printDebug) Serial.print(sid0);
+    delay(300);
     
     if(!queue_tx.isEmpty()) {
       if(printDebug) Serial.printf("%u/%u bytes in TX queue, flushing to Serial...", queue_tx.size(), queue_tx.size() + queue_tx.available());
