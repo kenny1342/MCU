@@ -1,4 +1,5 @@
 #include <TFT_eSPI.h>
+#include <Timemark.h>
 
 #define OTA_HANDLER 
 //#define MODE_AP // phone connects directly to ESP
@@ -7,7 +8,7 @@
 bool debug = true;
 
 #define VERSION "6.00"
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 8
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
@@ -26,7 +27,13 @@ const char *pw = "hemmelig"; // and this is the password
 #define SERIAL1_TXPIN 17            // transmit Pin UART1 (DevkitC 27, GPIO17)
 #define SERIAL1_TCP_PORT 8880       // Wifi Port UART1
 
-#define bufferSize 512
+//#define bufferSize 512
+
+struct CLIENT_struct {
+    uint16_t conntime;
+    uint16_t bytes_rx;
+    Timemark tm;
+};
 
 //ST7789 OLED display
 #define txtsize 2

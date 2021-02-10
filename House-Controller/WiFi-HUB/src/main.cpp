@@ -45,6 +45,8 @@ WiFiServer server(SERIAL1_TCP_PORT);
 WiFiClient *clients[MAX_CLIENTS] = { NULL };
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
+CLIENT_struct clientdata[MAX_CLIENTS];
+
 void setup() {
   delay(500);
 
@@ -212,6 +214,10 @@ void loop()
             clients[i] = new WiFiClient(newClient);
             if(printDebug) Serial.printf("added to slot #%u\n", i);
             // TODO: start a timer, disconnect client after X secs without data available
+            clientdata[i].conntime = 0;
+            clientdata[i].bytes_rx = 0;
+            clientdata[i].tm.limitMillis(1000);
+            clientdata[i].tm.start();
             break;
         }
      }
@@ -222,19 +228,37 @@ void loop()
   for (int i=0 ; i<MAX_CLIENTS ; ++i) {
     if (NULL != clients[i]) {
       client_count++;
+
+      if(clientdata[i].tm.expired()) {
+        clientdata[i].conntime++;
+      }
+
+      if(clientdata[i].conntime > 10) {
+        Serial.printf("Client %u (%s) has been connected > 10 secs (%u)\n", i, clients[i]->remoteIP().toString().c_str(), clientdata[i].conntime);
+        if(clientdata[i].bytes_rx < 100) {
+          Serial.printf("has sent < 100 Bytes (%u), disconnecting!\n", clientdata[i].bytes_rx);
+
+          clients[i]->stop();
+          delete clients[i];
+          clients[i] = NULL;
+          if(printDebug) Serial.printf("client deleted slot #%u\n", i);
+          continue;
+        }
+      }
+
       if(clients[i]->available() ) {
       
-        uint16_t bytes_rx = 0;
+        //uint16_t bytes_rx = 0;
         while(clients[i]->available()) {
           char c = clients[i]->read();
           queue_tx.unshift(c); // add a char to buffer
-          bytes_rx++;
+          clientdata[i].bytes_rx++;
         }
-        stat_q_rx += bytes_rx;
+        stat_q_rx += clientdata[i].bytes_rx;
         queue_tx.unshift('\n');
-        if(printDebug) Serial.printf("got %u bytes, ", bytes_rx);
+        if(printDebug) Serial.printf("got %u bytes, ", clientdata[i].bytes_rx);
 
-        clients[i]->printf("DATA RCVD OK:%u BYTES\nBYE\n\n", bytes_rx);
+        clients[i]->printf("DATA RCVD OK:%u BYTES\nBYE\n\n", clientdata[i].bytes_rx);
         clients[i]->flush();      
         if(printDebug) Serial.printf("sent ACK, ");
 
@@ -263,6 +287,7 @@ void loop()
     }
     if(printDebug) Serial.printf("\nClients: (%u/%u)\n", client_count, MAX_CLIENTS);
     if(printDebug) Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
+    if(printDebug) Serial.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
   }
 
 
