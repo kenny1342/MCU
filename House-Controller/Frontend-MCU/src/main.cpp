@@ -676,7 +676,10 @@ void loop(void) {
         case 0x45: // REMOTE_PROBE_DATA
         {
           Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
-          // Clone the json doc and add it to the end of circular buffer
+          /*if(tmp_json.getMember("devid").isNull() || tmp_json.getMember("devid").isUndefined()) {
+            Serial.print(F("0x45 no devid found, ignoring!\n"));
+            break;
+          }*/
           tmp_json["ts"] = now(); // + (timeZone * 3600);
           DynamicJsonDocument tmp_doc = tmp_json;
           

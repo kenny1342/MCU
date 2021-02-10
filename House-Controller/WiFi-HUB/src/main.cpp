@@ -18,10 +18,13 @@
 #include <TFT_eSPI.h>
 #include <logo_kra-tech.h>
 
-//3 seconds WDT
-#define WDT_TIMEOUT 3
+//8 seconds WDT
+#define WDT_TIMEOUT 8
 
 bool OTArunning = false;
+bool printDebug = true;
+uint8_t client_count = 0;
+
 uint16_t stat_q_rx;
 uint16_t stat_tcp_count;
 uint8_t reconnects_wifi;
@@ -32,13 +35,14 @@ LCD_state_struct LCD_state;
 
 Timemark tm_CheckWifi(5000);
 Timemark tm_SendData(5000);
-Timemark tm_reboot(1440 * 1000); 
+Timemark tm_reboot(86400 * 1000); 
 Timemark tm_ClearDisplay(300000);
 Timemark tm_UpdateDisplay(200);
+Timemark tm_printDebug(3000);
 
 HardwareSerial Serial_one(1);
 WiFiServer server(SERIAL1_TCP_PORT);
-WiFiClient serverClients[4];
+WiFiClient *clients[MAX_CLIENTS] = { NULL };
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
 void setup() {
@@ -50,7 +54,7 @@ void setup() {
   }
   Serial_one.begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 
-  if(debug) Serial.println("\n\nSensor-HUP WiFi serial bridge V" VERSION);
+  Serial.println("\n\nSensor-HUP WiFi serial bridge V" VERSION);
 
 
   tft.init();
@@ -88,7 +92,7 @@ void setup() {
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 
   #ifdef MODE_AP 
-   if(debug) Serial.println("Open ESP Access Point mode");
+   if(printDebug) Serial.println("Open ESP Access Point mode");
   //AP mode (phone connects directly to ESP) (no router)
 
   
@@ -103,17 +107,17 @@ void setup() {
 
 
   #ifdef MODE_STA
-   if(debug) Serial.println("Open ESP Station mode");
+   if(printDebug) Serial.println("Open ESP Station mode");
   
   WiFi.setAutoReconnect(true);
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pw);
-  if(debug) Serial.print("try to Connect to Wireless network: ");
-  if(debug) Serial.println(ssid);
+  if(printDebug) Serial.print("try to Connect to Wireless network: ");
+  if(printDebug) Serial.println(ssid);
   while (WiFi.status() != WL_CONNECTED) {   
     delay(500);
-    if(debug) Serial.print(".");
+    if(printDebug) Serial.print(".");
   }
   
   Serial.print("\nWiFi connected with IP: ");
@@ -159,6 +163,7 @@ void setup() {
 
   server.begin();
   server.setNoDelay(true);
+  server.setTimeout(20);
 
    Serial.println("starting mDNS as 'SENSORHUB'");
   if(!MDNS.begin("SENSORHUB")) {
@@ -174,8 +179,8 @@ void setup() {
   tm_ClearDisplay.start();
   tm_UpdateDisplay.start();
   tm_CheckWifi.start();
+  tm_printDebug.start();
 
-  //tft.println("\n\n   Ready ");
   tft.fillScreen(LCD_state.bgcolor);
 }
 
@@ -183,17 +188,88 @@ void setup() {
 void loop() 
 { 
   
+
   esp_task_wdt_reset();
 
   ArduinoOTA.handle();
 
   if(OTArunning) return;
 
+  if(tm_reboot.expired()) {
+    Serial.print("\n*** SCHEDULED printDebug REBOOT....\n");
+    delay(1000); 
+    ESP.restart();
+  }
+
+  // Check if a new client has connected
+  WiFiClient newClient = server.available();
+  if (newClient) {
+    if(printDebug) Serial.printf("New client: IP=%s, ", newClient.remoteIP().toString().c_str());
+    stat_tcp_count++;
+    // Find the first unused space
+    for (int i=0 ; i<MAX_CLIENTS ; ++i) {
+        if (NULL == clients[i]) {
+            clients[i] = new WiFiClient(newClient);
+            if(printDebug) Serial.printf("added to slot #%u\n", i);
+            // TODO: start a timer, disconnect client after X secs without data available
+            break;
+        }
+     }
+  }
+
+  // Check whether each client slot is used and has some data
+  client_count = 0;
+  for (int i=0 ; i<MAX_CLIENTS ; ++i) {
+    if (NULL != clients[i]) {
+      client_count++;
+      if(clients[i]->available() ) {
+      
+        uint16_t bytes_rx = 0;
+        while(clients[i]->available()) {
+          char c = clients[i]->read();
+          queue_tx.unshift(c); // add a char to buffer
+          bytes_rx++;
+        }
+        stat_q_rx += bytes_rx;
+        queue_tx.unshift('\n');
+        if(printDebug) Serial.printf("got %u bytes, ", bytes_rx);
+
+        clients[i]->printf("DATA RCVD OK:%u BYTES\nBYE\n\n", bytes_rx);
+        clients[i]->flush();      
+        if(printDebug) Serial.printf("sent ACK, ");
+
+        clients[i]->stop();
+        delete clients[i];
+        clients[i] = NULL;
+        if(printDebug) Serial.printf("client deleted slot #%u\n", i);
+      } 
+    }
+  }
+
+  if(client_count >= MAX_CLIENTS) {
+    Serial.printf("ERR: all client slots used (%u/%u), probably stucked connections, rebooting!\n", client_count, MAX_CLIENTS);
+    ESP.restart();
+    delay(1000);
+  }
+
+  if(tm_printDebug.expired()) {
+    if(printDebug) Serial.printf("Client slots: ");
+    for (int i=0 ; i<MAX_CLIENTS ; ++i) {
+      if (NULL == clients[i] ) {
+        if(printDebug) Serial.printf("%u=free ", i);
+      } else {
+        if(printDebug) Serial.printf("%u=%s ", i, clients[i]->remoteIP().toString().c_str());
+      }
+    }
+    if(printDebug) Serial.printf("\nClients: (%u/%u)\n", client_count, MAX_CLIENTS);
+    if(printDebug) Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
+  }
+
+
   if(tm_CheckWifi.expired()) {
 
     if (!WiFi.isConnected())
     {
-        //MDNS.end();
         delay(5000);
         if(!WiFi.isConnected()) {
           Serial.print(F("Trying WiFi reconnect #"));
@@ -211,18 +287,16 @@ void loop()
             Serial.print(".");
           }  
           Serial.println(F("Reconnected OK!"));
-          //MDNS.begin("SENSORHUB");
-          
+
           if (reconnects_wifi == 20)
           {
             Serial.println(F("Too many failures, rebooting..."));          
-            //reconnects_wifi = 0;
             ESP.restart();
             return;
           }
         }
     } else {
-      Serial.println(F("WiFi OK"));
+      if(printDebug) Serial.println(F("WiFi OK"));
     }
   }
 
@@ -257,89 +331,31 @@ void loop()
   }
 
   if(tm_SendData.expired()) {
-
-    Serial.printf("%u/%u bytes in TX queue\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
-
+    
     if(!queue_tx.isEmpty()) {
-      Serial.printf("TXc:");  
+      if(printDebug) Serial.printf("%u/%u bytes in TX queue, flushing to Serial...", queue_tx.size(), queue_tx.size() + queue_tx.available());
+      //if(printDebug) Serial.printf("TXc:");  
+    
+      while (!queue_tx.isEmpty()) {
+          
+        char c = queue_tx.pop();
+        if(c == '\n') {
+          delay(400);
+        }
+        if(c == '\0') break;
+
+        Serial_one.write(c);
+        //if(printDebug) Serial.write(c);  
+        delayMicroseconds(10); // don't stress ATMega
+        //Serial.write('\n');  
+        //Serial_one.write('\n');
+      }  
+
+      if(printDebug) Serial.printf("OK!\n");  
+      delay(200); 
     }
 
-    while (!queue_tx.isEmpty()) {
-        
-      char c = queue_tx.pop();
-      if(c == '\n') {
-        delay(400);
-      }
-      if(c == '\0') break;
-
-      Serial_one.write(c);
-      Serial.write(c);  
-      delayMicroseconds(50); // don't stress ATMega
-      //Serial.write('\n');  
-      //Serial_one.write('\n');
-    }            
-    delay(200); 
-
-    Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
   }
-
-  if(tm_reboot.expired()) {
-    Serial.print("\n*** SCHEDULED DEBUG REBOOT....\n");
-    delay(1000); 
-    ESP.restart();
-  }
-
-  uint8_t i;
-
-    //check if there are any new clients
-    if (server.hasClient()){
-      
-      for(i = 0; i < MAX_SRV_CLIENTS; i++){
-        //find free/disconnected spot
-        if (!serverClients[i] || !serverClients[i].connected()){
-          if(serverClients[i]) {
-            serverClients[i].stop();
-            Serial.printf("i=%u, serverClients[i].stop()\n", i);
-          }
-          serverClients[i] = server.available();
-          //if (!serverClients[i]) Serial.println("available broken");
-          stat_tcp_count++;
-          Serial.printf("i=%u, New client! IP=%s\n", i, serverClients[i].remoteIP().toString().c_str());
-          break;
-        }
-      }
-      if (i >= MAX_SRV_CLIENTS) {
-        //no free/disconnected spot so reject
-        server.available().stop();
-        Serial.printf("i=%u, server.available().stop()\n", i);
-      }
-    }
-    //check clients for data
-    for(i = 0; i < MAX_SRV_CLIENTS; i++){
-      if (serverClients[i] && serverClients[i].connected()){
-        if(serverClients[i].available()){
-          //char buffer_tmp[bufferSize] = {0};
-          Serial.print("RX:");
-          while(serverClients[i].available()) {              
-            //serverClients[i].readBytesUntil('\n', buffer_tmp, sizeof(buffer_tmp)-1);
-            char c = serverClients[i].read();
-            queue_tx.unshift(c); // add a char to buffer
-            Serial.write(c);
-            stat_q_rx++;
-          }          
-          //queue_tx.unshift('\r');
-          queue_tx.unshift('\n');          
-          //queue_tx.unshift(10);
-          Serial.print("\n");          
-        }
-      }
-      else {
-        if (serverClients[i]) {
-          serverClients[i].stop();
-        }
-
-      }
-    }
 
 }
 

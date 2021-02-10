@@ -84,7 +84,7 @@ void Webserver::AddRoutes() {
 
 		
 		for (uint8_t i = 0; i < MAX_REMOTE_SIDS; i++) {
-      if(remote_data[i].isNull()) {
+      if(remote_data[i].isNull() || remote_data[i].size() == 0) {
         continue;
       } else {
         if( i != 0) {

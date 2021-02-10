@@ -6,8 +6,8 @@
 
 bool debug = true;
 
-#define VERSION "5.12"
-#define MAX_SRV_CLIENTS 4
+#define VERSION "6.00"
+#define MAX_CLIENTS 10
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
