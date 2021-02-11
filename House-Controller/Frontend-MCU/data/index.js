@@ -43,7 +43,7 @@ jQuery(document).ready(function () {
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
       $("#chktestdata").prop('checked', true);
-      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"probe_devid_bathroom": "9457","probe_devid_pumphouse": "50406", "probe_devid_outside": "33832","probe_devid_bedroom": "22664","version":"1.2"  }');
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"devid_bathroom": "9457","devid_pumphouse": "50406", "devid_outside": "33832","devid_bedroom": "22664","version":"1.2"  }');
       localStorage.setItem('config', JSON.stringify(json));
     }
   ); // fetch
@@ -350,46 +350,37 @@ jQuery(document).ready(function () {
       try {
         
         json = JSON.parse(localStorage.getItem('json0x45'));
-        //json = JSON.parse('{"cmd":69,"devid":50406,"sid":2,"data":{"value":30.4}}');
+        
         if(!typeof json == "object" || Object.keys(json).length < 1) {
           console.log("0x45 invalid data, len=" + Object.keys(json).length);
           return;
         }
 
-        // build array "probedata" only containing the last line for the devid and sid (newest data) found in source json (no duplicates)
-        let probedata = {};
-        for(var idx in json) {
-          let json_probedata = json[idx];
-
-          if(json_probedata.data["value"] == null || json_probedata.data["value"] == "") continue;
-
-          let devid = json_probedata["devid"];
-          let sid = json_probedata["sid"];
-          probedata[devid + sid] =  json_probedata;
-          
+        if(typeof json[config.devid_hub] != "undefined") {
+          $("#uptime_hub").empty().append( formatSecs(json[config.devid_hub].uptime_sec) );
         }
-
-        for(var key in probedata) {
-          let devid = probedata[key].devid;  
-          let sid = probedata[key].sid; 
-          let value = probedata[key].data["value"];          
-          let age = Math.floor(Date.now() / 1000) - parseInt(probedata[key].ts, 10);
-          // TODO, figure out better handling
+        
+        for(var key in json) {          
+          let devid = json[key].devid;  
+          let sid = json[key].sid; 
+          let value = json[key].data["value"];          
+          let age = Math.floor(Date.now() / 1000) - parseInt(json[key].ts, 10);
+          // TODO, figure out better TZ handling, or flag it as expired in Frontend http_print 0x45 loop instead
           age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
-          if(devid == config.probe_devid_bathroom) {
+          if(devid == config.devid_bathroom) {
             devid = "bathroom";
           }
-          if(devid == config.probe_devid_outside) {
+          if(devid == config.devid_outside) {
             devid = "outside";
           }
-          if(devid == config.probe_devid_bedroom) {
+          if(devid == config.devid_bedroom) {
             devid = "bedroom";
           }
 
-          let objid = "probe_devid_" + devid + "_sid_" + sid;
+          let objid = "devid_" + devid + "_sid_" + sid;
           //console.log("OBJID: " + objid);
           if($("#" + objid).length > 0) {
                         
