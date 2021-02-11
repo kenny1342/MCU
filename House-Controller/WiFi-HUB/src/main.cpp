@@ -366,10 +366,12 @@ void loop()
     // First send our local system data (sid 0)
     char sid0[200] = {0};
     uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
-    sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu}}\n", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis());
+    //sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu}}\n", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis());
+    sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\",\"uptime_sec\":%lu}", 0x45, (uint16_t)(chipid>>32), VERSION, millis());
     
     Serial_one.print(sid0);
-    if(printDebug) Serial.print(sid0);
+    Serial_one.write('\n');
+    if(printDebug) Serial.printf("%s\n", sid0);
     delay(300);
     
     if(!queue_tx.isEmpty()) {
