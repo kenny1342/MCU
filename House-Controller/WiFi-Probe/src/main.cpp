@@ -377,22 +377,22 @@ void loop()
 
     SendData(root, mdns_index_hub);
 
-    // ---------- TEMP/HUM  ----------------
-    if(sid1_value != NAN) {
-      root["sid"] = 0x01; // this sensor's ID
-      data.clear();
-      data["value"] = sid1_value;
+    // ---------- TEMP/HUM  ----------------    
+    root["sid"] = 0x01; // this sensor's ID
+    data.clear();
+    data["value"] = sid1_value;
 
+    if(sid1_value != NAN && !data["value"].isNull()) {
       SendData(root, mdns_index_hub);
     } else {
       Serial.println(F("ERR: NULL value, skipping TX!"));
     }
 
-    if(sid2_value != NAN) {
-      root["sid"] = 0x02; // this sensor's ID
-      data.clear();
-      data["value"] = sid2_value;
+    root["sid"] = 0x02; // this sensor's ID
+    data.clear();
+    data["value"] = sid2_value;
 
+    if(sid2_value != NAN && !data["value"].isNull()) {
       SendData(root, mdns_index_hub);
     } else {
       Serial.println(F("ERR: NULL value, skipping TX!"));
