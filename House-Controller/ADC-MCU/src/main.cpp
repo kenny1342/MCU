@@ -736,6 +736,7 @@ void loop() // run over and over
     }
 
     ADC_waterpressure.average = ADC_waterpressure.total / numReadings;
+    //Serial.println(ADC_waterpressure.average);
 
     // 10-bit ADC, Bar=(ADC*BarMAX)/(2^10). Sensor drop -0.5V/bar (1024/10, minimum sensor output)
     // Integer math instead of float, factor of 100 gives 2 decimals

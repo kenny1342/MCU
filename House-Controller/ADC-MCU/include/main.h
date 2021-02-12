@@ -42,8 +42,8 @@
 
 #define numReadings                 8 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
-#define ADC_CH_WATERP               A1 // ADC connected to water pressure sensor
-//#define ADC_CH_TEMP_1               A0 // ADC connected to LM335 temp sensor 1
+#define ADC_CH_WATERP               A0 // ADC connected to water pressure sensor
+//#define ADC_CH_TEMP_1               A1 // ADC connected to LM335 temp sensor 1
 #define ADC_CH_CT_K1                A8 // ADC connected to current sensor (Main intake) Input
 #define ADC_CH_CT_K1_MVPRAMP        11.0  //11 mv/Ampere current clamp
 #define ADC_CH_CT_K2                A9 // ADC connected to current sensor (living room) Input
