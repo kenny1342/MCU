@@ -676,10 +676,10 @@ void loop(void) {
         case 0x45: // REMOTE_PROBE_DATA
         {
           Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
-          /*if(tmp_json.getMember("devid").isNull() || tmp_json.getMember("devid").isUndefined()) {
+          if(!tmp_json.containsKey("devid") /*tmp_json.getMember("devid").isNull() || tmp_json.getMember("devid").isUndefined()*/) {
             Serial.print(F("0x45 no devid found, ignoring!\n"));
             break;
-          }*/
+          }
           tmp_json["ts"] = now(); // + (timeZone * 3600);
           DynamicJsonDocument tmp_doc = tmp_json;
           
@@ -695,6 +695,13 @@ void loop(void) {
               Serial.printf("0x45 data exists in buffer #%u, updating\n", i);
               remote_data[i] = tmp_json;
               need_to_add = false;
+            }
+
+            // if data too old, delete doc so slot can be reused
+            if(remote_data[i].containsKey("ts")) {
+              if(now() - remote_data[i].getMember("ts").as<uint32_t>() > 86400) {
+                remote_data[i].clear();
+              }
             }
           }
 
