@@ -25,7 +25,7 @@ bool OTArunning = false;
 bool printDebug = true;
 uint8_t client_count = 0;
 
-uint16_t stat_q_rx;
+uint32_t stat_bytes_rx;
 uint16_t stat_tcp_count;
 uint8_t reconnects_wifi;
 
@@ -260,7 +260,7 @@ void loop()
           queue_tx.unshift(c); // add a char to buffer
           clientdata[i].bytes_rx++;
         }
-        stat_q_rx += clientdata[i].bytes_rx;
+        stat_bytes_rx += clientdata[i].bytes_rx;
         queue_tx.unshift('\n');
         if(printDebug) Serial.printf("got %u bytes, ", clientdata[i].bytes_rx);
 
@@ -355,7 +355,7 @@ void loop()
     tft.printf("TCP conns: %u  \n", stat_tcp_count);
 
     char s[32] = "";        
-    tft.printf("RX->TX: %s   \n", FormatBytes(stat_q_rx, s));
+    tft.printf("RX->TX: %s   \n", FormatBytes(stat_bytes_rx, s));
     
     tft.printf("TX Queue: %u/%u \n\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
 
