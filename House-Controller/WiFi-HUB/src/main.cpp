@@ -337,6 +337,7 @@ void loop()
   }
 
   if(tm_UpdateDisplay.expired()) {
+
     LCD_state.fgcolor = TFT_GOLD;
     LCD_state.bgcolor = TFT_BLACK;
 
@@ -352,8 +353,9 @@ void loop()
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
     tft.printf("TCP conns: %u  \n", stat_tcp_count);
-    
-    tft.printf("RX->TX B: %u   \n", stat_q_rx);
+
+    char s[32] = "";        
+    tft.printf("RX->TX: %s   \n", FormatBytes(stat_q_rx, s));
     
     tft.printf("TX Queue: %u/%u \n\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
 
@@ -369,11 +371,19 @@ void loop()
     //sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu}}\n", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis());
     sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\",\"uptime_sec\":%lu}", 0x45, (uint16_t)(chipid>>32), VERSION, millis());
     
-    Serial_one.print(sid0);
-    Serial_one.write('\n');
-    if(printDebug) Serial.printf("%s\n", sid0);
-    delay(300);
+    const char *ptr = sid0;    
+    while(*ptr != '\0')
+    {
+      Serial_one.write(*ptr);
+      if(printDebug) Serial.write(*ptr);
+      delayMicroseconds(50);
+      ptr++;
+    }
     
+    Serial_one.write('\n');
+    if(printDebug) Serial.write('\n');
+    delay(300);
+
     if(!queue_tx.isEmpty()) {
       if(printDebug) Serial.printf("%u/%u bytes in TX queue, flushing to Serial...", queue_tx.size(), queue_tx.size() + queue_tx.available());
       //if(printDebug) Serial.printf("TXc:");  
@@ -399,6 +409,20 @@ void loop()
 
   }
 
+}
+
+const char *FormatBytes(long long bytes, char *str)
+{
+    const char *sizes[5] = { "B", "KB", "MB", "GB", "TB" };
+ 
+    int i;
+    double dblByte = bytes;
+    for (i = 0; i < 5 && bytes >= 1024; i++, bytes /= 1024)
+        dblByte = bytes / 1024.0;
+ 
+    sprintf(str, "%.2f", dblByte);
+ 
+    return strcat(strcat(str, " "), sizes[i]);
 }
 
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)

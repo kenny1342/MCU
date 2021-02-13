@@ -7,7 +7,7 @@
 
 bool debug = true;
 
-#define VERSION "6.01"
+#define VERSION "6.02"
 #define MAX_CLIENTS 8
 
 #ifdef MODE_AP
@@ -47,4 +47,6 @@ struct LCD_state_struct {
 
 //////////////////////////////////////////////////////////////////////////
 enum TIME_STRING_FORMATS { TFMT_LONG, TFMT_DATETIME, TFMT_HOURS };
+
+const char *FormatBytes(long long bytes, char *str);
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
