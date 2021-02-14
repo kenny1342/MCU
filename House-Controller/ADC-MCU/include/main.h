@@ -14,7 +14,7 @@
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "2.25"
+#define FIRMWARE_VERSION            "3.00"
 #define JSON_SIZE                   512
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
@@ -26,19 +26,19 @@
 #define PIN_LED_BLUE                9 // BLUE
 #define PIN_LED_WHITE               7 // WHITE, 
 #define PIN_BUZZER                  8
-#define PIN_ModIO_Reset             6
+//#define PIN_ModIO_Reset             6
 #define LED_BUSY                    PIN_LED_BLUE
 #define LED_ALARM                   PIN_LED_RED
 #define LED_WARNING                 PIN_LED_YELLOW
 
-#define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
-#define CONF_RELAY_12VBUS           3 // MOD-IO relay controlling 12v bus (sensors, mains relays etc)
-#define CONF_RELAY_WP               2 // MOD-IO relay controlling water pump
+//#define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
+#define PIN_RELAY_12VBUS           4 // MosFET controlling 12v bus (sensors, mains relays etc)
+#define PIN_RELAY_WP               5 // MosFET controlling water pump relay
 
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 
 #define Serial_Frontend             Serial1
-#define Serial_SensorHub            Serial3 // TO BE REMOVED AFTER SPI
+#define Serial_SensorHub            Serial3
 
 #define numReadings                 8 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor

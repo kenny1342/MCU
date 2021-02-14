@@ -16,7 +16,7 @@
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
 #include <ZMPT101B.h>
-#include <olimex-mod-io.h>
+//#include <olimex-mod-io.h>
 #include <Timemark.h>
 #include <KRA-Emon.h>
 //#include <EmonLib.h>
@@ -110,11 +110,12 @@ void setup()
   pinMode(PIN_LED_BLUE, OUTPUT);
   pinMode(PIN_LED_WHITE, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
-  pinMode(PIN_ModIO_Reset, INPUT); // need to float
-  pinMode(PIN_MISO,OUTPUT); // // have to send on master in, *slave out*
+  pinMode(PIN_RELAY_12VBUS, OUTPUT);
+  pinMode(PIN_RELAY_WP, OUTPUT);
+  //pinMode(PIN_MISO,OUTPUT); // // have to send on master in, *slave out*
 
-  SPCR |= _BV(SPE); // turn on SPI in slave mode
-  SPI.attachInterrupt(); // turn on interrupt
+  //SPCR |= _BV(SPE); // turn on SPI in slave mode
+  //SPI.attachInterrupt(); // turn on interrupt
 
 
   LED_ON(PIN_LED_RED);
@@ -205,15 +206,11 @@ void setup()
   Serial.println(F("ISR's enabled"));
   delay(500);
 
-  Wire.begin(); // Initiate the Wire library
-
-  Serial.println(F("ModIO_Init..."));
-  ModIO_Init();
+  //Wire.begin(); // Initiate the Wire library
 
   if(checkIfColdStart())
   {
     Serial.println(F("restart by WDT"));
-    ModIO_Reset(); // we need to because sometimes it hangs on startup (stuck i2c)
   } else {
     Serial.println(F("Cold start"));
   }
@@ -222,7 +219,7 @@ void setup()
 
   // turn on 12v bus (system power sensors, relays etc)
   Serial.println(F("switching on 12v bus..."));
-  if(!ModIO_SetRelayState(CONF_RELAY_12VBUS, 1) == MODIO_ACK_OK) ModIO_Reset();
+  digitalWrite(PIN_RELAY_12VBUS, 1);
 
 /*
   LED_OFF(PIN_LED_RED);
@@ -304,17 +301,14 @@ ISR(TIMER1_COMPA_vect)
   TCNT1 = timer1_counter;   // preload timer
   if(millis() < 1000) return; // just powered up, let things stabilize
 
-//  TIMSK1 |= (1 << OCIE1A); // disable ISR
-/*
-  if(Serial_SensorHub.available() > 10) {
-    //memset ( (void*)buffer_sensorhub_isr, 0, JSON_SIZE );
-    //Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub_isr, sizeof(buffer_sensorhub_isr));
-    if(readline(Serial_SensorHub.read(), buffer_sensorhub_isr, JSON_SIZE) > 0) {
-      HUB_dataready = true;
-      memset ( (void*)buffer_sensorhub_isr, 0, JSON_SIZE );
-    }  
+  // Control waterpump relays
+  if(WATERPUMP.status == RUNNING) {
+    digitalWrite(PIN_RELAY_WP, 1);
+  } else {
+    digitalWrite(PIN_RELAY_WP, 0);
   }
-*/
+
+//  TIMSK1 |= (1 << OCIE1A); // disable ISR
   //TIMSK1 &= (1 << OCIE1A); // enable ISR
   
 }
@@ -744,12 +738,7 @@ void loop() // run over and over
     //tmp += (double)CORR_FACTOR_PRESSURE_SENSOR;
     WATERPUMP.water_pressure_bar_val = ( ( (double)(ADC_waterpressure.average * (double)PRESSURE_SENS_MAX) / 1024L));
     WATERPUMP.water_pressure_bar_val += (double)CORR_FACTOR_PRESSURE_SENSOR;
-
-    // Control MOD-IO board relays
-    if(ModIO_GetRelayState(CONF_RELAY_WP) != (WATERPUMP.status == RUNNING)) // flag set in ISR, control relay if needed
-      if(!ModIO_SetRelayState(CONF_RELAY_WP, (WATERPUMP.status == RUNNING)) == MODIO_ACK_OK) ModIO_Reset();
     
-    ModIO_Update();
 
     if(Timers[TM_ClearLastAlarm]->expired()) {
       strncpy(lastAlarm, "-", sizeof(lastAlarm));
