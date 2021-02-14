@@ -369,19 +369,9 @@ void setup(void) {
 
   logger.print(F("Configuring NTP server "));
   logger.println(config.ntpserver);
-  /*
-  NTPClient timeClient = NTPClient(ntpUDP, config.ntpserver, 3600, 30000);
-  timeClient.begin();
-  if(!DEBUG) delay(700);
-  if(!timeClient.update()){
-    logger.println(F("Failed to obtain time"));
-  } else {
-    logger.println(SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME));
-  } 
-  */ 
- 
- ntpUDP.begin(localPortNTP);
-  Serial.println("waiting for sync");
+  
+  ntpUDP.begin(localPortNTP);
+  Serial.println("syncing clock with NTP...");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
 
@@ -571,6 +561,13 @@ void loop(void) {
   }
 
   if(Timers[TM_CheckConnections]->expired()) {
+
+    timeStatus_t NTPstatus  = timeStatus();
+    if(NTPstatus != timeSet) {
+      Serial.println("syncing clock with NTP...");
+      setSyncProvider(getNtpTime);
+    }
+
     if (!WiFi.isConnected())
     {
         delay(5000);
