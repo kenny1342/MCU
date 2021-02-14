@@ -26,7 +26,8 @@ bool printDebug = true;
 uint8_t client_count = 0;
 
 uint32_t stat_bytes_rx;
-uint16_t stat_tcp_count;
+uint16_t stat_conn_count;
+uint16_t last_conn_count;
 uint8_t reconnects_wifi;
 
 // Ring buffer with all chars received via TCP, to be written to serial
@@ -34,6 +35,7 @@ CircularBuffer<char, 2048> queue_tx; // chars we queue (3 probes accumulates ~40
 LCD_state_struct LCD_state;
 
 Timemark tm_CheckWifi(5000);
+Timemark tm_CheckRX(600000);
 Timemark tm_SendData(5000);
 Timemark tm_reboot(86400 * 1000); 
 Timemark tm_ClearDisplay(300000);
@@ -181,6 +183,7 @@ void setup() {
   tm_ClearDisplay.start();
   tm_UpdateDisplay.start();
   tm_CheckWifi.start();
+  tm_CheckRX.start();
   tm_printDebug.start();
 
   tft.fillScreen(LCD_state.bgcolor);
@@ -203,11 +206,21 @@ void loop()
     ESP.restart();
   }
 
+  if(tm_CheckRX.expired()) {
+    if(stat_conn_count > last_conn_count) {
+      last_conn_count = stat_conn_count;
+    } else {
+      Serial.println(F("Connection counter not increased within set timespan (stuck wifi?) rebooting!"));
+      ESP.restart();
+      delay(10000);
+    }
+  }
+
   // Check if a new client has connected
   WiFiClient newClient = server.available();
   if (newClient) {
     if(printDebug) Serial.printf("New client: IP=%s, ", newClient.remoteIP().toString().c_str());
-    stat_tcp_count++;
+    stat_conn_count++;
     // Find the first unused space
     for (int i=0 ; i<MAX_CLIENTS ; ++i) {
         if (NULL == clients[i]) {
@@ -352,7 +365,7 @@ void loop()
     LCD_state.bgcolor = TFT_BLACK;
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-    tft.printf("TCP conns: %u  \n", stat_tcp_count);
+    tft.printf("TCP conns: %u  \n", stat_conn_count);
 
     char s[32] = "";        
     tft.printf("RX->TX: %s   \n", FormatBytes(stat_bytes_rx, s));

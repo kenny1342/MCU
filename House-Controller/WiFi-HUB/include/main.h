@@ -7,7 +7,7 @@
 
 bool debug = true;
 
-#define VERSION "6.03"
+#define VERSION "6.04"
 #define MAX_CLIENTS 8
 
 #ifdef MODE_AP
