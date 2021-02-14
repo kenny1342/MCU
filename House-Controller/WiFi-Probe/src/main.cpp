@@ -382,7 +382,7 @@ void loop()
     data.clear();
     data["value"] = sid1_value;
 
-    if(sid1_value != NAN && !data["value"].isNull()) {
+    if(sid1_value == sid1_value && !data["value"].isNull()) { // test for NAN
       SendData(root, mdns_index_hub);
     } else {
       Serial.println(F("ERR: NULL value, skipping TX!"));
@@ -392,7 +392,7 @@ void loop()
     data.clear();
     data["value"] = sid2_value;
 
-    if(sid2_value != NAN && !data["value"].isNull()) {
+    if(sid2_value == sid2_value && !data["value"].isNull()) {
       SendData(root, mdns_index_hub);
     } else {
       Serial.println(F("ERR: NULL value, skipping TX!"));
