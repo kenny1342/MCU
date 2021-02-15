@@ -1,0 +1,5 @@
+Description of SID's used (SensorID)
+
+0: firmware version (string)
+1-9: sensor values ("data":{"value":9999}) (temperatures etc)
+10: uptime (seconds, int)

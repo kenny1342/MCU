@@ -119,9 +119,13 @@ void setup() {
   WiFi.begin(ssid, pw);
   if(printDebug) Serial.print("try to Connect to Wireless network: ");
   if(printDebug) Serial.println(ssid);
-  while (WiFi.status() != WL_CONNECTED) {   
+  uint8_t tries = 0;
+  while (WiFi.status() != WL_CONNECTED) {  
+    esp_task_wdt_reset(); 
     delay(500);
+    if(++tries > 20) break;
     if(printDebug) Serial.print(".");
+    
   }
   
   Serial.print("\nWiFi connected with IP: ");
@@ -314,17 +318,21 @@ void loop()
 
     if (!WiFi.isConnected())
     {
-        delay(5000);
+        delay(3000);
         if(!WiFi.isConnected()) {
+          reconnects_wifi++;
           Serial.print(F("Trying WiFi reconnect #"));
           Serial.println(reconnects_wifi);
 
-          WiFi.reconnect();
+          WiFi.begin(ssid, pw);
+          //WiFi.reconnect();
           
           uint8_t cnt = 0;
           while (WiFi.status() != WL_CONNECTED) {  
-            if(cnt++ > 6) {
-              Serial.println(F("Failed, giving up!"));
+            esp_task_wdt_reset(); 
+            if(cnt++ > 60) {
+              Serial.println(F("Failed"));
+              WiFi.disconnect();
               return;
             }
             delay(500);  
@@ -332,7 +340,7 @@ void loop()
           }  
           Serial.println(F("Reconnected OK!"));
 
-          if (reconnects_wifi == 20)
+          if (reconnects_wifi == 30)
           {
             Serial.println(F("Too many failures, rebooting..."));          
             ESP.restart();
@@ -379,23 +387,35 @@ void loop()
   if(tm_SendData.expired()) {
     
     // First send our local system data (sid 0)
-    char sid0[200] = {0};
+    char sid[200] = {0};
     uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
-    //sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu}}\n", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis());
-    sprintf(sid0, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\",\"uptime_sec\":%lu}", 0x45, (uint16_t)(chipid>>32), VERSION, millis());
-    
-    const char *ptr = sid0;    
+    const char *ptr;
+
+    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\"}", 0x45, (uint16_t)(chipid>>32), VERSION);
+    ptr = sid;
     while(*ptr != '\0')
     {
       Serial_one.write(*ptr);
       if(printDebug) Serial.write(*ptr);
-      delayMicroseconds(50);
+      delayMicroseconds(10);
       ptr++;
-    }
-    
+    }    
     Serial_one.write('\n');
     if(printDebug) Serial.write('\n');
-    delay(300);
+    delay(100);
+
+    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis());
+    ptr = sid;
+    while(*ptr != '\0')
+    {
+      Serial_one.write(*ptr);
+      if(printDebug) Serial.write(*ptr);
+      delayMicroseconds(10);
+      ptr++;
+    }    
+    Serial_one.write('\n');
+    if(printDebug) Serial.write('\n');
+    delay(100);
 
     if(!queue_tx.isEmpty()) {
       if(printDebug) Serial.printf("%u/%u bytes in TX queue, flushing to Serial...", queue_tx.size(), queue_tx.size() + queue_tx.available());

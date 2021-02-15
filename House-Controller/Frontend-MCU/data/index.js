@@ -356,17 +356,28 @@ jQuery(document).ready(function () {
           return;
         }
 
-        if(typeof json[config.devid_hub] != "undefined") {
-          $("#uptime_hub").empty().append( formatSecs(json[config.devid_hub].uptime_sec) );
-        }
-        
         for(var key in json) {          
           let devid = json[key].devid;  
           let sid = json[key].sid; 
-          let value = json[key].data["value"];          
+          let value = ''; 
           let age = Math.floor(Date.now() / 1000) - parseInt(json[key].ts, 10);
           // TODO, figure out better TZ handling, or flag it as expired in Frontend http_print 0x45 loop instead
           age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
+
+          switch(sid) { // see /SID.map.txt for details
+            case 0: case 10: if(typeof json[key]["firmware"] != "undefined") { value = json[key]["firmware"]; } break;
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9: if(typeof json[key].data["value"] != "undefined") { value = json[key].data["value"]; } break;
+            case 10: if(typeof json[key]["uptime"] != "undefined") { value = formatSecs( json[key]["uptime"] ); } break;
+            default:
+          }
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
@@ -378,6 +389,9 @@ jQuery(document).ready(function () {
           }
           if(devid == config.devid_bedroom) {
             devid = "bedroom";
+          }
+          if(devid == config.devid_hub) {
+            devid = "hub";
           }
 
           let objid = "devid_" + devid + "_sid_" + sid;
