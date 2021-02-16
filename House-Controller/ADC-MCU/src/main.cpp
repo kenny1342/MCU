@@ -18,6 +18,7 @@
 #include <Timemark.h>
 #include <KRA-Emon.h>
 #include <NeoHWSerial.h>
+#include <MD_CirQueue.h>
 
 volatile uint32_t newlines = 0UL;
 
@@ -36,7 +37,9 @@ char lastAlarm[20] = "-";
 // For SPI data processing/ISR
 volatile uint16_t indx;
 volatile bool HUB_dataready = false;
-char buffer_sensorhub_isr[JSON_SIZE];
+volatile char buffer_sensorhub_isr[JSON_SIZE] = {0};
+//const uint8_t QUEUE_SIZE = 6;
+//MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
@@ -48,6 +51,7 @@ volatile KRAEMON EMON_K5 (ADC_CH_CT_K5, ADC_CH_VOLT_L_N, ADC_CH_CT_K5_MVPRAMP, "
 volatile KRAEMON EMON_K13 (ADC_CH_CT_K13, ADC_CH_VOLT_L_N, ADC_CH_CT_K13_MVPRAMP, "13"); 
 const uint8_t NUM_EMONS = 5;
 volatile KRAEMON * KRAEMONS[NUM_EMONS] = { &EMON_K1, &EMON_K2, &EMON_K3, &EMON_K5, &EMON_K13 };
+
 
 
 // Structs
@@ -172,7 +176,7 @@ void setup()
   Serial_Frontend.println(F("ADC initializing..."));
 
   //Serial_SensorHub.begin(57600);
-  //Serial_SensorHub.attachInterrupt( handleRxChar );
+  Serial_SensorHub.attachInterrupt( handleRxChar );
   Serial_SensorHub.begin( 57600 ); // Instead of 'Serial1'  
 
 
@@ -254,11 +258,23 @@ void setup()
  */
 static void handleRxChar( uint8_t c )
 {
+  Serial_Frontend.write(c);
+
+  buffer_sensorhub_isr[indx++] = c;
+  if(indx >= sizeof(buffer_sensorhub_isr)-1) indx = 0;
+
   if (c == '\n') {
     newlines++;
-    Serial.print("uart1 ISR:");
-    Serial.print(newlines);
-    Serial.println(" lines");
+    
+    buffer_sensorhub_isr[indx] = '\0';
+    indx = 0;
+    if(HUB_dataready == false) {
+      Serial.print("uart1 ISR:");
+      Serial.print(newlines);
+      Serial.println(" lines");
+      HUB_dataready = true;
+
+    }
   }
 }
 
@@ -562,11 +578,17 @@ void loop() // run over and over
   APPFLAGS.isUpdatingData = true;
 
 
-  
+  if(HUB_dataready) {
+  /*
   //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
   if(Serial_SensorHub.available() > 10) {
     memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
     Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
+    */
+   Serial_SensorHub.detachInterrupt();
+   strcpy(buffer_sensorhub, (const char*)buffer_sensorhub_isr);
+   HUB_dataready = false;
+   Serial_SensorHub.attachInterrupt(handleRxChar);
 /*
     int number_of_bytes_received = Serial_SensorHub.readBytesUntil ('\n',buffer_sensorhub,JSON_SIZE); // read bytes (max. JSON_SIZE) from buffer, untill <NL> (10). store bytes in buffer_sensorhub. count the bytes recieved.
     buffer_sensorhub[number_of_bytes_received] = 0; // add a 0 terminator to the char array
@@ -580,7 +602,7 @@ void loop() // run over and over
   */  
     Serial.print("RXHUB:");
     Serial.print(buffer_sensorhub);
-    Serial.println();
+    //Serial.println();
 
     //const char * buffer_sensorhub_ptr = buffer_sensorhub;
     //if(doSerialDebug) { Serial.print (buffer_sensorhub); Serial.print("\n"); } //print the array on serial monitor    
