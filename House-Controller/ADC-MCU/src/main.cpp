@@ -8,10 +8,8 @@
  * Kenny Dec 19, 2020
  */
 #include <Arduino.h>
+
 #include <main.h>
-//#include <SoftwareSerial.h>
-#include <Wire.h>
-#include <SPI.h>
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
 #include <MemoryFree.h>
@@ -98,6 +96,7 @@ enum Timers {   TM_blinkAlarm,
   TM_SerialDebug,
   TM_ClearLastAlarm 
 };
+
 
 void setup()
 {
@@ -243,58 +242,18 @@ void setup()
   Serial.println(F("Init done!"));
 }
 
-/*
-ISR (SPI_STC_vect)
-{
-  byte c = SPDR;
-  
-if(c == 0x10) { // our address
-  SPDR = c;
-  return;
-}
-
-  if(c == '<' || indx >= JSON_SIZE-1) { // Start marker
-    indx =0;
-    //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
-    //buffer_sensorhub[0] = 0;
-    //for( uint32_t i = 0; i < sizeof(buffer_sensorhub);  ++i )
-      //buffer_sensorhub[i] = (char)0;
-
-    //Serial.print("SPISTART\n");
-    return;
-  } 
-
-  if(c == 0x0F) { // End marker
-    indx = 0;
-    //Serial.write(c);
-    SPI_dataready = true;
-    //Serial.print("SPIEND\n");
-    return;
-  }
-
-  if(c != 0x00) {
-    buffer_sensorhub[indx] = c; // read byte from SPI Data Register
-    indx++;
-    buffer_sensorhub[indx] = '\0';
-  }
-
-}
-*/
-/*
-ISR(USART3_RX_vect)
-{
-  Serial.println("receive interrupt occur");
-  while (!(UCSR2A & (1 << RXC2))) {};
-
-  char ReceivedByte;
-  ReceivedByte = UDR2; // Fetch the received byte value into the variable "ByteReceived"
-  UDR2 = ReceivedByte; // Echo back the received byte back to the computer
-}
-*/
 
 /**
  * ISR to handle incoming data from HUB (remote probes via WiFi Hub)
  */
+/*
+ISR(USART1_RX_vect)
+{
+  Serial.println("uart1 ISR");
+  while (!(UCSR1A & (1 << RXC1))) {};
+}
+*/
+
 //ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 ISR(TIMER1_COMPA_vect)
 {

@@ -37,8 +37,8 @@
 
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 
-#define Serial_Frontend             Serial1
-#define Serial_SensorHub            Serial3
+#define Serial_Frontend             Serial3
+#define Serial_SensorHub            Serial1
 
 #define numReadings                 8 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
