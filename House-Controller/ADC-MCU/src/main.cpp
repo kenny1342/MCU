@@ -17,8 +17,12 @@
 //#include <olimex-mod-io.h>
 #include <Timemark.h>
 #include <KRA-Emon.h>
-//#include <EmonLib.h>
+#include <NeoHWSerial.h>
 
+volatile uint32_t newlines = 0UL;
+
+//StaticJsonDocument<250> remote_data[10];
+//char a[250][10] = {0};
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -167,7 +171,9 @@ void setup()
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
-  Serial_SensorHub.begin(57600);
+  //Serial_SensorHub.begin(57600);
+  //Serial_SensorHub.attachInterrupt( handleRxChar );
+  Serial_SensorHub.begin( 57600 ); // Instead of 'Serial1'  
 
 
   // easy calc: http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html
@@ -239,15 +245,25 @@ void setup()
   APPFLAGS.isSendingData = 0;
   APPFLAGS.isUpdatingData = 0;
 
-  Serial.println(F("Init done!"));
+  Serial.println(F("Init done!"));  
 }
 
 
 /**
  * ISR to handle incoming data from HUB (remote probes via WiFi Hub)
  */
+static void handleRxChar( uint8_t c )
+{
+  if (c == '\n') {
+    newlines++;
+    Serial.print("uart1 ISR:");
+    Serial.print(newlines);
+    Serial.println(" lines");
+  }
+}
+
 /*
-ISR(USART1_RX_vect)
+ISR(UART1_RX_vect)
 {
   Serial.println("uart1 ISR");
   while (!(UCSR1A & (1 << RXC1))) {};

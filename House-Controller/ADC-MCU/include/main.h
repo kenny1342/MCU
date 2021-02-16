@@ -38,7 +38,7 @@
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 
 #define Serial_Frontend             Serial3
-#define Serial_SensorHub            Serial1
+#define Serial_SensorHub            NeoSerial1
 
 #define numReadings                 8 // Define the number of samples to keep track of for ADC smoothing
 #define PRESSURE_SENS_MAX           10 // sensor maxmimum value (in Bar*1), currently using a 0-10Bar sensor
@@ -195,7 +195,7 @@ const char alarm_Text_EMON[9][15] = { "emon_mains_o_r", "emon_gndfault", "", "",
 #define LED_OFF(pin) digitalWrite(pin, 1)
 #define LED_TOGGLE(pin) digitalWrite(pin, !digitalRead(pin))
 
-//float readACCurrentValue(uint8_t pin, uint8_t ACTectionRange, double Vdd_calib);
+static void handleRxChar( uint8_t c );
 bool getAlarmStatus_SYS(uint8_t Alarm);
 bool getAlarmStatus_WP(uint8_t Alarm);
 bool getAlarmStatus_EMON(uint8_t Alarm);
