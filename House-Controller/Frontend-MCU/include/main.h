@@ -7,7 +7,8 @@
 #include <setup.h>
 
 //#define USE_WIFIMGR
-#define DEF_WIFI_SSID  "service_wifi"
+//#define DEF_WIFI_SSID  "service_wifi"
+#define DEF_WIFI_SSID  "MCU"
 #define DEF_WIFI_PW    "hemmelig"
 
 // Helpers to read strings from build options macros

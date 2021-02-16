@@ -7,7 +7,7 @@
 
 bool debug = true;
 
-#define VERSION "6.05"
+#define VERSION "6.06"
 #define MAX_CLIENTS 8
 
 #ifdef MODE_AP
@@ -16,8 +16,9 @@ const char *pw = "12345678"; // and this is the password
 IPAddress ip(192, 168, 4, 1); 
 IPAddress netmask(255, 255, 255, 0);
 #else
-const char *ssid = "service_wifi";  // You will connect your phone to this Access Point
-const char *pw = "hemmelig"; // and this is the password
+//const char *ssid = "service_wifi";  
+const char *ssid = "MCU";  
+const char *pw = "hemmelig"; 
 
 #endif
 

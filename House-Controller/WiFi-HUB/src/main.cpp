@@ -404,7 +404,7 @@ void loop()
     if(printDebug) Serial.write('\n');
     delay(100);
 
-    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis());
+    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis()/1000);
     ptr = sid;
     while(*ptr != '\0')
     {

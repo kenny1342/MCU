@@ -32,7 +32,7 @@ bool debug = true;
 #define MODE_STA
 
 #define JSON_SIZE                   512
-#define FIRMWARE_VERSION            "4.5"
+#define FIRMWARE_VERSION            "4.51"
 #define PIN_DALLAS_SENSORS          25      // DS18B20 on GPIO x (a 4.7K pullup is necessary)
 #define NUM_DS_SENSORS              5       // Max nr of DS18B20 we can have on the 1-wire bus
 

@@ -43,7 +43,7 @@ jQuery(document).ready(function () {
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
       $("#chktestdata").prop('checked', true);
-      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"devid_bathroom": "9457","devid_pumphouse": "50406", "devid_outside": "33832","devid_bedroom": "22664","version":"1.2"  }');
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"devid_bathroom": "9457","devid_pumphouse": "50406", "devid_outside": "33832","devid_bedroom": "22664","devid_hub": "2233","version":"1.2"  }');
       localStorage.setItem('config', JSON.stringify(json));
     }
   ); // fetch
@@ -155,7 +155,7 @@ jQuery(document).ready(function () {
         //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data json0x45");
-          localStorage.setItem('json0x45', '[{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
+          localStorage.setItem('json0x45', '[{"cmd":69,"devid":2233,"sid":10,"uptime":12244082,"ts":1613377833},{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
         } else {
           //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
@@ -364,8 +364,9 @@ jQuery(document).ready(function () {
           // TODO, figure out better TZ handling, or flag it as expired in Frontend http_print 0x45 loop instead
           age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
 
+          //console.log("1: SID: " + sid + ", VALUE=" + value);
           switch(sid) { // see /SID.map.txt for details
-            case 0: case 10: if(typeof json[key]["firmware"] != "undefined") { value = json[key]["firmware"]; } break;
+            case 0: if(typeof json[key]["firmware"] != "undefined") { value = json[key]["firmware"]; } break;
             case 1:
             case 2:
             case 3:
@@ -378,6 +379,7 @@ jQuery(document).ready(function () {
             case 10: if(typeof json[key]["uptime"] != "undefined") { value = formatSecs( json[key]["uptime"] ); } break;
             default:
           }
+          //console.log("2: SID: " + sid + ", VALUE=" + value);
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid

@@ -1,4 +1,4 @@
-Description of SID's used (SensorID)
+Description of SID's used (SensorID) OBS! HEX value!
 
 0: firmware version (string)
 1-9: sensor values ("data":{"value":9999}) (temperatures etc)

@@ -456,7 +456,7 @@ void SendData(JsonObject &jsonObj, int8_t mdns_index) {
     Serial.print(dataString);
     
     
-    delay(600);
+    delay(1000);
 
   client.print(dataString);
   
