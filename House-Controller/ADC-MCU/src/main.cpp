@@ -20,10 +20,6 @@
 #include <NeoHWSerial.h>
 #include <MD_CirQueue.h>
 
-volatile uint32_t newlines = 0UL;
-
-//StaticJsonDocument<250> remote_data[10];
-//char a[250][10] = {0};
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
@@ -36,10 +32,10 @@ char lastAlarm[20] = "-";
 
 // For SPI data processing/ISR
 volatile uint16_t indx;
-volatile bool HUB_dataready = false;
+volatile bool RX_processing = false;
 volatile char buffer_sensorhub_isr[JSON_SIZE] = {0};
-//const uint8_t QUEUE_SIZE = 6;
-//MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
+const uint8_t QUEUE_SIZE = 4;
+MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
@@ -249,6 +245,8 @@ void setup()
   APPFLAGS.isSendingData = 0;
   APPFLAGS.isUpdatingData = 0;
 
+  Q_rx.setFullOverwrite(true);
+
   Serial.println(F("Init done!"));  
 }
 
@@ -258,33 +256,19 @@ void setup()
  */
 static void handleRxChar( uint8_t c )
 {
+  
   Serial_Frontend.write(c);
 
   buffer_sensorhub_isr[indx++] = c;
   if(indx >= sizeof(buffer_sensorhub_isr)-1) indx = 0;
 
-  if (c == '\n') {
-    newlines++;
-    
-    buffer_sensorhub_isr[indx] = '\0';
+  if (c == '\n' && !RX_processing) {
+    buffer_sensorhub_isr[indx] = '\0';  
     indx = 0;
-    if(HUB_dataready == false) {
-      Serial.print("uart1 ISR:");
-      Serial.print(newlines);
-      Serial.println(" lines");
-      HUB_dataready = true;
+    Q_rx.push((uint8_t *)buffer_sensorhub_isr);
 
-    }
   }
 }
-
-/*
-ISR(UART1_RX_vect)
-{
-  Serial.println("uart1 ISR");
-  while (!(UCSR1A & (1 << RXC1))) {};
-}
-*/
 
 //ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
 ISR(TIMER1_COMPA_vect)
@@ -571,46 +555,55 @@ void loop() // run over and over
   const uint8_t freq_sample_count = 250;
   uint16_t samples[freq_sample_count];
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
-  char buffer_sensorhub[JSON_SIZE] = {0};
+  //char buffer_sensorhub[JSON_SIZE] = {0};
+  uint8_t curr_q_idx = 0;
+
   wdt_reset();
 
 
   APPFLAGS.isUpdatingData = true;
 
 
-  if(HUB_dataready) {
+  //if(HUB_dataready) {
   /*
   //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
   if(Serial_SensorHub.available() > 10) {
     memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
     Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
     */
-   Serial_SensorHub.detachInterrupt();
-   strcpy(buffer_sensorhub, (const char*)buffer_sensorhub_isr);
-   HUB_dataready = false;
-   Serial_SensorHub.attachInterrupt(handleRxChar);
-/*
-    int number_of_bytes_received = Serial_SensorHub.readBytesUntil ('\n',buffer_sensorhub,JSON_SIZE); // read bytes (max. JSON_SIZE) from buffer, untill <NL> (10). store bytes in buffer_sensorhub. count the bytes recieved.
-    buffer_sensorhub[number_of_bytes_received] = 0; // add a 0 terminator to the char array
-    Serial.print("RXHUB TMP:");
-    Serial.print(buffer_sensorhub); Serial.println();
-    Serial.print("RXHUB LAST2:"); Serial.print( buffer_sensorhub[strlen(buffer_sensorhub)-2] ); Serial.println();
-    Serial.print("RXHUB LAST1:"); Serial.print( buffer_sensorhub[strlen(buffer_sensorhub)-1] ); Serial.println();
-  }
+   
+   //Serial_SensorHub.detachInterrupt();
+   //strcpy(buffer_sensorhub, (const char*)buffer_sensorhub_isr);
+   //HUB_dataready = false;
+   //Serial_SensorHub.attachInterrupt(handleRxChar);
 
-  if(buffer_sensorhub[strlen(buffer_sensorhub)-1] == '}') {
-  */  
-    Serial.print("RXHUB:");
+  while (!Q_rx.isEmpty()) {
+    
+    char buffer_sensorhub[JSON_SIZE] = {0};
+
+    if(Q_rx.isFull()) {
+      Serial.println("ALERT: Q_rx is full!!!" );
+    }
+
+    Serial_SensorHub.detachInterrupt();
+    RX_processing = true;
+    delay(5);
+
+    Q_rx.pop((uint8_t *) &buffer_sensorhub);
+    //const char *buffer_sensorhub = _buffer_sensorhub;
+
+    RX_processing = false;
+    Serial_SensorHub.attachInterrupt(handleRxChar);
+
+    Serial.print("RXHUB Q idx=");
+    Serial.print(curr_q_idx++);
+    Serial.print(": ");
     Serial.print(buffer_sensorhub);
     //Serial.println();
 
     //const char * buffer_sensorhub_ptr = buffer_sensorhub;
     //if(doSerialDebug) { Serial.print (buffer_sensorhub); Serial.print("\n"); } //print the array on serial monitor    
 
-    // Send to Frontend unchanged via serial
-    //Serial_Frontend.write(buffer_sensorhub_ptr);
-    //Serial_Frontend.write('\n');
-  
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     //tmp_json.clear();
@@ -627,8 +620,8 @@ void loop() // run over and over
       
     } else {
       // Write/pass on to Frontend
-      serializeJson(tmp_json, Serial_Frontend);
-      Serial_Frontend.write('\n');
+      //serializeJson(tmp_json, Serial_Frontend);
+      //Serial_Frontend.write('\n');
 
       Serial.print("TX:");
       serializeJson(tmp_json, Serial);
