@@ -328,10 +328,10 @@ void setup() {
   Serial.begin(115200); // Set Serial baudrate at 115200
   while(!Serial);
   Serial.flush();
-  Serial.println();
+  DPRINTLN();
   Serial.print("ARDUINOMENU DEMO V");
   Serial.print(PROG_VERSION);
-  Serial.println(" FOR LILYGO TTGO T-DISPLAY");
+  DPRINTLN(" FOR LILYGO TTGO T-DISPLAY");
   
   nav.idleTask=idle;//point a function to be used when menu is suspended
   mainMenu[1].disable();
@@ -344,11 +344,11 @@ void setup() {
   Serial.print("Configuring PWM for TFT backlight... ");
   ledcSetup(pwmLedChannelTFT, pwmFreq, pwmResolution);
   ledcAttachPin(TFT_BL, pwmLedChannelTFT);
-  Serial.println("DONE");
+  DPRINTLN("DONE");
 
   Serial.print("Setting PWM for TFT backlight to default intensity... ");
   ledcWrite(pwmLedChannelTFT, ledBacklight);
-  Serial.println("DONE");
+  DPRINTLN("DONE");
 
   gfx.setRotation(1); // Rotate display a quarter clockwise
   
@@ -360,7 +360,7 @@ void setup() {
   gfx.setSwapBytes(true);
   gfx.pushImage(0, 0,  240, 135, bootlogo);
   delay(1000);
-  Serial.println("DONE");
+  DPRINTLN("DONE");
   
   Serial.print("Initialize buttons... ");
   button_init();

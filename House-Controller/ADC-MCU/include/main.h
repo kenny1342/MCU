@@ -10,12 +10,12 @@
 // note down the values and define them in ZERO_POINT_...
 //#define DO_VOLTAGE_CALIBRATION
 // 231, n=127, l=130
-//#define ZERO_POINT_L_N              463
 #define ZERO_POINT_L_PE             495
 #define ZERO_POINT_N_PE             483
 
-#define FIRMWARE_VERSION            "3.10"
+#define FIRMWARE_VERSION            "3.11"
 #define JSON_SIZE                   450
+#define RX_QUEUE_SIZE               5   // memory usage=x * JSON_SIZE
 #define DATA_TX_INTERVAL            800 // interval (ms) to send JSON data via serial to ESP-32 webserver
 #define PIN_MISO                    50  // SPI  Master-In-Slave-Out
 #define PIN_MOSI                    51
@@ -26,14 +26,11 @@
 #define PIN_LED_BLUE                9 // BLUE
 #define PIN_LED_WHITE               7 // WHITE, 
 #define PIN_BUZZER                  8
-//#define PIN_ModIO_Reset             6
+#define PIN_RELAY_12VBUS           4 // MosFET controlling 12v bus (sensors, mains relays etc)
+#define PIN_RELAY_WP               5 // MosFET controlling water pump relay
 #define LED_BUSY                    PIN_LED_BLUE
 #define LED_ALARM                   PIN_LED_RED
 #define LED_WARNING                 PIN_LED_YELLOW
-
-//#define CONF_I2C_ID_MODIO_BOARD     0x58 // ID of MOD-IO board #1
-#define PIN_RELAY_12VBUS           4 // MosFET controlling 12v bus (sensors, mains relays etc)
-#define PIN_RELAY_WP               5 // MosFET controlling water pump relay
 
 #define CORR_FACTOR_PRESSURE_SENSOR 0.5  // correction factor (linear) (in Bar)
 
@@ -67,7 +64,6 @@
 #define DEF_CONF_WP_RUNTIME_ACC_ALARM  4U    // if we run shorter than n sec we raise accumulator/low air pressure alarm
 #define DEF_CONF_MIN_TEMP_PUMPHOUSE 6U   // uint8_t! minimum temp pumphouse in degrees C*10 before raising alarm
 #define LOWMEM_LIMIT                500  // minimum free memory before raising alarm
-
 
 // Structs
 
@@ -135,7 +131,7 @@ typedef union {
   struct {
     byte is_home:1 ; // 1 if user is home, see isHome() (ping phone etc)
     byte isSendingData:1 ; // ISR turns PIN_LED_BUSY ON if we are busy handling web, booting, doing i2c or other time consuming tasks (that might hang)
-    byte bitTwo:1 ;
+    byte processing_QRX:1 ;
     byte bitThree:1;
     byte bitFour:1;
     byte bitFive:1;

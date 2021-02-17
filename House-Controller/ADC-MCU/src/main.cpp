@@ -19,23 +19,23 @@
 #include <KRA-Emon.h>
 #include <NeoHWSerial.h>
 #include <MD_CirQueue.h>
-
+#define DEBUG
+#include <DebugMacros.h>
+#define LOGGER
+#include <LogMacros.h>
 
 // store long global string in flash (put the pointers to PROGMEM)
 const char string_0[] PROGMEM = "ADC-MCU v" FIRMWARE_VERSION " build " __DATE__ " " __TIME__ " from file " __FILE__ " using GCC v" __VERSION__;
 const char* const FIRMWARE_VERSION_LONG[] PROGMEM = { string_0 };
 
 uint16_t timer1_counter; // preload of timer1
-char dataString[JSON_SIZE] = "no data";
 
 char lastAlarm[20] = "-";
 
-// For SPI data processing/ISR
+// For RX data processing/ISR
 volatile uint16_t indx;
-volatile bool RX_processing = false;
 volatile char buffer_sensorhub_isr[JSON_SIZE] = {0};
-const uint8_t QUEUE_SIZE = 4;
-MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
+MD_CirQueue Q_rx(RX_QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 ZMPT101B voltageSensor_L_PE(ADC_CH_VOLT_L_PE);
 ZMPT101B voltageSensor_N_PE(ADC_CH_VOLT_N_PE);
@@ -135,20 +135,17 @@ void setup()
   }
 
   Serial.println(F("initializing..."));
-  
-
   Serial.println( (__FlashStringHelper*)pgm_read_word(FIRMWARE_VERSION_LONG + 0)) ;
-  Serial.println(F("Made by Ken-Roger Andersen, 2020"));
-  Serial.println("");
-
+  Serial.println("Made by Ken-Roger Andersen, 2021\n");
+  
   analogReference(DEFAULT); // the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
 
   #ifdef DO_VOLTAGE_CALIBRATION
   while(1) {
-    Serial.println(F("read calib/zero-point voltage sensors..."));
-    Serial.print(F("L_N:'")); Serial.print(voltageSensor_L_N.calibrate());
-    Serial.print(F(", L_PE:'")); Serial.print(voltageSensor_L_PE.calibrate());
-    Serial.print(F(", N_PE:'")); Serial.print(voltageSensor_N_PE.calibrate());
+    DPRINTLN(F("read calib/zero-point voltage sensors..."));
+    DPRINT(F("L_N:'")); DPRINT(voltageSensor_L_N.calibrate());
+    DPRINT(F(", L_PE:'")); DPRINT(voltageSensor_L_PE.calibrate());
+    DPRINT(F(", N_PE:'")); DPRINT(voltageSensor_N_PE.calibrate());
     delay(1000);
   }
   #endif
@@ -166,12 +163,10 @@ void setup()
   APPCONFIG.min_temp_pumphouse = DEF_CONF_MIN_TEMP_PUMPHOUSE;
 
   WATERPUMP.pressure_state = PRESSURE_OK;
-  //WATERPUMP.accumulator_ok = true;
-
+  
   Serial_Frontend.begin(57600);
   Serial_Frontend.println(F("ADC initializing..."));
 
-  //Serial_SensorHub.begin(57600);
   Serial_SensorHub.attachInterrupt( handleRxChar );
   Serial_SensorHub.begin( 57600 ); // Instead of 'Serial1'  
 
@@ -211,8 +206,6 @@ void setup()
   Serial.println(F("ISR's enabled"));
   delay(500);
 
-  //Wire.begin(); // Initiate the Wire library
-
   if(checkIfColdStart())
   {
     Serial.println(F("restart by WDT"));
@@ -226,7 +219,6 @@ void setup()
   Serial.println(F("switching on 12v bus..."));
   digitalWrite(PIN_RELAY_12VBUS, 1);
 
-/*
   LED_OFF(PIN_LED_RED);
   delay(300);
   LED_OFF(PIN_LED_YELLOW);
@@ -234,7 +226,6 @@ void setup()
   LED_OFF(PIN_LED_BLUE);
   delay(300);
   LED_OFF(PIN_LED_WHITE);
-*/
 
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
@@ -244,6 +235,7 @@ void setup()
 
   APPFLAGS.isSendingData = 0;
   APPFLAGS.isUpdatingData = 0;
+  APPFLAGS.processing_QRX = 0;
 
   Q_rx.setFullOverwrite(true);
 
@@ -256,18 +248,20 @@ void setup()
  */
 static void handleRxChar( uint8_t c )
 {
-  
+  // Write/pass on to Frontend
   Serial_Frontend.write(c);
 
-  buffer_sensorhub_isr[indx++] = c;
-  if(indx >= sizeof(buffer_sensorhub_isr)-1) indx = 0;
-
-  if (c == '\n' && !RX_processing) {
+  buffer_sensorhub_isr[indx] = c;
+  
+  if (c == '\n' && !APPFLAGS.processing_QRX) {
     buffer_sensorhub_isr[indx] = '\0';  
     indx = 0;
     Q_rx.push((uint8_t *)buffer_sensorhub_isr);
-
+  } else {
+    indx++;
   }
+  
+  if(indx >= sizeof(buffer_sensorhub_isr)-1) indx = 0;
 }
 
 //ISR (TIMER1_OVF_vect) // interrupt service routine, 0.5 Hz
@@ -364,8 +358,8 @@ ISR (TIMER2_COMPA_vect)
     }
 
     if(ALARMS_SYS.low_memory) {
-      Serial.print(F("LOW MEM: "));
-      Serial.println(freeMemory());
+      LOGERR_PRINTF("LOW MEM: ");
+      LOGERR_PRINTLN(freeMemory());
     }
 
     // Only update alarms (for external data) if not currently reading new ADC values/updating data, we might get zero/invalid results until it's completed
@@ -555,82 +549,45 @@ void loop() // run over and over
   const uint8_t freq_sample_count = 250;
   uint16_t samples[freq_sample_count];
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
-  //char buffer_sensorhub[JSON_SIZE] = {0};
+  char buffer_tx[JSON_SIZE] = {0};
   uint8_t curr_q_idx = 0;
 
   wdt_reset();
 
-
   APPFLAGS.isUpdatingData = true;
 
-
-  //if(HUB_dataready) {
-  /*
-  //memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
-  if(Serial_SensorHub.available() > 10) {
-    memset ( (void*)buffer_sensorhub, 0, JSON_SIZE );
-    Serial_SensorHub.readBytesUntil('\n', buffer_sensorhub, sizeof(buffer_sensorhub));
-    */
-   
-   //Serial_SensorHub.detachInterrupt();
-   //strcpy(buffer_sensorhub, (const char*)buffer_sensorhub_isr);
-   //HUB_dataready = false;
-   //Serial_SensorHub.attachInterrupt(handleRxChar);
+  if(Q_rx.isFull()) {
+    LOGERR_PRINTLNF("ALERT: Q_rx is full!!!" );
+  }
 
   while (!Q_rx.isEmpty()) {
     
     char buffer_sensorhub[JSON_SIZE] = {0};
 
-    if(Q_rx.isFull()) {
-      Serial.println("ALERT: Q_rx is full!!!" );
-    }
-
     Serial_SensorHub.detachInterrupt();
-    RX_processing = true;
+    APPFLAGS.processing_QRX = true;
     delay(5);
-
-    Q_rx.pop((uint8_t *) &buffer_sensorhub);
-    //const char *buffer_sensorhub = _buffer_sensorhub;
-
-    RX_processing = false;
+    Q_rx.pop((uint8_t *) &buffer_sensorhub);    
+    APPFLAGS.processing_QRX = false;
     Serial_SensorHub.attachInterrupt(handleRxChar);
 
-    Serial.print("\nRXHUB Q idx=");
-    Serial.print(curr_q_idx++);
-    Serial.print(": ");
-    Serial.print(buffer_sensorhub);
-    //Serial.println();
-
-    //const char * buffer_sensorhub_ptr = buffer_sensorhub;
-    //if(doSerialDebug) { Serial.print (buffer_sensorhub); Serial.print("\n"); } //print the array on serial monitor    
+    DPRINT("RX_Q idx=");
+    DPRINT(curr_q_idx++);
+    DPRINT(": ");
+    DPRINTLN(buffer_sensorhub);
 
     // Parse JSON document and find cmd, devid and sid, process data if it's of interest for us (in alarms or other logic)    
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    //tmp_json.clear();
-    //const char* p = buffer_sensorhub;// SPIData;
-    //DeserializationError error = deserializeJson(tmp_json, p); // read-only input (duplication)
     DeserializationError error = deserializeJson(tmp_json, buffer_sensorhub);
 
-    
-
     if (error) {
-      //Serial.write(buffer_sensorhub);
-      Serial.print(F("^JSON_ERR:"));
-      Serial.println(error.f_str());
+      LOGERR_PRINTLN("^JSON_ERR:");
+      LOGERR_PRINTLN(error.f_str());
       
     } else {
-      // Write/pass on to Frontend
-      //serializeJson(tmp_json, Serial_Frontend);
-      //Serial_Frontend.write('\n');
 
-      Serial.print("TX:");
-      serializeJson(tmp_json, Serial);
-      Serial.write('\n');
-      
-      
-
-      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45){ // REMOTE_SENSOR_DATA
-        //Serial.println("REMOTE DATA 0x45");
+      if(tmp_json.getMember("cmd").as<uint8_t>() == 0x45) { // REMOTE_SENSOR_DATA
+        //DPRINTLN("REMOTE DATA 0x45");
         uint32_t _devid = tmp_json.getMember("devid").as<uint32_t>();
         uint8_t sid = tmp_json.getMember("sid").as<uint8_t>();
         switch(_devid) {
@@ -654,11 +611,11 @@ void loop() // run over and over
 
           }
           break;
-          case DEVID_PROBE_BATHROOM: // EP32 Probe in pump house
+          case DEVID_PROBE_BATHROOM:
           {
           }
           break;
-          default: Serial.print(F("ignoring data from unknown devid: ")); Serial.println(_devid);
+          default: DPRINT(F("ignoring data from unknown devid: ")); DPRINTLN(_devid);
         }
       } // 0x45
     } // no json error
@@ -720,7 +677,7 @@ void loop() // run over and over
     }
 
     ADC_waterpressure.average = ADC_waterpressure.total / numReadings;
-    //Serial.println(ADC_waterpressure.average);
+    //DPRINTLN(ADC_waterpressure.average);
 
     // 10-bit ADC, Bar=(ADC*BarMAX)/(2^10). Sensor drop -0.5V/bar (1024/10, minimum sensor output)
     // Integer math instead of float, factor of 100 gives 2 decimals
@@ -781,10 +738,10 @@ void loop() // run over and over
 
     root["lastAlarm"] = lastAlarm;
 
-    dataString[0] = '\0';
-    serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
-    Serial_Frontend.println(dataString);
+    buffer_tx[0] = '\0';
+    serializeJson(root, buffer_tx);
+    if(doSerialDebug) DPRINTLN(buffer_tx);
+    Serial_Frontend.println(buffer_tx);
     delay(500);
     wdt_reset();
 
@@ -807,10 +764,10 @@ void loop() // run over and over
       circuit["PF"] = KRAEMONS[x]->powerFactor;
     }
 
-    dataString[0] = '\0';
-    serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
-    Serial_Frontend.println(dataString);
+    buffer_tx[0] = '\0';
+    serializeJson(root, buffer_tx);
+    if(doSerialDebug) DPRINTLN(buffer_tx);
+    Serial_Frontend.println(buffer_tx);
     delay(500);
     wdt_reset();
 
@@ -845,10 +802,10 @@ void loop() // run over and over
     json["press_st"] = WATERPUMP.pressure_state;
 
     //dataString = "";
-    dataString[0] = '\0';
-    serializeJson(root, dataString);
-    if(doSerialDebug) Serial.println(dataString);
-    Serial_Frontend.println(dataString);
+    buffer_tx[0] = '\0';
+    serializeJson(root, buffer_tx);
+    if(doSerialDebug) DPRINTLN(buffer_tx);
+    Serial_Frontend.println(buffer_tx);
 
     //LED_OFF(PIN_LED_WHITE);
     APPFLAGS.isSendingData = 0;
@@ -896,8 +853,8 @@ void buzzer_off(uint8_t pin) {
 int readline(int readch, char *buffer, int len) {
     static int pos = 0;
     int rpos;
-//Serial.print("c:");
-//Serial.print(readch);
+//DPRINT("c:");
+//DPRINT(readch);
 
     if (readch > 0) {
         switch (readch) {
@@ -922,11 +879,11 @@ bool checkIfColdStart ()
  const char signature [] = "REBOOTFLAG";
  char * p = (char *) malloc (sizeof (signature));
  if (strcmp (p, signature) == 0)   // signature already there
-   //Serial.println ("Watchdog activated.");
+   //DPRINTLN ("Watchdog activated.");
    return false;
  else
    {
-   //Serial.println ("Cold start.");
+   //DPRINTLN ("Cold start.");
    memcpy (p, signature, sizeof signature);  // copy signature into RAM
    return true;
    }
