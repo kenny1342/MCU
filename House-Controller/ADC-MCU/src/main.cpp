@@ -595,7 +595,7 @@ void loop() // run over and over
     RX_processing = false;
     Serial_SensorHub.attachInterrupt(handleRxChar);
 
-    Serial.print("RXHUB Q idx=");
+    Serial.print("\nRXHUB Q idx=");
     Serial.print(curr_q_idx++);
     Serial.print(": ");
     Serial.print(buffer_sensorhub);
