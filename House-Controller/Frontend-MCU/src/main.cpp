@@ -88,10 +88,10 @@ AsyncEventSource events("/events"); // event source (Server-Sent events)
 Logger logger = Logger(&tft);
 
 Timemark tm_ClearDisplay(600000); // 600sec=10min
-Timemark tm_CheckConnections(120000); 
+Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
 Timemark tm_PushToBlynk(2000);
-Timemark tm_SerialDebug(10000);
+Timemark tm_SerialDebug(60000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
 //Timemark tm_SyncNTP(180000);
@@ -619,8 +619,7 @@ void loop(void) {
     }
 
     Q_rx.pop((uint8_t *) &data_string);
-    const char *data_string_ptr = data_string;
-
+    
     bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
@@ -628,15 +627,14 @@ void loop(void) {
       Serial.printf("RX (%s):\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
       Serial.println(data_string); 
     } else {
-      Serial.print(".");
+      //Serial.print(".");
     }
     
     
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    
-    //DeserializationError error = deserializeJson(tmp_json, buffer_datain); // writeable (zero-copy method)
+    const char *data_string_ptr = data_string;
     DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
-    //DeserializationError error = deserializeJson(tmp_json, data_string); // read-only input (duplication)
+    //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
     
     if (error) {
         Serial.print("\n");
@@ -672,7 +670,7 @@ void loop(void) {
         break;        
         case 0x45: // REMOTE_PROBE_DATA
         {
-          Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
+          //Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
           if(!tmp_json.containsKey("devid") /*tmp_json.getMember("devid").isNull() || tmp_json.getMember("devid").isUndefined()*/) {
             Serial.print(F("0x45 no devid found, ignoring!\n"));
             break;
@@ -688,8 +686,8 @@ void loop(void) {
               remote_data[i].getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>()              
             ) {
 
-              //if(doSerialDebug) 
-              Serial.printf("0x45 data exists in buffer #%u, updating\n", i);
+              if(doSerialDebug) 
+                Serial.printf("0x45 data exists in buffer #%u, updating\n", i);
               remote_data[i] = tmp_json;
               need_to_add = false;
             }
