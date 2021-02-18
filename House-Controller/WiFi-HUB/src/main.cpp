@@ -392,6 +392,7 @@ void loop()
     const char *ptr;
 
     sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\"}", 0x45, (uint16_t)(chipid>>32), VERSION);
+
     ptr = sid;
     while(*ptr != '\0')
     {
@@ -404,7 +405,8 @@ void loop()
     if(printDebug) Serial.write('\n');
     delay(100);
 
-    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis()/1000);
+    //sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis()/1000);
+    sprintf(sid, " {\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu,\"rssi\":%i}}", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis()/1000, getStrength(5));
     ptr = sid;
     while(*ptr != '\0')
     {
@@ -443,6 +445,23 @@ void loop()
   }
 
 }
+
+/**
+* Take measurements of the Wi-Fi strength and return the average result.
+*/
+int getStrength(int points){
+    long rssi = 0;
+    long averageRSSI = 0;
+    
+    for (int i=0;i < points;i++){
+        rssi += WiFi.RSSI();
+        delay(20);
+    }
+
+   averageRSSI = rssi/points;
+    return averageRSSI;
+}
+
 
 const char *FormatBytes(long long bytes, char *str)
 {

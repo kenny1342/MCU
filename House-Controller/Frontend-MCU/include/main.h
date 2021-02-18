@@ -28,8 +28,8 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define CONF_DEF_PORT                "80"
 #define CONF_DEF_NTP_SERVER          "192.168.30.13"
 
-#define JSON_SIZE                   1024
-#define JSON_SIZE_REMOTEPROBES      200
+#define JSON_SIZE                   900
+#define JSON_SIZE_REMOTEPROBES      250
 #define MAX_REMOTE_SIDS             20 // number of remote sensor id's JSON strings to store in memory/circular buffer
 
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
