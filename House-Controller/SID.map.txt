@@ -1,5 +1,4 @@
 Description of SID's used (SensorID) OBS! HEX value!
 
-0: firmware version (string)
+0: system info: data[] (firmware version (string), IP (string), uptime_sec (int)
 1-9: sensor values ("data":{"value":9999}) (temperatures etc)
-10: uptime (seconds, int)

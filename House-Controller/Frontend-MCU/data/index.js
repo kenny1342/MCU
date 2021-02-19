@@ -155,7 +155,7 @@ jQuery(document).ready(function () {
         //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data json0x45");
-          localStorage.setItem('json0x45', '[{"cmd":69,"devid":2233,"sid":10,"uptime":12244082,"ts":1613377833},{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
+          localStorage.setItem('json0x45', '[{"cmd":69,"devid":2233,"sid":0,"data":{"firmware":"6.07","IP":"192.168.30.60","port":8880,"uptime_sec":3198,"rssi":-54},"cmd":69,"devid":22664,"sid":0,"data":{"firmware":"4.51","IP":"192.168.30.63","port":8880,"uptime_sec":5555,"rssi":-64},"ts":1613706819},{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
         } else {
           //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
@@ -359,27 +359,11 @@ jQuery(document).ready(function () {
         for(var key in json) {          
           let devid = json[key].devid;  
           let sid = json[key].sid; 
-          let value = ''; 
+          let value = null; 
           let age = Math.floor(Date.now() / 1000) - parseInt(json[key].ts, 10);
           // TODO, figure out better TZ handling, or flag it as expired in Frontend http_print 0x45 loop instead
           age += 3600; // DIRTY TZ HACK for now..Frontend returns GMT.
 
-          //console.log("1: SID: " + sid + ", VALUE=" + value);
-          switch(sid) { // see /SID.map.txt for details
-            case 0: if(typeof json[key]["firmware"] != "undefined") { value = json[key]["firmware"]; } break;
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-            case 8:
-            case 9: if(typeof json[key].data["value"] != "undefined") { value = json[key].data["value"]; } break;
-            case 10: if(typeof json[key]["uptime"] != "undefined") { value = formatSecs( json[key]["uptime"] ); } break;
-            default:
-          }
-          //console.log("2: SID: " + sid + ", VALUE=" + value);
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
@@ -396,17 +380,59 @@ jQuery(document).ready(function () {
             devid = "hub";
           }
 
+          //console.log("1: SID: " + sid + ", VALUE=" + value);
           let objid = "devid_" + devid + "_sid_" + sid;
-          //console.log("OBJID: " + objid);
-          if($("#" + objid).length > 0) {
-                        
-            if(value != $("#" + objid).html()) {
-              $("#" + objid).empty().append(value);
-
-              if(!$("#" + objid).is(':animated') )  {
-                $("#" + objid).stop(true, true).fadeOut(500).fadeIn(800).fadeOut(500).fadeIn(800).fadeOut(500).fadeIn(800);            
-              } 
+          let objids = {};
+          if(sid == 0) {
+            if(typeof json[key].data.firmware != "undefined") { objids[objid + '_firmware'] = json[key].data.firmware; } 
+            if(typeof json[key].data.uptime_sec != "undefined") { objids[objid + '_uptime_sec'] = formatSecs( json[key].data.uptime_sec ); }
+            if(typeof json[key].data.rssi != "undefined") { 
+              let rssi = json[key].data.rssi;
+              objids[objid + '_rssi'] = rssi; 
+              if(rssi >= -50) { // -50 as good as it gets
+                objids[objid + '_rssi_class'] = 'EXCELLENT'; 
+                objids[objid + '_rssi_level'] = '5';
+              } else if(rssi > -60) {
+                objids[objid + '_rssi_class'] = 'VERYGOOD'; 
+                objids[objid + '_rssi_level'] = '4';
+              } else if(rssi > -70) {
+                objids[objid + '_rssi_class'] = 'GOOD'; 
+                objids[objid + '_rssi_level'] = '3';
+              } else if(rssi > -80) {
+                objids[objid + '_rssi_class'] = 'LOW'; 
+                objids[objid + '_rssi_level'] = '2';
+              } else if(rssi > -90) {
+                objids[objid + '_rssi_class'] = 'VERYLOW'; 
+                objids[objid + '_rssi_level'] = '1';
+              } else if(rssi >= -100) {
+                objids[objid + '_rssi_class'] = 'NOSIGNAL'; 
+                objids[objid + '_rssi_level'] = '0';
+              }
+              
             }
+
+          } else if(sid > 0 && sid < 9) {
+            if(typeof json[key].data["value"] != "undefined") { objids[objid + ''] = json[key].data["value"]; }
+          }
+          //console.log("OBJIDS: ");  
+          //console.log(objids);  
+
+          
+
+          $.each( objids, function( objid, value ) {
+            console.log(" OBJID: " + objid + ", VALUE=" + value);
+            if($("#" + objid).length > 0) {
+                        
+              if(value != $("#" + objid).html()) {
+                $("#" + objid).empty().append(value);
+  
+                if(!$("#" + objid).is(':animated') )  {
+                  $("#" + objid).stop(true, true).fadeOut(500).fadeIn(800)
+                } 
+              }
+            }
+          });
+          //console.log("OBJID: " + objid);
             
             if(devid == "outside") {
               if(value < 0.0) {
@@ -421,7 +447,7 @@ jQuery(document).ready(function () {
             } else {
               $("#" + objid).removeClass("OLD_DATA");
             }
-          }
+          
 
         }
 
