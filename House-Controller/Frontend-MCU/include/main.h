@@ -18,7 +18,7 @@
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 //#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.13"
+#define FIRMWARE_VERSION    "3.14"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)

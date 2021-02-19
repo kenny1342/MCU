@@ -391,21 +391,6 @@ void loop()
     uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
     const char *ptr;
 
-    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"firmware\":\"%s\"}", 0x45, (uint16_t)(chipid>>32), VERSION);
-
-    ptr = sid;
-    while(*ptr != '\0')
-    {
-      Serial_one.write(*ptr);
-      if(printDebug) Serial.write(*ptr);
-      delayMicroseconds(10);
-      ptr++;
-    }    
-    Serial_one.write('\n');
-    if(printDebug) Serial.write('\n');
-    delay(100);
-
-    //sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":10,\"uptime\":%lu}", 0x45, (uint16_t)(chipid>>32), millis()/1000);
     sprintf(sid, " {\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu,\"rssi\":%i}}", 0x45, (uint16_t)(chipid>>32), VERSION, WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT, millis()/1000, getStrength(5));
     ptr = sid;
     while(*ptr != '\0')

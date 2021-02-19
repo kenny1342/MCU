@@ -6,7 +6,7 @@
   <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
   <link rel="stylesheet" type="text/css" href="style.css">
   <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
-  <!--<script src='main.js'></script>-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
 </head>
 <body>
   <h1>Home Controller v%FIRMWARE%</h1>
@@ -81,7 +81,16 @@
       <td id="table_main_td2">
         <table id="table_pump">
           <tr>
-            <th colspan="2">Water Pump <span id="table_pump_expand">+</span></th>
+            <th colspan="2">Water Pump <span id="table_pump_expand">+</span>
+              <div id="wifi_pumproom" class="signal-bars sizing-box bad one-bar">
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+
+            </th>
           </tr>
           <tr style="font-size: 1.3em;">
             <td class="td_title">Pressure</td>
@@ -129,15 +138,44 @@
             <th colspan="2">Probes</th>
           </tr>
           <tr>
-            <td class="td_title">Outside<br /><span id="devid_outside_sid_0_rssi_class"></span>,<span id="devid_outside_sid_0_rssi_level"></span></td>
+            <td class="td_title">Outside<!--<br /><span id="devid_outside_sid_0_rssi_class"></span>,<span id="devid_outside_sid_0_rssi_level"></span>-->
+              <br />
+              <div id="wifi_outside" class="signal-bars sizing-box bad one-bar">
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+            </td>
+
             <td class="td_value"> <span id="devid_outside_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_outside_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
           <tr>
-            <td class="td_title">Bathroom<br /><span id="devid_bathroom_sid_0_rssi_class"></span>,<span id="devid_bathroom_sid_0_rssi_level"></span></td>
+            <td class="td_title">Bathroom<!--<br /><span id="devid_bathroom_sid_0_rssi_class"></span>,<span id="devid_bathroom_sid_0_rssi_level"></span>-->
+              <br />
+              <div id="wifi_bathroom" class="signal-bars sizing-box bad one-bar">
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+            </td>
             <td class="td_value"> <span id="devid_bathroom_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_bathroom_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
           <tr>
-            <td class="td_title">Bedroom<br /><span id="devid_bedroom_sid_0_rssi_class"></span>,<span id="devid_bedroom_sid_0_rssi_level"></span></td>
+            <td class="td_title">Bedroom<!--<br /><span id="devid_bedroom_sid_0_rssi_class"></span>,<span id="devid_bedroom_sid_0_rssi_level"></span>-->
+              <br />
+              <div id="wifi_bedroom" class="signal-bars sizing-box bad one-bar" >
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+
+            </td>
             <td class="td_value"> <span id="devid_bedroom_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_bedroom_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
         </table>
@@ -149,7 +187,25 @@
     <hr /> 
 
     <span id="footer">
-      <b>Stats:</b> Frontend: <span id="uptime_sys">-</span>/Mem (heap): <span id="heap">-</span> Bytes | ADC: <span id="uptime_adc">-</span>/Mem: <span id="adc_freemem">-</span> Bytes | Hub: <span id="devid_hub_sid_0_uptime_sec">-</span> 
+      <b>Stats:</b> Frontend: 
+      <div id="wifi_frontend" class="signal-bars sizing-box bad one-bar" >
+        <div class="first-bar bar"></div>
+        <div class="second-bar bar"></div>
+        <div class="third-bar bar"></div>
+        <div class="fourth-bar bar"></div>
+        <div class="fifth-bar bar"></div>
+      </div>
+      
+      <span id="uptime_sys">-</span>/Mem (heap): <span id="heap">-</span> Bytes | ADC: <span id="uptime_adc">-</span>/Mem: <span id="adc_freemem">-</span> Bytes 
+      | Hub: <span id="devid_hub_sid_0_uptime_sec">-</span> 
+      <div id="wifi_hub" class="signal-bars sizing-box bad one-bar">
+        <div class="first-bar bar"></div>
+        <div class="second-bar bar"></div>
+        <div class="third-bar bar"></div>
+        <div class="fourth-bar bar"></div>
+        <div class="fifth-bar bar"></div>
+      </div>
+
       <br /> <b>Last ADC alarm:</b> <span id="lastAlarm"></span>
       <br />
       Web Interface v%WEBIF_VERSION% (ChipID: <span id="chipid">-</span> @ <span id="freq">0 Mhz</span>) <input type="checkbox" id="chktestdata" />Use test data

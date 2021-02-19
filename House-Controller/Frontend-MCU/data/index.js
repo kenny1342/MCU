@@ -43,7 +43,7 @@ jQuery(document).ready(function () {
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
       $("#chktestdata").prop('checked', true);
-      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"devid_bathroom": "9457","devid_pumphouse": "50406", "devid_outside": "33832","devid_bedroom": "22664","devid_hub": "2233","version":"1.2"  }');
+      json = JSON.parse('{"array":[  1,  2,  3],"boolean":true,"hostname":"wifi-ctrl-02","port":80,"ntpserver":"192.168.30.1","circuits":{  "1":{"name":"Main", "size":63},  "2":{"name":"Living room", "size":16},  "3":{"name":"Kitchen", "size":16},  "5":{"name":"Pump room", "size":16}, "7":{"name":"Aux Water Heater", "size":16}, "13":{"name":"Heat pump", "size":16}},"alarms":{  "lowmem":"ADC Low memory",  "wpruntime":"Max runtime exceeded",  "wpaccair":"Low air pressure accumulator tank",  "wptemproom":"Low temperature pump room",  "wppresssens":"Water pressure sensor fault",  "wppresssens":"Temp sensor fault pump room",  "emon_mains_o_r":"Mains voltage out of range",  "emon_gndfault":"Ground fault detected (voltages out of range)",  "emon_sensor":"Voltage/current sensor error"},"devid_bathroom": "50406","devid_pumproom": "9457", "devid_outside": "33832","devid_bedroom": "22664","devid_hub": "2233","version":"1.2"  }');
       localStorage.setItem('config', JSON.stringify(json));
     }
   ); // fetch
@@ -155,7 +155,7 @@ jQuery(document).ready(function () {
         //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data json0x45");
-          localStorage.setItem('json0x45', '[{"cmd":69,"devid":2233,"sid":0,"data":{"firmware":"6.07","IP":"192.168.30.60","port":8880,"uptime_sec":3198,"rssi":-54},"cmd":69,"devid":22664,"sid":0,"data":{"firmware":"4.51","IP":"192.168.30.63","port":8880,"uptime_sec":5555,"rssi":-64},"ts":1613706819},{"cmd":69,"devid":50406,"sid":1,"data":{"value":24.2},"ts":1612867382},{"cmd":69,"devid":33832,"sid":2,"data":{"value":53.6},"ts":1612867369},{"cmd":69,"devid":22664,"sid":1,"data":{"value":11.4},"ts":1612867378},{"cmd":69,"devid":22664,"sid":2,"data":{"value":53.5},"ts":1612867384}]');
+          localStorage.setItem('json0x45', '[{"cmd":69,"devid":2233,"sid":0,"data":{"firmware":"6.07","IP":"192.168.30.60","port":8880,"uptime_sec":24453,"rssi":-55},"ts":1613728075}, {"cmd":69,"devid":9457,"sid":2,"data":{"value":45.9},"ts":1613728070}, {"cmd":69,"devid":33832,"sid":1,"data":{"value":3.6},"ts":1613728075}, {"cmd":69,"devid":22664,"sid":0,"data":{"firmware":"4.51","IP":"192.168.30.64","port":2323,"uptime_sec":3450,"rssi":-58},"ts":1613728077}, {"cmd":69,"devid":50406,"sid":0,"data":{"firmware":"4.51","IP":"192.168.30.62","port":2323,"uptime_sec":3326,"rssi":-51},"ts":1613728065}, {"cmd":69,"devid":9457,"sid":3,"data":{"value":"9.2"},"ts":1613728072}, {"cmd":69,"devid":33832,"sid":2,"data":{"value":74.9},"ts":1613728076}, {"cmd":69,"devid":50406,"sid":1,"data":{"value":27.6},"ts":1613728076}, {"cmd":69,"devid":9457,"sid":4,"data":{"value":"10.0"},"ts":1613728073}, {"cmd":69,"devid":33832,"sid":0,"data":{"firmware":"4.51","IP":"192.168.30.63","port":2323,"uptime_sec":175,"rssi":-50},"ts":1613728073}, {"cmd":69,"devid":22664,"sid":2,"data":{"value":40.1},"ts":1613728073}, {"cmd":69,"devid":50406,"sid":2,"data":{"value":31.5},"ts":1613728077}, {"cmd":69,"devid":9457,"sid":0,"data":{"firmware":"4.4","IP":"192.168.30.61","port":2323,"uptime_sec":2633,"rssi":-71},"ts":1613728068}, {"cmd":69,"devid":22664,"sid":1,"data":{"value":18.8},"ts":1613728072}, {"cmd":69,"devid":9457,"sid":1,"data":{"value":15.8},"ts":1613728052}]');
         } else {
           //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
@@ -356,8 +356,10 @@ jQuery(document).ready(function () {
           return;
         }
 
+        //console.log("CONFIG:"); console.log(config);
+
         for(var key in json) {          
-          let devid = json[key].devid;  
+          let devid = null; //json[key].devid;  
           let sid = json[key].sid; 
           let value = null; 
           let age = Math.floor(Date.now() / 1000) - parseInt(json[key].ts, 10);
@@ -367,17 +369,14 @@ jQuery(document).ready(function () {
 
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
-          if(devid == config.devid_bathroom) {
-            devid = "bathroom";
-          }
-          if(devid == config.devid_outside) {
-            devid = "outside";
-          }
-          if(devid == config.devid_bedroom) {
-            devid = "bedroom";
-          }
-          if(devid == config.devid_hub) {
-            devid = "hub";
+          switch(String(json[key].devid)) {            
+            case config.devid_bathroom: devid = "bathroom"; break;
+            case config.devid_outside: devid = "outside"; break;
+            case config.devid_bedroom: devid = "bedroom"; break;
+            case config.devid_hub: devid = "hub"; break;
+            case config.devid_pumproom: devid = "pumproom"; break;
+            case config.devid_frontend: devid = "frontend"; break;
+            default: devid = json[key].devid;
           }
 
           //console.log("1: SID: " + sid + ", VALUE=" + value);
@@ -390,24 +389,29 @@ jQuery(document).ready(function () {
               let rssi = json[key].data.rssi;
               objids[objid + '_rssi'] = rssi; 
               if(rssi >= -50) { // -50 as good as it gets
-                objids[objid + '_rssi_class'] = 'EXCELLENT'; 
-                objids[objid + '_rssi_level'] = '5';
+                objids[objid + '_rssi_class'] = 'good'; 
+                objids[objid + '_rssi_level'] = 'five-bars';
               } else if(rssi > -60) {
-                objids[objid + '_rssi_class'] = 'VERYGOOD'; 
-                objids[objid + '_rssi_level'] = '4';
+                objids[objid + '_rssi_class'] = 'good'; 
+                objids[objid + '_rssi_level'] = 'four-bars';
               } else if(rssi > -70) {
-                objids[objid + '_rssi_class'] = 'GOOD'; 
-                objids[objid + '_rssi_level'] = '3';
+                objids[objid + '_rssi_class'] = 'ok'; 
+                objids[objid + '_rssi_level'] = 'three-bars';
               } else if(rssi > -80) {
-                objids[objid + '_rssi_class'] = 'LOW'; 
-                objids[objid + '_rssi_level'] = '2';
+                objids[objid + '_rssi_class'] = 'ok'; 
+                objids[objid + '_rssi_level'] = 'two-bars';
               } else if(rssi > -90) {
-                objids[objid + '_rssi_class'] = 'VERYLOW'; 
-                objids[objid + '_rssi_level'] = '1';
+                objids[objid + '_rssi_class'] = 'bad'; 
+                objids[objid + '_rssi_level'] = 'one-bar';
               } else if(rssi >= -100) {
-                objids[objid + '_rssi_class'] = 'NOSIGNAL'; 
+                objids[objid + '_rssi_class'] = 'bad'; 
                 objids[objid + '_rssi_level'] = '0';
               }
+              //console.log("#wifi_" + devid + " class=" + objids[objid + '_rssi_level'] + " " + objids[objid + '_rssi_level']);  
+              $("#wifi_" + devid).removeClass();
+              //$("#wifi_" + devid).addClass('signal-bars').addClass('mt1').addClass('sizing-box');
+              $("#wifi_" + devid).addClass('signal-bars').addClass('sizing-box');
+              $("#wifi_" + devid).addClass('' + objids[objid + '_rssi_class']).addClass('' + objids[objid + '_rssi_level']);
               
             }
 
@@ -420,7 +424,7 @@ jQuery(document).ready(function () {
           
 
           $.each( objids, function( objid, value ) {
-            console.log(" OBJID: " + objid + ", VALUE=" + value);
+            //console.log(" OBJID: " + objid + ", VALUE=" + value);
             if($("#" + objid).length > 0) {
                         
               if(value != $("#" + objid).html()) {

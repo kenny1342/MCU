@@ -22,9 +22,10 @@
       "emon_sensor": "Voltage/current sensor error"
     },
     "devid_bathroom": "50406",
-    "devid_pumphouse": "9457",
+    "devid_pumproom": "9457",
     "devid_outside": "33832",
     "devid_bedroom": "22664",
     "devid_hub": "2233",
-    "version": "1.2"
+    "devid_frontend": "18500",
+    "version": "1.3"
   }

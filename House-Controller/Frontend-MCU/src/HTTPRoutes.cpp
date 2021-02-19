@@ -82,7 +82,13 @@ void Webserver::AddRoutes() {
 
     response->print("[");
 
-		
+    // Print our own system data/sid0
+    char sid[150] = {0};
+    uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+    //const char *ptr;
+    sprintf(sid, "{\"cmd\":%u,\"devid\":%u,\"sid\":0,\"data\":{\"firmware\":\"%s\",\"IP\":\"%s\",\"port\":%u,\"uptime_sec\":%lu,\"rssi\":%i}},\n", 0x45, (uint16_t)(chipid>>32), FIRMWARE_VERSION, WiFi.localIP().toString().c_str(), 80, millis()/1000, WiFi.RSSI());
+    response->print(sid);
+
 		for (uint8_t i = 0; i < MAX_REMOTE_SIDS; i++) {
       if(remote_data[i].isNull() || remote_data[i].size() == 0) {
         continue;

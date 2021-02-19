@@ -61,7 +61,8 @@ a:hover {
   width: 99%; 
   white-space: nowrap;
   border-spacing: 1px;
-  margin: 0em 1em 1em 1em;
+  /*margin: 0em 1em 1em 1em;*/
+  margin: 0 auto;
 }
 
 #table_main td {
@@ -239,7 +240,7 @@ h1 {
     font-size: 2.2rem;
    }
    .units_xs {
-    font-size: 0.9em;
+    font-size: 1.2rem;
    }
 
   .sensor-labels {
@@ -267,6 +268,74 @@ h1 {
   }
 
 
+
+
+/*  
+  * {
+    box-sizing: border-box;
+  }
+  */
+  .sizing-box {
+    height: 15px;
+    width: 50px;    
+  }
+  
+  .signal-bars {
+    display: inline-block;    
+  }
+  
+  .signal-bars .bar {
+    width: 4%;
+    margin-left: 1px;
+    min-height: 20%;
+    display: inline-block;
+    margin-right: -6px;
+  }
+  
+  .signal-bars .bar.first-bar {
+    height: 20%;
+  }
+  
+  .signal-bars .bar.second-bar {
+    height: 40%;
+  }
+  
+  .signal-bars .bar.third-bar {
+    height: 60%;
+  }
+  
+  .signal-bars .bar.fourth-bar {
+    height: 80%;
+  }
+  
+  .signal-bars .bar.fifth-bar {
+    height: 99%;
+  }
+  
+  .good .bar {
+    background-color: #16a085;
+    border: thin solid #12816b;
+  }
+  
+  .bad .bar {
+    background-color: #e74c3c;
+    border: thin solid #a82315;
+  }
+  
+  .ok .bar {
+    background-color: #f1c40f;
+    border: thin solid #d0a90c;
+  }
+  
+  .four-bars .bar.fifth-bar,
+  .three-bars .bar.fifth-bar,
+  .three-bars .bar.fourth-bar,
+  .one-bar .bar:not(.first-bar),
+  .two-bars .bar:not(.first-bar):not(.second-bar) {
+    background-color: #fafafa;
+    border: thin solid #646464;
+
+  }
  
   @media only screen and (max-width: 992px) {
     /* For tablets, landscape mobile phones: */
@@ -300,9 +369,17 @@ h1 {
     .units {
       font-size:1.15rem;
     }
+    .units_xs {
+      font-size:0.5rem;
+    }
+
     .container {
       justify-content:start;
     }    
+    .signal-bars .bar {
+      margin-right: -3px;
+    }  
+
   }
 
   @media screen and (max-width: 768px) {
@@ -347,7 +424,10 @@ h1 {
     }
 
     .units {
-      font-size:0.6rem;
+      font-size:0.95rem;
+    }
+    .units_xs {
+      font-size:0.45rem;
     }
     .container {
       justify-content:start;
@@ -356,4 +436,8 @@ h1 {
     #footer {
       font-size: 0.5rem;
     }
+
+    .signal-bars .bar {
+      margin-right: -3px;
+    }  
   }
