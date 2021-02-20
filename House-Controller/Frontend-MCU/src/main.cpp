@@ -9,10 +9,12 @@
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
 #include <WiFi.h>
+#include <esp_wifi.h>   // for esp_wifi_set_ps()
 #include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
+#include <ESP32Ping.h>
 #include <ArduinoJson.h>
 //#include <CircularBuffer.h>
 #include <MD_CirQueue.h>
@@ -313,6 +315,7 @@ void setup(void) {
 
 #ifndef USE_WIFIMGR
   WiFi.mode(WIFI_AP_STA);
+  esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
   WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
   delay(2000);
   if (WiFi.waitForConnectResult() == WL_CONNECTED) {
@@ -551,17 +554,39 @@ void loop(void) {
 
     timeStatus_t NTPstatus  = timeStatus();
     if(NTPstatus != timeSet) {
-      Serial.println("syncing clock with NTP...");
-      setSyncProvider(getNtpTime);
+      //Serial.println("syncing clock with NTP...");
+      //setSyncProvider(getNtpTime);
     }
 
-    if (!WiFi.isConnected() || ntp_errors > 60)
-    {
-        Serial.printf("NTP errors: %u\n", ntp_errors);
+    
+    
+    bool shouldReconnect = false;
 
-        delay(5000);
-        if(!WiFi.isConnected()) {
-          Serial.print(F("ERR: No WiFi, trying reconnect #"));
+    if (!WiFi.isConnected()) {
+      shouldReconnect = true;
+      Serial.print(F("ERR: No WiFi"));
+    }
+
+    //IPAddress gw(192,168,30,1);
+    bool ping_ok = Ping.ping("192.168.30.1", 3);
+    
+
+    if (!ping_ok || Ping.averageTime() > 100.0) {
+      shouldReconnect = true;
+      Serial.print(F("ERR: Ping gw failed"));
+      Serial.printf(", ping rtt=%f\n", Ping.averageTime());
+    }
+    
+    if (ntp_errors > 60) {
+      shouldReconnect = true;
+      Serial.printf("NTP errors: %u\n", ntp_errors);
+    }
+    
+    if (shouldReconnect)
+    {
+        //delay(5000);
+        //if(!WiFi.isConnected()) {
+          Serial.print(F("ERR: trying reconnect #"));
           Serial.println(reconnects_wifi);
           ReconnectWiFi();
           
@@ -573,7 +598,7 @@ void loop(void) {
             delay(10000);
             return;
           }
-        }
+        //}
     } else {
       Serial.println(F("WiFi OK"));
 
