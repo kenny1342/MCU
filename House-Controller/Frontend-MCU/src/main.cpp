@@ -354,6 +354,7 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
 
+
   logger.print(F("Configuring NTP server "));
   logger.println(config.ntpserver);
   
@@ -361,6 +362,7 @@ void setup(void) {
   Serial.println("syncing clock with NTP...");
   setSyncProvider(getNtpTime);
   setSyncInterval(atoi(config.ntp_interval));
+
 
   if(!DEBUG) delay(700);
 
@@ -436,7 +438,9 @@ void ReconnectWiFi() {
   
 
   if(WiFi.isConnected()) {
-    return;
+    //return;
+    WiFi.disconnect();
+    delay(2000);
   }
     
   Serial.print(F("Reconnecting wifi... "));
@@ -450,7 +454,7 @@ void ReconnectWiFi() {
 #endif
 
   while (WiFi.status() != WL_CONNECTED) {  
-    if(cnt++ > 6) {
+    if(cnt++ > 20) {
       Serial.println(F("Failed, giving up!"));
       return;
     }
