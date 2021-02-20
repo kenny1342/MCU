@@ -48,8 +48,6 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 //#define JSON_DOC_ADCPROBEDATA       4
 #define JSON_DOC_COUNT              3
 
-
-
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
 
 enum MENUPAGES_t { MENU_PAGE_UTILITY_STATS = 0, MENU_PAGE_WATER_STATS = 1, MENU_PAGE_SYSTEM_STATS = 2, MENU_PAGE_ABOUT = 3, MENU_PAGE_LOGO = 4 };
