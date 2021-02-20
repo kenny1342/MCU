@@ -33,10 +33,9 @@ extern AsyncWebServer server;
 extern bool shouldReboot;
 extern bool shouldSaveConfig;
 extern const char* _def_hostname;
-extern StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
+//extern StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
+extern char remote_data2[MAX_REMOTE_SIDS][JSON_SIZE_REMOTEPROBES];
 extern char JSON_STRINGS[4][JSON_SIZE];
-//extern struct tm timeinfo;
-//extern NTPClient timeClient;
 
 void onRequest(AsyncWebServerRequest *request);
 void onNotFound(AsyncWebServerRequest *request);

@@ -50,7 +50,9 @@ MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 //CircularBuffer<StaticJsonDocument<JSON_SIZE_REMOTEPROBES>, MAX_REMOTE_SIDS> remote_data;
 
-StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
+//StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data[MAX_REMOTE_SIDS];
+
+char remote_data2[MAX_REMOTE_SIDS][JSON_SIZE_REMOTEPROBES];
 
 bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 #ifdef USE_WIFIMGR
@@ -109,26 +111,14 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 /**
  * Timer ISR 1ms
  */
+/*
 void IRAM_ATTR onTimer() {
 
   portENTER_CRITICAL_ISR(&timerMux);
   interruptCounter++;
   portEXIT_CRITICAL_ISR(&timerMux);
-/*  
-  timerAlarmDisable(timer);
-  if(Serial_DATA.available())
-  {
-        char buffer_rx[JSON_SIZE] = {0};
-        Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
-        if(strlen(buffer_rx) > 10) {
-          //queue_rx.unshift(buffer_rx);
-          Q_rx.push((uint8_t *)buffer_rx);
-        }
-  }
-  timerAlarmEnable(timer);
-  */
 }
-
+*/
 #ifdef USE_BLYNK
 // Every time we connect to the cloud...
 BLYNK_CONNECTED() {
@@ -373,7 +363,7 @@ void setup(void) {
   ntpUDP.begin(localPortNTP);
   Serial.println("syncing clock with NTP...");
   setSyncProvider(getNtpTime);
-  setSyncInterval(300);
+  setSyncInterval(atoi(config.ntp_interval));
 
   if(!DEBUG) delay(700);
 
@@ -388,12 +378,13 @@ void setup(void) {
   }
   Serial.println(F("OK"));
   
+  /*
   logger.println(F("Starting timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 500000, true); // 1000us=1ms, 1000000us=1s
   timerAlarmEnable(timer);
-
+*/
 
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
@@ -533,6 +524,9 @@ void saveConfigCallback () {
 
 void loop(void) {
   double t = 0;
+  bool doSerialDebug = Timers[TM_SerialDebug]->expired();
+
+  doSerialDebug = true;
 
   ArduinoOTA.handle();
   if(OTArunning) return;
@@ -553,12 +547,13 @@ void loop(void) {
     delay(100);
     ESP.restart();
   }
-
+/*
   if(interruptCounter > 0) {
     portENTER_CRITICAL(&timerMux);
     interruptCounter--;
     portEXIT_CRITICAL(&timerMux);
   }
+*/
 
   if(Timers[TM_CheckConnections]->expired()) {
 
@@ -620,7 +615,7 @@ void loop(void) {
 
     Q_rx.pop((uint8_t *) &data_string);
     
-    bool doSerialDebug = Timers[TM_SerialDebug]->expired();
+    //bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
     if(doSerialDebug) {
@@ -632,8 +627,8 @@ void loop(void) {
     
     
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    const char *data_string_ptr = data_string;
-    DeserializationError error = deserializeJson(tmp_json, data_string_ptr); // read-only input (duplication)
+    //const char *data_string_ptr = data_string;
+    DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
     //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
     
     if (error) {
@@ -672,47 +667,67 @@ void loop(void) {
         {
           //Serial.printf("\n0x45 data received %u:%u\n", tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
           //Serial.printf("RX-0x45: %s\n", data_string);
-          if(!tmp_json.containsKey("devid") /*tmp_json.getMember("devid").isNull() || tmp_json.getMember("devid").isUndefined()*/) {
-            Serial.print(F("0x45 no devid found, ignoring!\n"));
+          if(!tmp_json.containsKey("devid")) {
+            Serial.print(F("ERR 0x45 no devid found, ignoring!\n"));
             break;
           }
-          tmp_json["ts"] = now(); // + (timeZone * 3600);
-          DynamicJsonDocument tmp_doc = tmp_json;
+          tmp_json["ts"] = now();
           
+          StaticJsonDocument<JSON_SIZE_REMOTEPROBES> tmp_doc;
+          tmp_doc = tmp_json;
+          
+          // TODO: instead of json decode into remote_data_doc, use sscanf etc to parse out devid/sid and append ts: to string directly
+          StaticJsonDocument<JSON_SIZE_REMOTEPROBES> remote_data_doc;
+          DeserializationError _err;
           bool need_to_add = true;
-          //for(int i=0; i<remote_data.size(); i++) {
-          for(int i=0; i<MAX_REMOTE_SIDS; i++) {  
-            if(
-              remote_data[i].getMember("devid").as<uint16_t>() == tmp_doc.getMember("devid").as<uint16_t>() &&
-              remote_data[i].getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>()              
-            ) {
+          uint8_t slot_to_add = 0;
 
-              if(doSerialDebug) 
-                Serial.printf("0x45 data exists in buffer #%u, updating\n", i);
-              remote_data[i] = tmp_json;
-              need_to_add = false;
+          for(uint8_t i=MAX_REMOTE_SIDS-1; i>0; i--) {  
+
+            if(remote_data2[i][0] != '\0' && strlen(remote_data2[i]) > 1) {
+              _err = deserializeJson(remote_data_doc, (const char*) remote_data2[i]);
+              if(_err) {
+                Serial.printf("0x45 #%u slot corrupted/invalid json: %s\n", i, _err.c_str());
+                slot_to_add = i; // add to this slot
+                break;
+              } else {
+                Serial.printf("0x45 #%u current slot devid=%u,sid=%u\n", i, remote_data_doc.getMember("devid").as<uint16_t>(), remote_data_doc.getMember("sid").as<uint8_t>());
+
+                if(
+                  remote_data_doc.getMember("devid").as<uint16_t>() == tmp_doc.getMember("devid").as<uint16_t>() &&
+                  remote_data_doc.getMember("sid").as<uint8_t>() == tmp_doc.getMember("sid").as<uint8_t>()              
+                ) {
+                  //if(doSerialDebug) 
+                    Serial.printf("0x45 #%u slot devid/sid match, updating\n", i);
+                  
+                  serializeJson(tmp_json, remote_data2[i]);
+                  
+                  need_to_add = false;
+                  break;
+                } else {
+                  Serial.printf("0x45 #%u slot devid/sid NO match, try next\n", i);
+                }
+              }
+            } else {
+              Serial.printf("0x45 #%u slot empty\n", i);
+              slot_to_add = i;
             }
 
             // if data too old, delete doc so slot can be reused
-            if(remote_data[i].containsKey("ts")) {
-              if(now() - remote_data[i].getMember("ts").as<uint32_t>() > 86400) {
-                remote_data[i].clear();
+            if(remote_data_doc.containsKey("ts")) {
+              if(now() - remote_data_doc.getMember("ts").as<uint32_t>() > 86400) {
+                Serial.printf("0x45 #%u old, clear()\n", i);
+                remote_data2[i][0] = '\0';
               }
             }
-          }
+          } // for
 
           bool is_added = false;
           if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
-            for(int i=0; i<MAX_REMOTE_SIDS; i++) {  
-              if(remote_data[i].isNull()) {
-                remote_data[i] = tmp_json;
-                is_added = true;
-                Serial.printf("0x45 data added to buffer #%u\n", i);
-                break;
-              } else {
-                Serial.printf("0x45 buffer #%u already used\n", i);
-              }
-            }
+            serializeJson(tmp_json, remote_data2[slot_to_add]);
+            is_added = true;
+            Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
+            break;
           }
 
           // check if we ran out of space in array (more devid/sid than MAX_REMOTE_SIDS)

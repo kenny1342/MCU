@@ -31,6 +31,7 @@ bool Setup::GetConfig() {
   strlcpy(config.hostname, CONF_DEF_HOSTNAME, sizeof(config.hostname));
   strlcpy(config.port, CONF_DEF_PORT, sizeof(config.port));    
   strlcpy(config.ntpserver, CONF_DEF_NTP_SERVER, sizeof(config.ntpserver));    
+  strlcpy(config.ntp_interval, CONF_DEF_NTP_INTERVAL, sizeof(config.ntp_interval));
 
 
   if (SPIFFS.exists(_configfile)) {

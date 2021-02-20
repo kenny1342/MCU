@@ -18,7 +18,7 @@
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 //#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.14"
+#define FIRMWARE_VERSION    "3.15"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -27,6 +27,7 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define CONF_DEF_HOSTNAME            "websrv-mcu"
 #define CONF_DEF_PORT                "80"
 #define CONF_DEF_NTP_SERVER          "192.168.30.13"
+#define CONF_DEF_NTP_INTERVAL        "60"  // secs
 
 #define JSON_SIZE                   900
 #define JSON_SIZE_REMOTEPROBES      250
