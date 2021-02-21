@@ -439,8 +439,8 @@ void ReconnectWiFi() {
 
   if(WiFi.isConnected()) {
     //return;
-    WiFi.disconnect();
-    delay(2000);
+    //WiFi.disconnect();
+    //delay(2000);
   }
     
   Serial.print(F("Reconnecting wifi... "));
@@ -622,7 +622,6 @@ void loop(void) {
         char buffer_rx[JSON_SIZE] = {0};
         Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
         if(strlen(buffer_rx) > 10) {
-          Q_rx.setFullOverwrite(true); // move to Setup
           Q_rx.push((uint8_t *)buffer_rx);
         }
   }
@@ -632,12 +631,11 @@ void loop(void) {
     char data_string[JSON_SIZE] = {0};
 
     if(Q_rx.isFull()) {
-      Serial.printf("\nALERT: Q_rx is full!!!" );
+      Serial.printf("ERR: Q_rx is full!!!" );
     }
 
     Q_rx.pop((uint8_t *) &data_string);
     
-    //bool doSerialDebug = Timers[TM_SerialDebug]->expired();
     dataAge = millis();
 
     if(doSerialDebug) {
@@ -647,7 +645,8 @@ void loop(void) {
       //Serial.print(".");
     }
     
-    
+    // TODO: remove tmp_json, instead parse out cmd/devid/sid/firmware etc directly, and strcpy data_string to JSON_STRINGS[n]
+
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
     //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
@@ -659,14 +658,28 @@ void loop(void) {
         Serial.println(error.f_str());
     } else {
 
-      uint8_t cmd = tmp_json.getMember("cmd").as<uint8_t>();
+      uint8_t cmd = 0;
+      uint32_t devid = 0;
+      int32_t sid = 0;
+      if(tmp_json.containsKey("cmd")) {
+        cmd = tmp_json.getMember("cmd").as<uint8_t>();
+      }
+      if(tmp_json.containsKey("devid")) {
+        devid = tmp_json.getMember("devid").as<uint32_t>();
+      }
+      if(tmp_json.containsKey("sid")) {
+        sid = tmp_json.getMember("sid").as<int32_t>();
+      }
 
       switch(cmd) {
-        case 0x10: // ADCSYSDATA          
+        case 0x10: {// ADCSYSDATA          
   
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
 
-          snprintf(ADC_VERSION, 6, "%s", (const char*)tmp_json.getMember("firmware"));      
+          if(tmp_json.containsKey("firmware")) {
+            snprintf(ADC_VERSION, 6, "%s", (const char*) tmp_json.getMember("firmware"));
+          }
+        }
         break;
         case 0x11: // ADCEMONDATA
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
@@ -686,9 +699,9 @@ void loop(void) {
         break;        
         case 0x45: // REMOTE_PROBE_DATA
         {
-          uint32_t devid = 0;
-          int32_t sid = -1;
-          uint32_t ts = 0;
+          uint32_t _devid = 0;
+          int32_t _sid = -1;
+          uint32_t _ts = 0;
           bool need_to_add = true;
           uint8_t slot_to_add = 0;
           char _tmpbuf[JSON_SIZE_REMOTEPROBES];
@@ -709,15 +722,15 @@ void loop(void) {
               // Keep parsing tokens while one of the delimiters present in input
               while (token != NULL) 
               { 
-                  sscanf(token, "\"devid\":%u", &devid);            
-                  sscanf(token, "\"sid\":%d", &sid);            
-                  sscanf(token, "\"ts\":%u", &ts);
+                  sscanf(token, "\"devid\":%u", &_devid);            
+                  sscanf(token, "\"sid\":%d", &_sid);            
+                  sscanf(token, "\"ts\":%u", &_ts);
                   token = strtok(NULL, ","); 
               }
               //Serial.printf("0x45 #%u SSCANF devid=%u, sid=%u, ts=%u\n", i, devid, sid, ts);
 
-              if(devid == 0 || sid == -1 || ts == 0) {
-                Serial.printf("ERR: 0x45 #%u slot invalid devid/sid/ts (%u/%u/%u)\n", i, devid, sid, ts);
+              if(_devid == 0 || _sid == -1 || _ts == 0) {
+                Serial.printf("ERR: 0x45 #%u slot invalid devid/sid/ts (%u/%u/%u)\n", i, _devid, _sid, _ts);
                 //remote_data2[i][0] = '\0';
                 memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
                 slot_to_add = i;
@@ -725,14 +738,14 @@ void loop(void) {
                 //Serial.printf("0x45 #%u current slot devid=%u,sid=%u\n", i, devid, sid);
 
                 // if data too old, delete doc so slot can be reused
-                if(now() - ts > 86400) {
+                if(now() - _ts > 86400) {
                   Serial.printf("WARN: 0x45 #%u old, clear()\n", i);
                   remote_data2[i][0] = '\0';
                 }
 
                 if(
-                  devid == tmp_json.getMember("devid").as<uint32_t>() &&
-                  sid == tmp_json.getMember("sid").as<uint32_t>()              
+                  _devid == devid &&
+                  _sid == sid              
                 ) {
                   if(doSerialDebug) 
                     Serial.printf("0x45 #%u slot devid/sid match, updating\n", i);
