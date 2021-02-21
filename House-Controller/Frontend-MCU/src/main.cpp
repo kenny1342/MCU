@@ -505,7 +505,6 @@ String HTMLProcessor(const String& var) {
     return String(WEBIF_VERSION);
   }
   else if (var == "ADC_VERSION"){
-    //return data_json.getMember("firmware").as<String>();
     return String(ADC_VERSION);
   }
   else if (var == "AUTHOR_TEXT"){
@@ -629,6 +628,9 @@ void loop(void) {
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
   while (!Q_rx.isEmpty()) {
     char data_string[JSON_SIZE] = {0};
+    uint8_t cmd = 0;
+    uint32_t devid = 0;
+    int32_t sid = 0;
 
     if(Q_rx.isFull()) {
       Serial.printf("ERR: Q_rx is full!!!" );
@@ -658,17 +660,18 @@ void loop(void) {
         Serial.println(error.f_str());
     } else {
 
-      uint8_t cmd = 0;
-      uint32_t devid = 0;
-      int32_t sid = 0;
-      if(tmp_json.containsKey("cmd")) {
-        cmd = tmp_json.getMember("cmd").as<uint8_t>();
+      
+      cmd = tmp_json["cmd"];
+      if(!cmd) {
+        cmd = 0;
       }
-      if(tmp_json.containsKey("devid")) {
-        devid = tmp_json.getMember("devid").as<uint32_t>();
+      devid = tmp_json["devid"];
+      if(!devid) {
+        devid = 0;
       }
-      if(tmp_json.containsKey("sid")) {
-        sid = tmp_json.getMember("sid").as<int32_t>();
+      sid = tmp_json["sid"];
+      if(!sid) {
+        sid = 0;
       }
 
       switch(cmd) {
@@ -676,8 +679,9 @@ void loop(void) {
   
           serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
 
-          if(tmp_json.containsKey("firmware")) {
-            snprintf(ADC_VERSION, 6, "%s", (const char*) tmp_json.getMember("firmware"));
+          const char *firmware = tmp_json["firmware"];
+          if(firmware) {
+            snprintf(ADC_VERSION, 6, "%s", firmware);
           }
         }
         break;
@@ -706,7 +710,7 @@ void loop(void) {
           uint8_t slot_to_add = 0;
           char _tmpbuf[JSON_SIZE_REMOTEPROBES];
 
-          if(!tmp_json.containsKey("devid")) {
+          if(!devid) {
             Serial.print(F("ERR 0x45 no devid found, ignoring!\n"));
             break;
           }
@@ -759,7 +763,8 @@ void loop(void) {
                 }
               }
             } else {
-              if(doSerialDebug) Serial.printf("0x45 #%u slot empty\n", i);
+              if(doSerialDebug) 
+                Serial.printf("0x45 #%u slot empty\n", i);
               slot_to_add = i;
             }
           } // for
@@ -768,7 +773,7 @@ void loop(void) {
           if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
             serializeJson(tmp_json, remote_data2[slot_to_add]);
             is_added = true;
-            Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, tmp_json.getMember("devid").as<uint16_t>(), tmp_json.getMember("sid").as<uint8_t>());
+            Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, devid, sid);
             break;
           }
 
@@ -779,7 +784,7 @@ void loop(void) {
           }
         }
         break;
-        default: Serial.printf("ERR: Unknown CMD in JSON: %u\n", cmd);
+        default: Serial.printf("WARN: Unknown CMD in JSON: %u\n", cmd);
 
       } // switch
 
@@ -848,72 +853,94 @@ void loop(void) {
           tft.printf("      SUMMARY       \n");
           LCD_state.fgcolor = TFT_GREEN;
           tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
+          
           // ------- LINE 2/8: -------
-          const char* status = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char*>();
-          tft.printf("W Pump: ");
-          if(strcmp(status, "RUN") == 0) {
-            tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
-            tft.printf("   RUNNING  ");
-          } else if(strcmp(status, "STOP") == 0) {
-            tft.setTextColor(TFT_WHITE, TFT_RED); 
-            tft.printf("   STOPPED  ");
-          } else if(strcmp(status, "SUSPENDED") == 0) {
-            tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
-            tft.printf("  SUSPENDED ");
-          } else {
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-            tft.printf("  %s       ", status);
+          JsonVariant WP = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"];
+          if(!WP.isNull()) {
+            const char* status = WP["status"];
+            if(status) {
+              tft.printf("W Pump: ");
+              if(strcmp(status, "RUN") == 0) {
+                tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
+                tft.printf("   RUNNING  ");
+              } else if(strcmp(status, "STOP") == 0) {
+                tft.setTextColor(TFT_WHITE, TFT_RED); 
+                tft.printf("   STOPPED  ");
+              } else if(strcmp(status, "SUSPENDED") == 0) {
+                tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
+                tft.printf("  SUSPENDED ");
+              } else {
+                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+                tft.printf("  %s       ", status);
+              }
+              tft.printf("\n");
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
+            }
           }
-          tft.printf("\n");
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
+
           // ------- LINE 3/8: -------
-          tft.printf("WP:" );
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar").as<float>();      
-          tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        
-          // ------- LINE 4/8: -------
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
-          tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
+          if(t) {
+            tft.printf("WP:" );
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
+          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
+          if(t) {
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
         }
 
         if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
+          // ------- LINE 4/8: -------
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_N"];
+          if(t) {
+            tft.printf("V(rms) L-N:  ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
           // ------- LINE 5/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_L_N").as<float>();
-          tft.printf("V(rms) L-N:  ");
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_PE"];
+          if(t) {
+            tft.printf("V(rms) L-PE: ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
           // ------- LINE 6/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_L_PE").as<float>();
-          tft.printf("V(rms) L-PE: ");
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_N_PE"];
+          if(t) {
+            tft.printf("V(rms) N-PE: ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
           // ------- LINE 7/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("emon_vrms_N_PE").as<float>();
-          tft.printf("V(rms) N-PE: ");
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          // ------- LINE 8/8: -------
-          JsonObject obj_circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA].getMember("circuits").getMember("1"); // 1=Main Intake
-          t = obj_circuits.getMember("I").as<float>();
-          uint16_t power = obj_circuits.getMember("P_a").as<uint16_t>();
-          tft.printf("Power: "); // "Power: 10000W/28.9A"
-          tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-          tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          JsonVariant circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA]["circuits"];
+          if(!circuits.isNull()) {
+            JsonObject circuit = circuits["1"];
+            if(!circuit.isNull()) {
+              uint16_t power = circuit["P_a"].as<uint16_t>();
+              if(power) {
+                tft.printf("Power: "); // "Power: 10000W/28.9A"
+                tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+                tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
+                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+              }
+            }
+          }
         }
 
+        // ------- LINE 8/8: -------
         if(!JSON_DOCS[JSON_DOC_ADCSYSDATA].isNull()) {
-          JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("alarms");
-          if(alarms.size() == 0) {
-            //tft.printf("     No alarms      ");
-            tft.printf("Last A: %s          ", JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("lastAlarm").as<char*>());
+          JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
+          if(!alarms.isNull() && alarms.size() == 0) {
+            const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
+            tft.printf("Last A: %s          ", lastAlarm);
           } else {
             tft.setTextColor(TFT_RED, TFT_WHITE);
         
@@ -941,21 +968,42 @@ void loop(void) {
         LCD_state.fgcolor = TFT_LIGHTGREY;
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("pressure_bar").as<float>();      
-        tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
+        if(t) {
+          tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
+        }
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_c").as<float>();
-        tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("hum_room_pct").as<uint8_t>() );
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
+        if(t) {
+          uint8_t hum_room_pct = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["hum_room_pct"].as<uint8_t>();
+          if(hum_room_pct) {
+            tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, hum_room_pct );
+          }          
+        }
 
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("temp_motor_c").as<float>();
-        tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_motor_c"];
+        if(t) {
+          tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
+        }
 
-        tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("cnt_starts").as<uint16_t>());
-
-        const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("status").as<char *>();
-        tft.printf("%s: %s\n", state, SecondsToDateTimeString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_state").as<uint16_t>(), TFMT_HOURS));
-
-        tft.printf("Susp tot: %s\n", SecondsToDateTimeString(JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].getMember("WP").getMember("t_susp_tot").as<uint16_t>(), TFMT_HOURS));
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].isNull()) {
+            tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].as<uint16_t>());
+          }
+        }
+        
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
+          uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
+          if(state && t_val) {
+            tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
+          }
+          t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_susp_tot"].as<uint32_t>();
+          if(t_val) {
+            tft.printf("Susp tot: %s\n", SecondsToDateTimeString(t_val, TFMT_HOURS));
+          }
+          
+        }
 
         tft.printf("Power usage: NA Watt\n");
       }
@@ -987,7 +1035,8 @@ void loop(void) {
         tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
       }
       break;
-      case MENU_PAGE_ABOUT:
+      case MENU_PAGE_ABOUT: 
+      {
         tft.setTextSize(txtsize);
         tft.setTextWrap(false);
         if(LCD_state.bgcolor != TFT_BLACK) {
@@ -1003,13 +1052,17 @@ void loop(void) {
         tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
         tft.printf("\n");
         tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
-        tft.printf(" ADC-MCU: v%s\n",  JSON_DOCS[JSON_DOC_ADCSYSDATA].getMember("firmware").as<String>().c_str());
+        const char *adc_firmware = JSON_DOCS[JSON_DOC_ADCSYSDATA]["firmware"];
+        if(adc_firmware) {
+          tft.printf(" ADC-MCU: v%s\n", adc_firmware);
+        }
         tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
         tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
         tft.print(F(" Ken-Roger Andersen \n") );
         tft.print(F("ken.roger@gmail.com \n") );
         
         tft.setTextWrap(true);
+      }
       break;
       case MENU_PAGE_LOGO:
         tft.pushImage(0, 0,  240, 135, kra_tech);
