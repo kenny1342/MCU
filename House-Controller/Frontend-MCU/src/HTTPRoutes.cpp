@@ -14,7 +14,7 @@
 #include <HTTPRoutes.h>
 //#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 
-const char* recoveryHTML = "<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+//const char* recoveryHTML = "<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
 
 Webserver::Webserver()
 {
@@ -30,10 +30,7 @@ void Webserver::AddRoutes() {
 
   // Route for root / web page with variable parser/processor
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    //response->addHeader("Connection", "close");
-    
     request->send(SPIFFS, "/index.html", "text/html", false, HTMLProcessor);
-    //request->client()->close();
   });
   
   // File routes
@@ -82,19 +79,15 @@ void Webserver::AddRoutes() {
 
     response->print("[");
 
-
 		for (uint8_t i = 0; i < MAX_REMOTE_SIDS; i++) {
       if(remote_data2[i][0] == '\0' || strlen(remote_data2[i]) < 2) {
-      //if(remote_data[i].isNull() || remote_data[i].size() == 0) {
         continue;
       } else {
-        //serializeJson(remote_data[i], *response);
         response->print(remote_data2[i]);
         if( i != 0) {
           response->print(",\n");
         }
       }
-
 		}
 
     // Print our own system data/sid0
@@ -165,20 +158,20 @@ void Webserver::AddRoutes() {
       request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
     } else {
       // FS is formatted/update.html missing, send a Simple Firmware Update Form html so we can upload new filesystem
-      request->send(200, "text/html", recoveryHTML);
+      request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
     }
     
   });
 
   // for testing/dev
   server.on("/recover", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(200, "text/html", recoveryHTML);    
+      request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
   });
 
   // Generic file upload (for upload of config.json)
   server.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request) {
-      String html = "<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>";
-      request->send(200, "text/html", html);
+      //const char *html = "<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>";
+      request->send_P(200, "text/html", PSTR("<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>"));
     });  
 
   server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
