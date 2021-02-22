@@ -32,14 +32,16 @@ jQuery(document).ready(function () {
 
 
   console.log("Loading config.json");
+  
   fetch('/config.json') // Load configuration
   .then(response => response.json())
-  .then(data => {
-      //console.log(data);
+  .then(data => {            
       localStorage.setItem('config', JSON.stringify(data));
       } // data =>
   )
   .catch(error => {
+      const timeTaken= (new Date())-start;
+      localStorage.setItem('loadtime', timeTaken);    
       console.error('Error:', error);
       alert("USING TEST DATA!\n"+error)
       $("#chktestdata").prop('checked', true);
@@ -55,9 +57,12 @@ jQuery(document).ready(function () {
 
   function updateData_Pri1() {
 
+    const start = new Date();
     fetch('/json/0x10') //ADCSYSDATA
     .then(response => response.json())
     .then(data => {
+        const timeTaken= (new Date())-start;
+        localStorage.setItem('loadtime', timeTaken);
         console.log(data);
         localStorage.setItem('json0x10', JSON.stringify(data));
         } // data =>
@@ -170,6 +175,7 @@ jQuery(document).ready(function () {
     setInterval(function ( ) {
 
       let json;
+      $("#loadtime").empty().append(localStorage.getItem('loadtime') + 'ms');
 
       // -------------- ESP/SYSTEM ---------------------------------
       try {
