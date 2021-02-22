@@ -669,7 +669,7 @@ void loop(void) {
       } else {
         sid = tmp_json["sid"];
       }
-      //Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
+      Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
       
 
       switch(cmd) {
@@ -738,7 +738,7 @@ void loop(void) {
                 memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
                 slot_to_add = i;
               } else {
-                //Serial.printf("0x45 #%u current slot devid=%u,sid=%u\n", i, devid, sid);
+                //Serial.printf("0x45 #%u looking for slot devid=%u,sid=%u\n", i, devid, sid);
 
                 // if data too old, delete doc so slot can be reused
                 if(now() - _ts > 86400) {
@@ -752,13 +752,18 @@ void loop(void) {
                 ) {
                   //if(doSerialDebug) 
                     Serial.printf("0x45 #%u updating slot devid/sid %u/%u\n", i, _devid, _sid);
-                  
-                  serializeJson(tmp_json, remote_data2[i]);
-                  
+
+                  if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
+                    serializeJson(tmp_json, remote_data2[i]);  
+                  } else {
+                    Serial.print(F("ERR 0x45 tmp_json too big for remote_data2, ignoring!\n"));
+                  }
+
                   need_to_add = false;
                   break;
                 } else {
-                  //Serial.printf("0x45 #%u slot devid/sid NO match, try next\n", i);
+                  
+                  Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, _sid, devid, sid);
                 }
               }
             } else {
@@ -769,9 +774,14 @@ void loop(void) {
 
           bool is_added = false;
           if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
-            serializeJson(tmp_json, remote_data2[slot_to_add]);
-            is_added = true;
-            Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, devid, sid);
+            if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
+              serializeJson(tmp_json, remote_data2[slot_to_add]);
+              is_added = true;
+              Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, devid, sid);
+            } else {
+              Serial.print(F("ERR 0x45 tmp_json too big for remote_data2, ignoring!\n"));
+            }
+
             break;
           }
 
