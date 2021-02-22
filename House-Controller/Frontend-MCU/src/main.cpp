@@ -16,11 +16,7 @@
 #include <ESPmDNS.h>
 #include <ESP32Ping.h>
 #include <ArduinoJson.h>
-//#include <CircularBuffer.h>
 #include <MD_CirQueue.h>
-#ifdef USE_BLYNK
-#include <BlynkSimpleEsp32.h>
-#endif
 #include <TimeLib.h>
 #include <ArduinoOTA.h>
 #include <logger.h>
@@ -45,7 +41,9 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
 DNSServer dnsServer;
 #endif
 
-const uint8_t QUEUE_SIZE = 6;
+//StaticJsonDocument<JSON_SIZE> JSON_DOCS[JSON_DOC_COUNT]; // = StaticJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+
+const uint8_t QUEUE_SIZE = 4;
 MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
 
 char remote_data2[MAX_REMOTE_SIDS][JSON_SIZE_REMOTEPROBES];
@@ -60,9 +58,6 @@ unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 uint8_t ntp_errors = 0;
 WiFiUDP ntpUDP;
 
-#ifdef USE_BLYNK
-  int blynk_button_V2 = 0;
-#endif
 uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
 MENUPAGES_t MenuPages;
@@ -92,42 +87,67 @@ Timemark tm_PushToBlynk(2000);
 Timemark tm_SerialDebug(60000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
-//Timemark tm_SyncNTP(180000);
 
 const uint8_t NUM_TIMERS = 7;
 enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
 Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay};
 
 bool OTArunning = false;
-//volatile int interruptCounter;
+volatile int interruptCounter;
+volatile bool ISR_busy = false;
 
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
  
+//volatile char buf[JSON_SIZE];
+//volatile int idx = 0;
 /**
  * Timer ISR 1ms
  */
-/*
 void IRAM_ATTR onTimer() {
 
   portENTER_CRITICAL_ISR(&timerMux);
   interruptCounter++;
   portEXIT_CRITICAL_ISR(&timerMux);
-}
-*/
-#ifdef USE_BLYNK
-// Every time we connect to the cloud...
-BLYNK_CONNECTED() {
-  // Request the latest state from the server
-  Blynk.syncVirtual(V2);
+
+  if(interruptCounter == 50) {
+    interruptCounter = 0;
+/*
+    if(Serial_DATA.available())
+    {
+      ISR_busy = true;
+    
+      while(Serial_DATA.available()) {    
+        char c = Serial_DATA.read();
+    
+        if(c == '\0' || idx >= sizeof(buf)) {
+          idx = 0;
+          memset ( (void*)buf, 0, sizeof(buf) );
+          break;
+        }
+
+        buf[idx] = c;
+        idx++;
+
+        if(c == '\n') {
+          buf[idx] = '\0';
+          
+          //if(strlen(buf) > 10) {
+          if(idx > 10) {
+            Serial.printf("adding buf=%s\n", buf);
+            Q_rx.push((uint8_t *)buf);
+          }
+          memset ( (void*)buf, 0, sizeof(buf) );
+          idx = 0;
+        }
+      }
+      ISR_busy = false;
+    }
+    */
+  }
+  
 }
 
-// When App button is pushed - switch the state
-BLYNK_WRITE(V2) {
-  blynk_button_V2 = param.asInt();
-  digitalWrite(PIN_LED_1, blynk_button_V2);
-}
-#endif
 
 void setup(void) {
   
@@ -338,22 +358,12 @@ void setup(void) {
   Setup::OTA();
   if(!DEBUG) delay(700);
 
-#ifdef USE_BLYNK
-  logger.print(F("Starting Blynk..."));
-  if(ConnectBlynk()) {
-    logger.println(F("OK - Connected to Blynk server"));
-  } else {
-    logger.println(F("FAILED to connect to Blynk server!"));
-  }
-#endif
-
   logger.print(F("Starting MDNS..."));
   if (MDNS.begin(config.hostname)) {
     Serial.println(F("OK"));
   } else {
     Serial.println(F("FAILED"));
   }
-
 
   logger.print(F("Configuring NTP server "));
   logger.println(config.ntpserver);
@@ -362,7 +372,6 @@ void setup(void) {
   Serial.println("syncing clock with NTP...");
   setSyncProvider(getNtpTime);
   setSyncInterval(atoi(config.ntp_interval));
-
 
   if(!DEBUG) delay(700);
 
@@ -377,13 +386,11 @@ void setup(void) {
   }
   Serial.println(F("OK"));
   
-  /*
   logger.println(F("Starting timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 500000, true); // 1000us=1ms, 1000000us=1s
+  timerAlarmWrite(timer, 1000, true); // 1000us=1ms, 1000000us=1s
   timerAlarmEnable(timer);
-*/
 
   for(int t=0; t<NUM_TIMERS; t++){
     Timers[t]->start();
@@ -415,33 +422,10 @@ void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
 }
 #endif
 
-#ifdef USE_BLYNK
-bool ConnectBlynk() {
-  Serial.print(F("Connecting to Blynk servers (timeout 10 sec), token="));
-  Serial.println(STR(BLYNK_TOKEN));
-  Blynk.config(STR(BLYNK_TOKEN));  // in place of Blynk.begin(auth, ssid, pass);
-  Blynk.connect(500);  // timeout set to 10 seconds and then continue without Blynk
-
-  if(Blynk.connected()) {
-    return true;
-  } else {
-    return false;
-  }
-}
-#endif
-
 void ReconnectWiFi() {  
 
   reconnects_wifi++;
   uint8_t cnt = 0;
-
-  
-
-  if(WiFi.isConnected()) {
-    //return;
-    //WiFi.disconnect();
-    //delay(2000);
-  }
     
   Serial.print(F("Reconnecting wifi... "));
 #ifdef USE_WIFIMGR
@@ -525,19 +509,13 @@ void saveConfigCallback () {
 void loop(void) {
   double t = 0;
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
+  char _tmpbuf[JSON_SIZE];
 
   ArduinoOTA.handle();
   if(OTArunning) return;
 
   ws.cleanupClients();
 
-#ifdef USE_BLYNK
-  Blynk.run();
-  bool pushToBlynk = Timers[TM_PushToBlynk]->expired();
-  if(pushToBlynk) {
-    Blynk.virtualWrite(V2, digitalRead(PIN_LED_1));
-  }
-#endif
   CheckButtons();
 
   if(shouldReboot){
@@ -554,30 +532,28 @@ void loop(void) {
 */
 
   if(Timers[TM_CheckConnections]->expired()) {
+    Serial.printf("%s: checking network health...\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
 
     timeStatus_t NTPstatus  = timeStatus();
     if(NTPstatus != timeSet) {
-      //Serial.println("syncing clock with NTP...");
+      Serial.println(F("WARN: NTP not synced!"));
       //setSyncProvider(getNtpTime);
     }
 
-    
-    
     bool shouldReconnect = false;
 
     if (!WiFi.isConnected()) {
       shouldReconnect = true;
-      Serial.print(F("ERR: No WiFi"));
+      Serial.print(F("ERR: WiFi disconnected"));
     }
 
     //IPAddress gw(192,168,30,1);
-    bool ping_ok = Ping.ping("192.168.30.1", 3);
-    
+    bool ping_ok = Ping.ping(PING_TARGET, 1);
+    Serial.printf("ping %s: %f ms\n", PING_TARGET, Ping.averageTime());
 
-    if (!ping_ok || Ping.averageTime() > 100.0) {
+    if (!ping_ok || Ping.averageTime() > 200.0) {
       shouldReconnect = true;
-      Serial.print(F("ERR: Ping gw failed"));
-      Serial.printf(", ping rtt=%f\n", Ping.averageTime());
+      Serial.print(F("ERR: Ping failed"));
     }
     
     if (ntp_errors > 60) {
@@ -587,35 +563,25 @@ void loop(void) {
     
     if (shouldReconnect)
     {
-        //delay(5000);
-        //if(!WiFi.isConnected()) {
-          Serial.print(F("ERR: trying reconnect #"));
-          Serial.println(reconnects_wifi);
-          ReconnectWiFi();
-          
-          if (reconnects_wifi == 20)
-          {
-            Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
-            //reconnects_wifi = 0;
-            ESP.restart();
-            delay(10000);
-            return;
-          }
-        //}
+      Serial.print(F("ERR: problems detected, trying reconnect #"));
+      Serial.println(reconnects_wifi);
+      ReconnectWiFi();
+      
+      if (reconnects_wifi > 20)
+      {
+        Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
+        ESP.restart();
+        delay(10000);
+        return;
+      }
     } else {
       Serial.println(F("WiFi OK"));
-
-#ifdef USE_BLYNK
-      if(!Blynk.connected()) {
-        Serial.println(F("Blynk disconnected, reconnecting..."));
-        ConnectBlynk();
-      }
-#endif
     }
 
   }
 
   // TODO: move to ISR (else queue really isn't needed...)
+  
   if(Serial_DATA.available())
   {
         char buffer_rx[JSON_SIZE] = {0};
@@ -625,12 +591,15 @@ void loop(void) {
         }
   }
 
+
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
   while (!Q_rx.isEmpty()) {
     char data_string[JSON_SIZE] = {0};
-    uint8_t cmd = 0;
+    uint32_t cmd = 0;
     uint32_t devid = 0;
-    int32_t sid = 0;
+    int32_t sid = -1;
+
+    if(ISR_busy) break;
 
     if(Q_rx.isFull()) {
       Serial.printf("ERR: Q_rx is full!!!" );
@@ -641,26 +610,52 @@ void loop(void) {
     dataAge = millis();
 
     if(doSerialDebug) {
-      Serial.printf("RX (%s):\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+      Serial.printf("RX (%s):", SecondsToDateTimeString(now(), TFMT_DATETIME));
       Serial.println(data_string); 
     } else {
       //Serial.print(".");
     }
-    
+/*
+      strcpy(_tmpbuf, data_string);
+      const char *token = strtok(_tmpbuf, ","); 
+      uint32_t ret = 0;
+      uint32_t _val = 0;      
+      // Split the json string into tokens comma as delimiter, Keep parsing tokens while one of the delimiters present in input
+      while (token != NULL) 
+      { 
+        //Serial.printf("token='%s' - cmd/devid/sid=%u/%u/%d\n", token, cmd, devid, sid);
+        sscanf(token, "{\"cmd\":%u", &cmd);
+        sscanf(token, "\"devid\":%u", &devid);   
+
+        // sid can legally be 0, need some additional validation
+        ret = sscanf(token, "\"sid\":%u", &_val);
+        if(ret != 0) {
+          sid = _val;
+        }
+
+        token = strtok(NULL, ","); 
+      }
+      _tmpbuf[0] = '\0';
+  */    
+
     // TODO: remove tmp_json, instead parse out cmd/devid/sid/firmware etc directly, and strcpy data_string to JSON_STRINGS[n]
 
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
     //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
-    
+    /*
+    if(cmd == 0 || devid == 0 || sid == -1) {
+      Serial.print(data_string);
+      Serial.printf("\nERR: invalid cmd/devid/sid=%u/%u/%d\n", cmd, devid, sid);
+    } else {
+      */
     if (error) {
-        Serial.print("\n");
         Serial.print(data_string);
         Serial.print(F("\n^JSON_ERR: "));
         Serial.println(error.f_str());
     } else {
 
-      
+
       cmd = tmp_json["cmd"];
       if(!cmd) {
         cmd = 0;
@@ -669,15 +664,19 @@ void loop(void) {
       if(!devid) {
         devid = 0;
       }
-      sid = tmp_json["sid"];
-      if(!sid) {
-        sid = 0;
+      if(tmp_json["sid"].isNull()) {
+        sid = -1;
+      } else {
+        sid = tmp_json["sid"];
       }
+      //Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
+      
 
       switch(cmd) {
         case 0x10: {// ADCSYSDATA          
   
-          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
+          //serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCSYSDATA]);
+          strcpy(JSON_STRINGS[JSON_DOC_ADCSYSDATA], data_string);
 
           const char *firmware = tmp_json["firmware"];
           if(firmware) {
@@ -686,20 +685,15 @@ void loop(void) {
         }
         break;
         case 0x11: // ADCEMONDATA
-          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
+          //serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCEMONDATA]);
+          strcpy(JSON_STRINGS[JSON_DOC_ADCEMONDATA], data_string);
 
         break;        
         case 0x12: // ADCWATERPUMPDATA
    
-          serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
+          //serializeJson(tmp_json, JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA]);
+          strcpy(JSON_STRINGS[JSON_DOC_ADCWATERPUMPDATA], data_string);
 
-          #ifdef USE_BLYNK
-          // TESTING - send some circuit data to Blynk
-          if(pushToBlynk) {
-            Blynk.virtualWrite(V0, tmp_json.getMember("pressure_bar").as<float>());
-            Blynk.virtualWrite(V1, tmp_json.getMember("temp_c").as<float>());      
-          }
-          #endif
         break;        
         case 0x45: // REMOTE_PROBE_DATA
         {
@@ -708,8 +702,7 @@ void loop(void) {
           uint32_t _ts = 0;
           bool need_to_add = true;
           uint8_t slot_to_add = 0;
-          char _tmpbuf[JSON_SIZE_REMOTEPROBES];
-
+          
           if(!devid) {
             Serial.print(F("ERR 0x45 no devid found, ignoring!\n"));
             break;
@@ -722,20 +715,26 @@ void loop(void) {
               // make a copy of the array to tokenize, as we need to retain original
               strcpy(_tmpbuf, remote_data2[i]);
               char *token = strtok(_tmpbuf, ","); 
-    
+              uint32_t ret = 0;
+              uint32_t _val = 0;
+
               // Keep parsing tokens while one of the delimiters present in input
               while (token != NULL) 
               { 
                   sscanf(token, "\"devid\":%u", &_devid);            
-                  sscanf(token, "\"sid\":%d", &_sid);            
+                  // sid can legally be 0, need some additional validation
+                  ret = sscanf(token, "\"sid\":%u", &_val);
+                  if(ret != 0) {
+                    _sid = _val;
+                  }
+                  
                   sscanf(token, "\"ts\":%u", &_ts);
                   token = strtok(NULL, ","); 
               }
-              //Serial.printf("0x45 #%u SSCANF devid=%u, sid=%u, ts=%u\n", i, devid, sid, ts);
+              //Serial.printf("0x45 #%u SSCANF devid=%u, sid=%u, ts=%u\n", i, _devid, _sid, _ts);
 
               if(_devid == 0 || _sid == -1 || _ts == 0) {
                 Serial.printf("ERR: 0x45 #%u slot invalid devid/sid/ts (%u/%u/%u)\n", i, _devid, _sid, _ts);
-                //remote_data2[i][0] = '\0';
                 memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
                 slot_to_add = i;
               } else {
@@ -751,8 +750,8 @@ void loop(void) {
                   _devid == devid &&
                   _sid == sid              
                 ) {
-                  if(doSerialDebug) 
-                    Serial.printf("0x45 #%u slot devid/sid match, updating\n", i);
+                  //if(doSerialDebug) 
+                    Serial.printf("0x45 #%u updating slot devid/sid %u/%u\n", i, _devid, _sid);
                   
                   serializeJson(tmp_json, remote_data2[i]);
                   
@@ -763,8 +762,7 @@ void loop(void) {
                 }
               }
             } else {
-              if(doSerialDebug) 
-                Serial.printf("0x45 #%u slot empty\n", i);
+              //Serial.printf("0x45 #%u slot empty\n", i);
               slot_to_add = i;
             }
           } // for
@@ -782,6 +780,7 @@ void loop(void) {
             Serial.print(F("ERR: 0x45 failed to add to buffer/no space, increase MAX_REMOTE_SIDS: "));
             Serial.println(MAX_REMOTE_SIDS);
           }
+          
         }
         break;
         default: Serial.printf("WARN: Unknown CMD in JSON: %u\n", cmd);
@@ -815,14 +814,17 @@ void loop(void) {
   
     for(int x=0; x<JSON_DOC_COUNT; x++) {
       
-      const char * p = JSON_STRINGS[x];
-      DeserializationError error = deserializeJson(JSON_DOCS[x], p); // read-only input (duplication)
+      if(JSON_STRINGS[x][0] == '\0') {
+        continue;
+      }
+
+      DeserializationError error = deserializeJson(JSON_DOCS[x], (const char*) JSON_STRINGS[x]); // read-only input (duplication)
       JSON_DOCS[x].shrinkToFit();
       if (error) {
         showDataError = true;
         Serial.print("\n");
         Serial.print(JSON_STRINGS[x]);
-        Serial.print(F("^JSON_ERR [TFT]:"));
+        Serial.print(F("\n^JSON_ERR [TFT]:"));
         Serial.println(error.f_str());
       } else {
         if(showDataError) { // clear message on display
@@ -831,245 +833,6 @@ void loop(void) {
         }
       }
     }
-
-    switch(menu_page_current)
-    {
-      case MENU_PAGE_UTILITY_STATS:
-      {
-        tft.setTextSize(txtsize);
-
-        if(LCD_state.bgcolor != TFT_BLACK) {
-          LCD_state.bgcolor = TFT_BLACK;
-          tft.fillScreen(LCD_state.bgcolor);
-        }
-
-        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
-
-        
-          // ------- LINE 1/8: -------
-          LCD_state.fgcolor = TFT_GOLD;
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-          tft.setCursor(0, 0);
-          tft.printf("      SUMMARY       \n");
-          LCD_state.fgcolor = TFT_GREEN;
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
-          
-          // ------- LINE 2/8: -------
-          JsonVariant WP = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"];
-          if(!WP.isNull()) {
-            const char* status = WP["status"];
-            if(status) {
-              tft.printf("W Pump: ");
-              if(strcmp(status, "RUN") == 0) {
-                tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
-                tft.printf("   RUNNING  ");
-              } else if(strcmp(status, "STOP") == 0) {
-                tft.setTextColor(TFT_WHITE, TFT_RED); 
-                tft.printf("   STOPPED  ");
-              } else if(strcmp(status, "SUSPENDED") == 0) {
-                tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
-                tft.printf("  SUSPENDED ");
-              } else {
-                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-                tft.printf("  %s       ", status);
-              }
-              tft.printf("\n");
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
-            }
-          }
-
-          // ------- LINE 3/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
-          if(t) {
-            tft.printf("WP:" );
-            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-            tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          }
-          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
-          if(t) {
-            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-            tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          }
-        }
-
-        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
-          // ------- LINE 4/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_N"];
-          if(t) {
-            tft.printf("V(rms) L-N:  ");
-            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          }
-          // ------- LINE 5/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_PE"];
-          if(t) {
-            tft.printf("V(rms) L-PE: ");
-            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          }
-          // ------- LINE 6/8: -------
-          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_N_PE"];
-          if(t) {
-            tft.printf("V(rms) N-PE: ");
-            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          }
-          // ------- LINE 7/8: -------
-          JsonVariant circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA]["circuits"];
-          if(!circuits.isNull()) {
-            JsonObject circuit = circuits["1"];
-            if(!circuit.isNull()) {
-              uint16_t power = circuit["P_a"].as<uint16_t>();
-              if(power) {
-                tft.printf("Power: "); // "Power: 10000W/28.9A"
-                tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-                tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
-                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-              }
-            }
-          }
-        }
-
-        // ------- LINE 8/8: -------
-        if(!JSON_DOCS[JSON_DOC_ADCSYSDATA].isNull()) {
-          JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
-          if(!alarms.isNull() && alarms.size() == 0) {
-            const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
-            tft.printf("Last A: %s          ", lastAlarm);
-          } else {
-            tft.setTextColor(TFT_RED, TFT_WHITE);
-        
-            for(uint8_t x=0; x< alarms.size(); x++) {
-              const char* str = alarms[x];
-              tft.printf("A:%s ", str );
-            }
-          }
-        }
-      }
-      break;
-      case MENU_PAGE_WATER_STATS:
-      {
-        tft.setTextSize(txtsize);
-
-        if(LCD_state.bgcolor != TFT_BLACK) {
-          LCD_state.bgcolor = TFT_BLACK;
-          tft.fillScreen(LCD_state.bgcolor);
-        }
-        tft.setCursor(0, 0);
-        LCD_state.fgcolor = TFT_GOLD;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-        
-        tft.printf("    WATER SUPPLY    \n");        
-        LCD_state.fgcolor = TFT_LIGHTGREY;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
-        if(t) {
-          tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
-        }
-
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
-        if(t) {
-          uint8_t hum_room_pct = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["hum_room_pct"].as<uint8_t>();
-          if(hum_room_pct) {
-            tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, hum_room_pct );
-          }          
-        }
-
-        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_motor_c"];
-        if(t) {
-          tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
-        }
-
-        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].isNull()) {
-            tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].as<uint16_t>());
-          }
-        }
-        
-        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
-          uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
-          if(state && t_val) {
-            tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
-          }
-          t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_susp_tot"].as<uint32_t>();
-          if(t_val) {
-            tft.printf("Susp tot: %s\n", SecondsToDateTimeString(t_val, TFMT_HOURS));
-          }
-          
-        }
-
-        tft.printf("Power usage: NA Watt\n");
-      }
-      break;
-      case MENU_PAGE_SYSTEM_STATS:
-      {
-        tft.setTextSize(txtsize);
-
-        if(LCD_state.bgcolor != TFT_WHITE) {
-          LCD_state.bgcolor = TFT_WHITE;
-          tft.fillScreen(LCD_state.bgcolor);
-        }
-        
-        LCD_state.fgcolor = TFT_BLACK;        
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        
-        tft.setCursor(0, 0);
-        tft.printf("%-14s\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
-        //tft.printf("%-14s\n", );
-        tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
-        tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
-        tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
-        tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
-        tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
-        tft.printf("ID: %llu\n", ESP.getEfuseMac());
-        //tft.setTextWrap(false);
-        //tft.printf("SDK: %s\n", ESP.getSdkVersion());
-        //tft.setTextWrap(true);        
-        tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
-      }
-      break;
-      case MENU_PAGE_ABOUT: 
-      {
-        tft.setTextSize(txtsize);
-        tft.setTextWrap(false);
-        if(LCD_state.bgcolor != TFT_BLACK) {
-          LCD_state.bgcolor = TFT_BLACK;
-          tft.fillScreen(LCD_state.bgcolor);
-        }
-        tft.setCursor(0, 0);
-        LCD_state.fgcolor = TFT_GOLD;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-        
-        tft.printf("      VERSIONS      \n");        
-        LCD_state.fgcolor = TFT_ORANGE;
-        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-        tft.printf("\n");
-        tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
-        const char *adc_firmware = JSON_DOCS[JSON_DOC_ADCSYSDATA]["firmware"];
-        if(adc_firmware) {
-          tft.printf(" ADC-MCU: v%s\n", adc_firmware);
-        }
-        tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
-        tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
-        tft.print(F(" Ken-Roger Andersen \n") );
-        tft.print(F("ken.roger@gmail.com \n") );
-        
-        tft.setTextWrap(true);
-      }
-      break;
-      case MENU_PAGE_LOGO:
-        tft.pushImage(0, 0,  240, 135, kra_tech);
-      break;
-
-      default: menu_page_current = 0;
-    } // switch()
 
     if(tm_CheckDataAge.expired()) {
 
@@ -1081,10 +844,8 @@ void loop(void) {
         tft.setTextColor(TFT_RED, TFT_BLACK);
         tft.println("  NO DATA RX " );
       }    
-    }    
-
-    if(showDataError) {
-      showDataError = true;
+    } else if(showDataError) {
+      //showDataError = true;
 
       tft.setTextSize(3);
       tft.setCursor(0, 0);
@@ -1095,8 +856,248 @@ void loop(void) {
       tft.printf("%lu\n", millis() );
       //delay(500);
       //return;        
+    } else {
+      switch(menu_page_current)
+      {
+        case MENU_PAGE_UTILITY_STATS:
+        {
+          tft.setTextSize(txtsize);
 
-    }
+          if(LCD_state.bgcolor != TFT_BLACK) {
+            LCD_state.bgcolor = TFT_BLACK;
+            tft.fillScreen(LCD_state.bgcolor);
+          }
+
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
+
+          
+            // ------- LINE 1/8: -------
+            LCD_state.fgcolor = TFT_GOLD;
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+            tft.setCursor(0, 0);
+            tft.printf("      SUMMARY       \n");
+            LCD_state.fgcolor = TFT_GREEN;
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
+            
+            // ------- LINE 2/8: -------
+            JsonVariant WP = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"];
+            if(!WP.isNull()) {
+              const char* status = WP["status"];
+              if(status) {
+                tft.printf("W Pump: ");
+                if(strcmp(status, "RUN") == 0) {
+                  tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
+                  tft.printf("   RUNNING  ");
+                } else if(strcmp(status, "STOP") == 0) {
+                  tft.setTextColor(TFT_WHITE, TFT_RED); 
+                  tft.printf("   STOPPED  ");
+                } else if(strcmp(status, "SUSPENDED") == 0) {
+                  tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
+                  tft.printf("  SUSPENDED ");
+                } else {
+                  tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+                  tft.printf("  %s       ", status);
+                }
+                tft.printf("\n");
+                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
+              }
+            }
+
+            // ------- LINE 3/8: -------
+            t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
+            if(t) {
+              tft.printf("WP:" );
+              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+              tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+            }
+            t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
+            if(t) {
+              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+              tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+            }
+          }
+
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
+            // ------- LINE 4/8: -------
+            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_N"];
+            if(t) {
+              tft.printf("V(rms) L-N:  ");
+              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+            }
+            // ------- LINE 5/8: -------
+            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_PE"];
+            if(t) {
+              tft.printf("V(rms) L-PE: ");
+              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+            }
+            // ------- LINE 6/8: -------
+            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_N_PE"];
+            if(t) {
+              tft.printf("V(rms) N-PE: ");
+              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+            }
+            // ------- LINE 7/8: -------
+            JsonVariant circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA]["circuits"];
+            if(!circuits.isNull()) {
+              JsonObject circuit = circuits["1"];
+              if(!circuit.isNull()) {
+                uint16_t power = circuit["P_a"].as<uint16_t>();
+                if(power) {
+                  tft.printf("Power: "); // "Power: 10000W/28.9A"
+                  tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+                  tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
+                  tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+                }
+              }
+            }
+          }
+
+          // ------- LINE 8/8: -------
+          if(!JSON_DOCS[JSON_DOC_ADCSYSDATA].isNull()) {
+            JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
+            if(!alarms.isNull() && alarms.size() == 0) {
+              const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
+              tft.printf("Last A: %s          ", lastAlarm);
+            } else {
+              tft.setTextColor(TFT_RED, TFT_WHITE);
+          
+              for(uint8_t x=0; x< alarms.size(); x++) {
+                const char* str = alarms[x];
+                tft.printf("A:%s ", str );
+              }
+            }
+          }
+        }
+        break;
+        case MENU_PAGE_WATER_STATS:
+        {
+          tft.setTextSize(txtsize);
+
+          if(LCD_state.bgcolor != TFT_BLACK) {
+            LCD_state.bgcolor = TFT_BLACK;
+            tft.fillScreen(LCD_state.bgcolor);
+          }
+          tft.setCursor(0, 0);
+          LCD_state.fgcolor = TFT_GOLD;
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+          
+          tft.printf("    WATER SUPPLY    \n");        
+          LCD_state.fgcolor = TFT_LIGHTGREY;
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+
+          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
+          if(t) {
+            tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
+          }
+
+          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
+          if(t) {
+            uint8_t hum_room_pct = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["hum_room_pct"].as<uint8_t>();
+            if(hum_room_pct) {
+              tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, hum_room_pct );
+            }          
+          }
+
+          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_motor_c"];
+          if(t) {
+            tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
+          }
+
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+            if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].isNull()) {
+              tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].as<uint16_t>());
+            }
+          }
+          
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+            const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
+            uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
+            if(state && t_val) {
+              tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
+            }
+            t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_susp_tot"].as<uint32_t>();
+            if(t_val) {
+              tft.printf("Susp tot: %s\n", SecondsToDateTimeString(t_val, TFMT_HOURS));
+            }
+            
+          }
+
+          tft.printf("Power usage: NA Watt\n");
+        }
+        break;
+        case MENU_PAGE_SYSTEM_STATS:
+        {
+          tft.setTextSize(txtsize);
+
+          if(LCD_state.bgcolor != TFT_WHITE) {
+            LCD_state.bgcolor = TFT_WHITE;
+            tft.fillScreen(LCD_state.bgcolor);
+          }
+          
+          LCD_state.fgcolor = TFT_BLACK;        
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          
+          tft.setCursor(0, 0);
+          tft.printf("%-14s\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+          //tft.printf("%-14s\n", );
+          tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
+          tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
+          tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
+          tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
+          tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
+          tft.printf("ID: %llu\n", ESP.getEfuseMac());
+          //tft.setTextWrap(false);
+          //tft.printf("SDK: %s\n", ESP.getSdkVersion());
+          //tft.setTextWrap(true);        
+          tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
+        }
+        break;
+        case MENU_PAGE_ABOUT: 
+        {
+          tft.setTextSize(txtsize);
+          tft.setTextWrap(false);
+          if(LCD_state.bgcolor != TFT_BLACK) {
+            LCD_state.bgcolor = TFT_BLACK;
+            tft.fillScreen(LCD_state.bgcolor);
+          }
+          tft.setCursor(0, 0);
+          LCD_state.fgcolor = TFT_GOLD;
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+          
+          tft.printf("      VERSIONS      \n");        
+          LCD_state.fgcolor = TFT_ORANGE;
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          tft.printf("\n");
+          tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
+          const char *adc_firmware = JSON_DOCS[JSON_DOC_ADCSYSDATA]["firmware"];
+          if(adc_firmware) {
+            tft.printf(" ADC-MCU: v%s\n", adc_firmware);
+          }
+          tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
+          tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
+          tft.print(F(" Ken-Roger Andersen \n") );
+          tft.print(F("ken.roger@gmail.com \n") );
+          
+          tft.setTextWrap(true);
+        }
+        break;
+        case MENU_PAGE_LOGO:
+          tft.pushImage(0, 0,  240, 135, kra_tech);
+        break;
+
+        default: menu_page_current = 0;
+      } // switch()
+    } // if showError
+
+
   } // tm_UpdateDisplay.expired()
 } // loop()
 
@@ -1170,7 +1171,7 @@ time_t getNtpTime()
   IPAddress ntpServerIP; // NTP server's ip address
 
   while (ntpUDP.parsePacket() > 0) ; // discard any previously received packets
-  Serial.println("Transmit NTP Request");
+  Serial.print("Sending NTP request to ");
   // get a random server from the pool
   WiFi.hostByName(config.ntpserver, ntpServerIP);
   Serial.print(config.ntpserver);
@@ -1181,7 +1182,7 @@ time_t getNtpTime()
   while (millis() - beginWait < 1500) {
     int size = ntpUDP.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-      Serial.println("Receive NTP Response");
+      Serial.println("Received NTP reply");
       ntp_errors = 0;
       ntpUDP.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
@@ -1193,7 +1194,7 @@ time_t getNtpTime()
       return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
     }
   }
-  Serial.println("No NTP Response :-(");
+  Serial.println("ERR: No NTP reply");
   ntp_errors++;
   return 0; // return 0 if unable to get the time
 }

@@ -11,14 +11,15 @@
 //#define DEF_WIFI_SSID  "MCU"
 #define DEF_WIFI_PW    "hemmelig"
 
+#define PING_TARGET "192.168.30.1"  // host/ip to ping for network/wifi status testing
+
 // Helpers to read strings from build options macros
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
-//#define USE_BLYNK
 
-#define FIRMWARE_VERSION    "3.16"
+#define FIRMWARE_VERSION    "3.17"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -45,7 +46,6 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define JSON_DOC_ADCSYSDATA         0
 #define JSON_DOC_ADCEMONDATA        1
 #define JSON_DOC_ADCWATERPUMPDATA   2
-//#define JSON_DOC_ADCPROBEDATA       4
 #define JSON_DOC_COUNT              3
 
 #define Serial_DATA Serial2 // Serial used talking to ADC MCU/JSON data
