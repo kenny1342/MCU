@@ -36,7 +36,7 @@ LCD_state_struct LCD_state;
 
 Timemark tm_CheckWifi(5000);
 Timemark tm_CheckRX(600000);
-Timemark tm_SendData(5000);
+Timemark tm_SendData(1000);
 Timemark tm_reboot(86400 * 1000); 
 Timemark tm_ClearDisplay(300000);
 Timemark tm_UpdateDisplay(200);
