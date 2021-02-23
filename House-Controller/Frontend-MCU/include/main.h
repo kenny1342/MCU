@@ -32,7 +32,8 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 
 #define JSON_SIZE                   900
 #define JSON_SIZE_REMOTEPROBES      250
-#define MAX_REMOTE_SIDS             20 // number of remote sensor id's JSON strings to store in memory/circular buffer
+#define MAX_REMOTE_SIDS             20 // number of remote sensor id's JSON strings to store in memory
+#define MAX_AGE_SID                 3600 // seconds we keep a devid/sid probe data in memory before deleting (dead remote probe)
 
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)

@@ -741,9 +741,10 @@ void loop(void) {
                 //Serial.printf("0x45 #%u looking for slot devid=%u,sid=%u\n", i, devid, sid);
 
                 // if data too old, delete doc so slot can be reused
-                if(now() - _ts > 86400) {
-                  Serial.printf("WARN: 0x45 #%u old, clear()\n", i);
-                  remote_data2[i][0] = '\0';
+                if(now() - _ts > MAX_AGE_SID) {
+                  Serial.printf("ERR: 0x45 #%u old (>%u sec), freeing spot\n", i, MAX_AGE_SID);
+                  //remote_data2[i][0] = '\0';
+                  memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
                 }
 
                 if(
@@ -763,7 +764,7 @@ void loop(void) {
                   break;
                 } else {
                   
-                  Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, _sid, devid, sid);
+                  Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, devid, _sid, sid);
                 }
               }
             } else {
