@@ -76,6 +76,8 @@ void ReconnectWiFi();
 int readline(int readch, char *buffer, int len);
 String HTMLProcessor(const String& var);
 void saveConfigCallback ();
+void CheckConnections(void);
+void UpdateDisplay(void);
 void CheckButtons(void);
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
 time_t sync();

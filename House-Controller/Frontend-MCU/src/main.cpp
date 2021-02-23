@@ -43,8 +43,8 @@ DNSServer dnsServer;
 
 //StaticJsonDocument<JSON_SIZE> JSON_DOCS[JSON_DOC_COUNT]; // = StaticJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
 
-const uint8_t QUEUE_SIZE = 4;
-MD_CirQueue Q_rx(QUEUE_SIZE, sizeof(char)*JSON_SIZE);
+const uint8_t QUEUE_RX_SIZE = 4;
+MD_CirQueue Q_rx(QUEUE_RX_SIZE, sizeof(char)*JSON_SIZE);
 
 char remote_data2[MAX_REMOTE_SIDS][JSON_SIZE_REMOTEPROBES];
 
@@ -67,7 +67,6 @@ Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable i
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
-bool showDataError;
 
 char JSON_STRINGS[JSON_DOC_COUNT][JSON_SIZE] = {0};
 
@@ -94,13 +93,10 @@ Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_Che
 
 bool OTArunning = false;
 volatile int interruptCounter;
-volatile bool ISR_busy = false;
 
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
  
-//volatile char buf[JSON_SIZE];
-//volatile int idx = 0;
 /**
  * Timer ISR 1ms
  */
@@ -111,39 +107,8 @@ void IRAM_ATTR onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 
   if(interruptCounter == 50) {
+    // every 50ms
     interruptCounter = 0;
-/*
-    if(Serial_DATA.available())
-    {
-      ISR_busy = true;
-    
-      while(Serial_DATA.available()) {    
-        char c = Serial_DATA.read();
-    
-        if(c == '\0' || idx >= sizeof(buf)) {
-          idx = 0;
-          memset ( (void*)buf, 0, sizeof(buf) );
-          break;
-        }
-
-        buf[idx] = c;
-        idx++;
-
-        if(c == '\n') {
-          buf[idx] = '\0';
-          
-          //if(strlen(buf) > 10) {
-          if(idx > 10) {
-            Serial.printf("adding buf=%s\n", buf);
-            Q_rx.push((uint8_t *)buf);
-          }
-          memset ( (void*)buf, 0, sizeof(buf) );
-          idx = 0;
-        }
-      }
-      ISR_busy = false;
-    }
-    */
   }
   
 }
@@ -507,7 +472,7 @@ void saveConfigCallback () {
 #endif
 
 void loop(void) {
-  double t = 0;
+  
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
   char _tmpbuf[JSON_SIZE];
 
@@ -532,65 +497,22 @@ void loop(void) {
 */
 
   if(Timers[TM_CheckConnections]->expired()) {
-    Serial.printf("%s: checking network health...\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
-
-    timeStatus_t NTPstatus  = timeStatus();
-    if(NTPstatus != timeSet) {
-      Serial.println(F("WARN: NTP not synced!"));
-      //setSyncProvider(getNtpTime);
-    }
-
-    bool shouldReconnect = false;
-
-    if (!WiFi.isConnected()) {
-      shouldReconnect = true;
-      Serial.print(F("ERR: WiFi disconnected"));
-    }
-
-    //IPAddress gw(192,168,30,1);
-    bool ping_ok = Ping.ping(PING_TARGET, 1);
-    Serial.printf("ping %s: %f ms\n", PING_TARGET, Ping.averageTime());
-
-    if (!ping_ok || Ping.averageTime() > 200.0) {
-      shouldReconnect = true;
-      Serial.print(F("ERR: Ping failed"));
-    }
-    
-    if (ntp_errors > 60) {
-      shouldReconnect = true;
-      Serial.printf("NTP errors: %u\n", ntp_errors);
-    }
-    
-    if (shouldReconnect)
-    {
-      Serial.print(F("ERR: problems detected, trying reconnect #"));
-      Serial.println(reconnects_wifi);
-      ReconnectWiFi();
-      
-      if (reconnects_wifi > 20)
-      {
-        Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
-        ESP.restart();
-        delay(10000);
-        return;
-      }
-    } else {
-      Serial.println(F("WiFi OK"));
-    }
-
+    CheckConnections();
   }
 
-  // TODO: move to ISR (else queue really isn't needed...)
-  
-  if(Serial_DATA.available())
+  // Read lines from serial RX buffer and add to queue until full
+  //uint8_t Q_rx_idx = 0;
+  while(Serial_DATA.available())
   {
-        char buffer_rx[JSON_SIZE] = {0};
-        Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
-        if(strlen(buffer_rx) > 10) {
-          Q_rx.push((uint8_t *)buffer_rx);
-        }
-  }
+    char buffer_rx[JSON_SIZE] = {0};
+    if(Q_rx.isFull()) break; // leave remaining data in serial buffer until next loop() cycle
 
+    Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
+    if(strlen(buffer_rx) > 10) {
+      Q_rx.push((uint8_t *)buffer_rx);
+      //Serial.printf("Q_rx: added to #%u of %u \n", Q_rx_idx++, QUEUE_RX_SIZE);
+    }
+  }
 
   // Iterate over the RX queue and update JSON_DOCS, FIFO style
   while (!Q_rx.isEmpty()) {
@@ -599,10 +521,8 @@ void loop(void) {
     uint32_t devid = 0;
     int32_t sid = -1;
 
-    if(ISR_busy) break;
-
     if(Q_rx.isFull()) {
-      Serial.printf("ERR: Q_rx is full!!!" );
+      Serial.println("ERR: Q_rx is full!!!" );
     }
 
     Q_rx.pop((uint8_t *) &data_string);
@@ -803,6 +723,92 @@ void loop(void) {
   } // RX
 
 
+
+  if(Timers[TM_UpdateDisplay]->expired()) {
+    UpdateDisplay();
+  } // tm_UpdateDisplay.expired()
+
+} // loop()
+
+void CheckConnections(void) {
+  Serial.printf("%s: checking network health...\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+
+  timeStatus_t NTPstatus  = timeStatus();
+  if(NTPstatus != timeSet) {
+    Serial.println(F("WARN: NTP not synced!"));
+    //setSyncProvider(getNtpTime);
+  }
+
+  bool shouldReconnect = false;
+
+  if (!WiFi.isConnected()) {
+    shouldReconnect = true;
+    Serial.print(F("ERR: WiFi disconnected"));
+  }
+
+  //IPAddress gw(192,168,30,1);
+  bool ping_ok = Ping.ping(PING_TARGET, 1);
+  Serial.printf("ping %s: %f ms\n", PING_TARGET, Ping.averageTime());
+
+  if (!ping_ok || Ping.averageTime() > 200.0) {
+    shouldReconnect = true;
+    Serial.print(F("ERR: Ping failed"));
+  }
+  
+  if (ntp_errors > 60) {
+    shouldReconnect = true;
+    Serial.printf("NTP errors: %u\n", ntp_errors);
+  }
+  
+  if (shouldReconnect)
+  {
+    Serial.print(F("ERR: problems detected, trying reconnect #"));
+    Serial.println(reconnects_wifi);
+    ReconnectWiFi();
+    
+    if (reconnects_wifi > 20)
+    {
+      Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
+      ESP.restart();
+      delay(10000);
+      return;
+    }
+  } else {
+    Serial.println(F("WiFi OK"));
+  }
+
+}
+
+void UpdateDisplay(void) {
+  double t = 0;
+  bool showDataError = false;
+
+  // First we parse the JSON strings into objects so we can easily access the data
+  
+  DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+
+  for(int x=0; x<JSON_DOC_COUNT; x++) {
+    
+    if(JSON_STRINGS[x][0] == '\0') {
+      continue;
+    }
+
+    DeserializationError error = deserializeJson(JSON_DOCS[x], (const char*) JSON_STRINGS[x]); // read-only input (duplication)
+    JSON_DOCS[x].shrinkToFit();
+    if (error) {
+      showDataError = true;
+      Serial.print("\n");
+      Serial.print(JSON_STRINGS[x]);
+      Serial.print(F("\n^JSON_ERR [TFT]:"));
+      Serial.println(error.f_str());
+    } else {
+      if(showDataError) { // clear message on display
+        showDataError = false;
+        LCD_state.clear = true;
+      }
+    }
+  }
+
   //----------- Update OLED display ---------------
 
   // Automatically return to first menu page after set timeout
@@ -816,302 +822,270 @@ void loop(void) {
       tft.fillScreen(LCD_state.bgcolor);
   }
 
+  if(tm_CheckDataAge.expired()) {
 
-  if(Timers[TM_UpdateDisplay]->expired()) {
-
-    // First we parse the JSON strings into objects so we can easily access the data
-    
-    DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-  
-    for(int x=0; x<JSON_DOC_COUNT; x++) {
-      
-      if(JSON_STRINGS[x][0] == '\0') {
-        continue;
-      }
-
-      DeserializationError error = deserializeJson(JSON_DOCS[x], (const char*) JSON_STRINGS[x]); // read-only input (duplication)
-      JSON_DOCS[x].shrinkToFit();
-      if (error) {
-        showDataError = true;
-        Serial.print("\n");
-        Serial.print(JSON_STRINGS[x]);
-        Serial.print(F("\n^JSON_ERR [TFT]:"));
-        Serial.println(error.f_str());
-      } else {
-        if(showDataError) { // clear message on display
-          showDataError = false;
-          LCD_state.clear = true;
-        }
-      }
-    }
-
-    if(tm_CheckDataAge.expired()) {
-
-      if(millis() - dataAge > 10000 && dataAge > 0L) {
-              
-        tft.setTextSize(3);
-        tft.setCursor(0, 0);
-        tft.setTextDatum(MC_DATUM);
-        tft.setTextColor(TFT_RED, TFT_BLACK);
-        tft.println("  NO DATA RX " );
-      }    
-    } else if(showDataError) {
-      //showDataError = true;
-
+    if(millis() - dataAge > 10000 && dataAge > 0L) {
+            
       tft.setTextSize(3);
       tft.setCursor(0, 0);
       tft.setTextDatum(MC_DATUM);
       tft.setTextColor(TFT_RED, TFT_BLACK);
-      tft.println("INVALID DATA\n" );
-      //tft.println(" JSON ERROR    \n" );
-      tft.printf("%lu\n", millis() );
-      //delay(500);
-      //return;        
-    } else {
-      switch(menu_page_current)
+      tft.println("  NO DATA RX " );
+    }    
+  } else if(showDataError) {
+    //showDataError = true;
+
+    tft.setTextSize(3);
+    tft.setCursor(0, 0);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.println("INVALID DATA\n" );
+    //tft.println(" JSON ERROR    \n" );
+    tft.printf("%lu\n", millis() );
+    //delay(500);
+    //return;        
+  } else {
+    switch(menu_page_current)
+    {
+      case MENU_PAGE_UTILITY_STATS:
       {
-        case MENU_PAGE_UTILITY_STATS:
-        {
-          tft.setTextSize(txtsize);
+        tft.setTextSize(txtsize);
 
-          if(LCD_state.bgcolor != TFT_BLACK) {
-            LCD_state.bgcolor = TFT_BLACK;
-            tft.fillScreen(LCD_state.bgcolor);
-          }
-
-          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
-
-          
-            // ------- LINE 1/8: -------
-            LCD_state.fgcolor = TFT_GOLD;
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-            tft.setCursor(0, 0);
-            tft.printf("      SUMMARY       \n");
-            LCD_state.fgcolor = TFT_GREEN;
-            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
-            
-            // ------- LINE 2/8: -------
-            JsonVariant WP = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"];
-            if(!WP.isNull()) {
-              const char* status = WP["status"];
-              if(status) {
-                tft.printf("W Pump: ");
-                if(strcmp(status, "RUN") == 0) {
-                  tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
-                  tft.printf("   RUNNING  ");
-                } else if(strcmp(status, "STOP") == 0) {
-                  tft.setTextColor(TFT_WHITE, TFT_RED); 
-                  tft.printf("   STOPPED  ");
-                } else if(strcmp(status, "SUSPENDED") == 0) {
-                  tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
-                  tft.printf("  SUSPENDED ");
-                } else {
-                  tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-                  tft.printf("  %s       ", status);
-                }
-                tft.printf("\n");
-                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
-              }
-            }
-
-            // ------- LINE 3/8: -------
-            t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
-            if(t) {
-              tft.printf("WP:" );
-              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-              tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-            }
-            t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
-            if(t) {
-              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-              tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-            }
-          }
-
-          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
-            // ------- LINE 4/8: -------
-            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_N"];
-            if(t) {
-              tft.printf("V(rms) L-N:  ");
-              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-            }
-            // ------- LINE 5/8: -------
-            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_PE"];
-            if(t) {
-              tft.printf("V(rms) L-PE: ");
-              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-            }
-            // ------- LINE 6/8: -------
-            t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_N_PE"];
-            if(t) {
-              tft.printf("V(rms) N-PE: ");
-              tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-              tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
-              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-            }
-            // ------- LINE 7/8: -------
-            JsonVariant circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA]["circuits"];
-            if(!circuits.isNull()) {
-              JsonObject circuit = circuits["1"];
-              if(!circuit.isNull()) {
-                uint16_t power = circuit["P_a"].as<uint16_t>();
-                if(power) {
-                  tft.printf("Power: "); // "Power: 10000W/28.9A"
-                  tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
-                  tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
-                  tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-                }
-              }
-            }
-          }
-
-          // ------- LINE 8/8: -------
-          if(!JSON_DOCS[JSON_DOC_ADCSYSDATA].isNull()) {
-            JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
-            if(!alarms.isNull() && alarms.size() == 0) {
-              const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
-              tft.printf("Last A: %s          ", lastAlarm);
-            } else {
-              tft.setTextColor(TFT_RED, TFT_WHITE);
-          
-              for(uint8_t x=0; x< alarms.size(); x++) {
-                const char* str = alarms[x];
-                tft.printf("A:%s ", str );
-              }
-            }
-          }
+        if(LCD_state.bgcolor != TFT_BLACK) {
+          LCD_state.bgcolor = TFT_BLACK;
+          tft.fillScreen(LCD_state.bgcolor);
         }
-        break;
-        case MENU_PAGE_WATER_STATS:
-        {
-          tft.setTextSize(txtsize);
 
-          if(LCD_state.bgcolor != TFT_BLACK) {
-            LCD_state.bgcolor = TFT_BLACK;
-            tft.fillScreen(LCD_state.bgcolor);
-          }
-          tft.setCursor(0, 0);
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
+
+        
+          // ------- LINE 1/8: -------
           LCD_state.fgcolor = TFT_GOLD;
           tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+          tft.setCursor(0, 0);
+          tft.printf("      SUMMARY       \n");
+          LCD_state.fgcolor = TFT_GREEN;
+          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);                
           
-          tft.printf("    WATER SUPPLY    \n");        
-          LCD_state.fgcolor = TFT_LIGHTGREY;
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          // ------- LINE 2/8: -------
+          JsonVariant WP = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"];
+          if(!WP.isNull()) {
+            const char* status = WP["status"];
+            if(status) {
+              tft.printf("W Pump: ");
+              if(strcmp(status, "RUN") == 0) {
+                tft.setTextColor(TFT_WHITE, TFT_DARKGREEN); 
+                tft.printf("   RUNNING  ");
+              } else if(strcmp(status, "STOP") == 0) {
+                tft.setTextColor(TFT_WHITE, TFT_RED); 
+                tft.printf("   STOPPED  ");
+              } else if(strcmp(status, "SUSPENDED") == 0) {
+                tft.setTextColor(TFT_BLACK, TFT_ORANGE); 
+                tft.printf("  SUSPENDED ");
+              } else {
+                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+                tft.printf("  %s       ", status);
+              }
+              tft.printf("\n");
+              tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor); 
+            }
+          }
 
+          // ------- LINE 3/8: -------
           t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
           if(t) {
-            tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
+            tft.printf("WP:" );
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%02d bar, ", (int)t, (int)(t*100)%100 );
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
           }
-
           t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
           if(t) {
-            uint8_t hum_room_pct = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["hum_room_pct"].as<uint8_t>();
-            if(hum_room_pct) {
-              tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, hum_room_pct );
-            }          
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d %cC\n", (int)t, (int)(t*10)%10, (char)247 );
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
           }
+        }
 
-          t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_motor_c"];
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA].isNull()) {
+          // ------- LINE 4/8: -------
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_N"];
           if(t) {
-            tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
+            tft.printf("V(rms) L-N:  ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
           }
-
-          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-            if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].isNull()) {
-              tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].as<uint16_t>());
+          // ------- LINE 5/8: -------
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_L_PE"];
+          if(t) {
+            tft.printf("V(rms) L-PE: ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
+          // ------- LINE 6/8: -------
+          t = JSON_DOCS[JSON_DOC_ADCEMONDATA]["emon_vrms_N_PE"];
+          if(t) {
+            tft.printf("V(rms) N-PE: ");
+            tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+            tft.printf("%d.%01d V\n", (int)t, (int)(t*10)%10);
+            tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+          }
+          // ------- LINE 7/8: -------
+          JsonVariant circuits = JSON_DOCS[JSON_DOC_ADCEMONDATA]["circuits"];
+          if(!circuits.isNull()) {
+            JsonObject circuit = circuits["1"];
+            if(!circuit.isNull()) {
+              uint16_t power = circuit["P_a"].as<uint16_t>();
+              if(power) {
+                tft.printf("Power: "); // "Power: 10000W/28.9A"
+                tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
+                tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
+                tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+              }
             }
           }
-          
-          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-            const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
-            uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
-            if(state && t_val) {
-              tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
+        }
+
+        // ------- LINE 8/8: -------
+        if(!JSON_DOCS[JSON_DOC_ADCSYSDATA].isNull()) {
+          JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
+          if(!alarms.isNull() && alarms.size() == 0) {
+            const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
+            tft.printf("Last A: %s          ", lastAlarm);
+          } else {
+            tft.setTextColor(TFT_RED, TFT_WHITE);
+        
+            for(uint8_t x=0; x< alarms.size(); x++) {
+              const char* str = alarms[x];
+              tft.printf("A:%s ", str );
             }
-            t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_susp_tot"].as<uint32_t>();
-            if(t_val) {
-              tft.printf("Susp tot: %s\n", SecondsToDateTimeString(t_val, TFMT_HOURS));
-            }
-            
           }
-
-          tft.printf("Power usage: NA Watt\n");
         }
-        break;
-        case MENU_PAGE_SYSTEM_STATS:
-        {
-          tft.setTextSize(txtsize);
+      }
+      break;
+      case MENU_PAGE_WATER_STATS:
+      {
+        tft.setTextSize(txtsize);
 
-          if(LCD_state.bgcolor != TFT_WHITE) {
-            LCD_state.bgcolor = TFT_WHITE;
-            tft.fillScreen(LCD_state.bgcolor);
-          }
-          
-          LCD_state.fgcolor = TFT_BLACK;        
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          
-          tft.setCursor(0, 0);
-          tft.printf("%-14s\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
-          //tft.printf("%-14s\n", );
-          tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
-          tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
-          tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
-          tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
-          tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
-          tft.printf("ID: %llu\n", ESP.getEfuseMac());
-          //tft.setTextWrap(false);
-          //tft.printf("SDK: %s\n", ESP.getSdkVersion());
-          //tft.setTextWrap(true);        
-          tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
+        if(LCD_state.bgcolor != TFT_BLACK) {
+          LCD_state.bgcolor = TFT_BLACK;
+          tft.fillScreen(LCD_state.bgcolor);
         }
-        break;
-        case MENU_PAGE_ABOUT: 
-        {
-          tft.setTextSize(txtsize);
-          tft.setTextWrap(false);
-          if(LCD_state.bgcolor != TFT_BLACK) {
-            LCD_state.bgcolor = TFT_BLACK;
-            tft.fillScreen(LCD_state.bgcolor);
-          }
-          tft.setCursor(0, 0);
-          LCD_state.fgcolor = TFT_GOLD;
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
-          
-          tft.printf("      VERSIONS      \n");        
-          LCD_state.fgcolor = TFT_ORANGE;
-          tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
-          tft.printf("\n");
-          tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
-          const char *adc_firmware = JSON_DOCS[JSON_DOC_ADCSYSDATA]["firmware"];
-          if(adc_firmware) {
-            tft.printf(" ADC-MCU: v%s\n", adc_firmware);
-          }
-          tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
-          tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
-          tft.print(F(" Ken-Roger Andersen \n") );
-          tft.print(F("ken.roger@gmail.com \n") );
-          
-          tft.setTextWrap(true);
+        tft.setCursor(0, 0);
+        LCD_state.fgcolor = TFT_GOLD;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+        
+        tft.printf("    WATER SUPPLY    \n");        
+        LCD_state.fgcolor = TFT_LIGHTGREY;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["pressure_bar"];
+        if(t) {
+          tft.printf("Pressure: %d.%02d bar\n", (int)t, (int)(t*100)%100 );
         }
-        break;
-        case MENU_PAGE_LOGO:
-          tft.pushImage(0, 0,  240, 135, kra_tech);
-        break;
 
-        default: menu_page_current = 0;
-      } // switch()
-    } // if showError
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_c"];
+        if(t) {
+          uint8_t hum_room_pct = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["hum_room_pct"].as<uint8_t>();
+          if(hum_room_pct) {
+            tft.printf("Room: %d.%01d %cC, %d%%\n", (int)t, (int)(t*10)%10, (char)247, hum_room_pct );
+          }          
+        }
 
+        t = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["temp_motor_c"];
+        if(t) {
+          tft.printf("Motor: %d.%01d %cC  \n", (int)t, (int)(t*10)%10, (char)247 );
+        }
 
-  } // tm_UpdateDisplay.expired()
-} // loop()
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+          if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].isNull()) {
+            tft.printf("Starts/stops: %u  \n", JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["cnt_starts"].as<uint16_t>());
+          }
+        }
+        
+        if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
+          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
+          uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
+          if(state && t_val) {
+            tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
+          }
+          t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_susp_tot"].as<uint32_t>();
+          if(t_val) {
+            tft.printf("Susp tot: %s\n", SecondsToDateTimeString(t_val, TFMT_HOURS));
+          }
+          
+        }
 
+        tft.printf("Power usage: NA Watt\n");
+      }
+      break;
+      case MENU_PAGE_SYSTEM_STATS:
+      {
+        tft.setTextSize(txtsize);
+
+        if(LCD_state.bgcolor != TFT_WHITE) {
+          LCD_state.bgcolor = TFT_WHITE;
+          tft.fillScreen(LCD_state.bgcolor);
+        }
+        
+        LCD_state.fgcolor = TFT_BLACK;        
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+        
+        tft.setCursor(0, 0);
+        tft.printf("%-14s\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+        //tft.printf("%-14s\n", );
+        tft.printf("SSID: %-14s\n", WiFi.SSID().c_str());
+        tft.printf("IP: %-16s\n", WiFi.localIP().toString().c_str());
+        tft.printf("WiFi reconnects: %u\n", reconnects_wifi);
+        tft.printf("Free mem: %u B\n", ESP.getFreeHeap());
+        tft.printf("CPU freq: %u Mhz\n", ESP.getCpuFreqMHz());
+        tft.printf("ID: %llu\n", ESP.getEfuseMac());
+        //tft.setTextWrap(false);
+        //tft.printf("SDK: %s\n", ESP.getSdkVersion());
+        //tft.setTextWrap(true);        
+        tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
+      }
+      break;
+      case MENU_PAGE_ABOUT: 
+      {
+        tft.setTextSize(txtsize);
+        tft.setTextWrap(false);
+        if(LCD_state.bgcolor != TFT_BLACK) {
+          LCD_state.bgcolor = TFT_BLACK;
+          tft.fillScreen(LCD_state.bgcolor);
+        }
+        tft.setCursor(0, 0);
+        LCD_state.fgcolor = TFT_GOLD;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);        
+        
+        tft.printf("      VERSIONS      \n");        
+        LCD_state.fgcolor = TFT_ORANGE;
+        tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+        tft.printf("\n");
+        tft.printf(" Web-MCU: v%s\n", FIRMWARE_VERSION); //L3
+        const char *adc_firmware = JSON_DOCS[JSON_DOC_ADCSYSDATA]["firmware"];
+        if(adc_firmware) {
+          tft.printf(" ADC-MCU: v%s\n", adc_firmware);
+        }
+        tft.printf(" Web-IF:  v%s\n", WEBIF_VERSION); //L5
+        tft.printf("   (c) %s    \n", AUTHOR_COPYRIGHT ); //L6
+        tft.print(F(" Ken-Roger Andersen \n") );
+        tft.print(F("ken.roger@gmail.com \n") );
+        
+        tft.setTextWrap(true);
+      }
+      break;
+      case MENU_PAGE_LOGO:
+        tft.pushImage(0, 0,  240, 135, kra_tech);
+      break;
+
+      default: menu_page_current = 0;
+    } // switch()
+  } // if showError
+
+}
 /**
  * Check button states
  */
