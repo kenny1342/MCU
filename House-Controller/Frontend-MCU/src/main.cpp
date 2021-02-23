@@ -672,13 +672,16 @@ void loop(void) {
                   _sid == sid              
                 ) {
                   //if(doSerialDebug) 
-                    Serial.printf("0x45 #%u updating slot devid/sid %u/%u\n", i, _devid, _sid);
+                    Serial.printf("0x45 #%u updating slot devid/sid %u/%u...", i, _devid, _sid);
 
+                  // TODO: fix random crashes (LoadException)
+                  //Serial.printf("0x45 #%u tmp_json.size=%u, sizeof remote_data2=%u\n", i, tmp_json.size(), sizeof(remote_data2[MAX_REMOTE_SIDS]));
                   if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
                     serializeJson(tmp_json, remote_data2[i]);  
                   } else {
-                    Serial.print(F("ERR 0x45 tmp_json too big for remote_data2, ignoring!\n"));
+                    Serial.print(F("ERR: 0x45 tmp_json too big for remote_data2, ignoring!\n"));
                   }
+                  Serial.print(F("OK\n"));
 
                   need_to_add = false;
                   break;
