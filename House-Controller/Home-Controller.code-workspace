@@ -14,6 +14,10 @@
 		},
 		{
 			"path": "WiFi-Probe"
+		},
+		{
+			"name": "Frontend-MCU",
+			"path": "../../../../home/kenny/Development/MCU/House-Controller/Frontend-MCU"
 		}
 	],
 	"settings": {

@@ -49,6 +49,9 @@ void Webserver::AddRoutes() {
   server.on("/index.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.js", "application/x-javascript");
   });
+  server.on("/nosleep.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/nosleep.min.js", "application/x-javascript");
+  });
 
   // TEST
   server.on("/config2.json", HTTP_GET, [](AsyncWebServerRequest *request){
