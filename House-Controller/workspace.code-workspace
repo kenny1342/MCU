@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../storage/Development/MCU/House-Controller"
+		},
+		{
+			"name": "Frontend-MCU",
+			"path": "Frontend-MCU"
+		},
+		{
+			"name": "ADC-MCU",
+			"path": "ADC-MCU"
+		},
+		{
+			"name": "WiFi-HUB",
+			"path": "WiFi-HUB"
+		},
+		{
+			"name": "WiFi-Probe",
+			"path": "WiFi-Probe"
+		}
+	],
+	"settings": {}
+}
