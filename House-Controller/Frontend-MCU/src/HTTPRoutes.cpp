@@ -52,6 +52,9 @@ void Webserver::AddRoutes() {
   server.on("/nosleep.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/nosleep.min.js", "application/x-javascript");
   });
+  server.on("/messages.log", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/messages.log", "text/plain");
+  });
 
   // TEST
   server.on("/config2.json", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -171,49 +174,11 @@ void Webserver::AddRoutes() {
       request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
   });
 
-  // Generic file upload (for upload of config.json)
+  // Generic file upload form recovery/fallback (for upload of config.json)
   server.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request) {
-      //const char *html = "<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>";
+      Serial.printf("/upload GET\n");
       request->send_P(200, "text/html", PSTR("<body><div><form method='post' action='/upload'><input type='file'><button>Send</button></form></div></body>"));
     });  
-
-  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
-    //bool upload_ok = true;
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", "<html><head><body>Uploading...</body></html>");
-    response->addHeader("Connection", "close");
-    request->send(response);
-    
-  },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    bool is_config_json = (filename.indexOf("config.json") >= 0); 
-    if(!index){      
-      Serial.printf("UploadStart: %s\n",filename.c_str());
-      // open the file on first call and store the file handle in the request object
-      request->_tempFile = SPIFFS.open("/"+filename, "w");
-    }
-    if(len) {
-      // stream the incoming chunk to the opened file
-      request->_tempFile.write(data,len);
-    }
-    if(final){
-      Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
-      // close the file handle as the upload is now done
-      request->_tempFile.close();
-      //request->redirect("/");
-      
-      if(is_config_json) {
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
-        response->addHeader("Connection", "close");
-        request->send(response);
-        
-        delay(2000);
-        //ESP.restart();
-      } else {
-        delay(2000);
-        //request->redirect("/");
-      }
-    }
-    
-});
 
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -289,6 +254,40 @@ void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t in
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
   //Handle upload
   Serial.println(F("onUpload"));
+
+
+
+    bool is_config_json = (filename.indexOf("config.json") >= 0); 
+    if(!index){      
+      Serial.printf("UploadStart: %s\n",filename.c_str());
+      // open the file on first call and store the file handle in the request object
+      request->_tempFile = SPIFFS.open("/"+filename, "w");
+    }
+    if(len) {
+      // stream the incoming chunk to the opened file
+      request->_tempFile.write(data,len);
+    }
+    if(final){
+      Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
+      // close the file handle as the upload is now done
+      request->_tempFile.close();
+      //request->redirect("/");
+      
+      if(is_config_json) {
+        Serial.printf("is_config_json=true, close conn\n");
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
+        response->addHeader("Connection", "close");
+        request->send(response);
+        
+        delay(2000);
+        //ESP.restart();
+      } else {
+        delay(2000);
+        //request->redirect("/");
+      }
+    }
+
+
 }
 
 void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){

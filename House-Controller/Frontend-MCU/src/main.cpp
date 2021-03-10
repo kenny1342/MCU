@@ -232,6 +232,7 @@ void setup(void) {
     #ifdef USE_WIFIMGR 
     ESPAsync_wifiManager.resetSettings(); 
     #endif // esp8266, not esp32
+    SaveTextToFile("restart: flagfile /doreset.dat found\n", "/messages.log", true);
     delay(5000);
     ESP.restart();
 
@@ -257,6 +258,7 @@ void setup(void) {
       file.close();
       
       logger.println(F("Will reboot to complete reset..."));
+      SaveTextToFile("restart: factory reset\n", "/messages.log", true);
       delay(5000);
       ESP.restart();
     } else {
@@ -277,6 +279,7 @@ void setup(void) {
   ESPAsync_wifiManager.autoConnect("KRATECH-AP");
   if (WiFi.status() != WL_CONNECTED) { 
     logger.println(F("Failed to connect, will restart"));
+    SaveTextToFile("restart: wifi failed to connect\n");
     delay(3000);
     ESP.restart();
     delay(5000);
@@ -307,6 +310,7 @@ void setup(void) {
 
   } else {
     Serial.println("connection failed, rebooting!");
+    SaveTextToFile("restart: wifi connection failed\n", "/messages.log", true);
     delay(2000);
     ESP.restart();
     return;
@@ -368,7 +372,7 @@ void setup(void) {
   //tft.fillScreen(TFT_BLACK);
   LCD_state.clear = 1;
 
-  //timeClient.forceUpdate();
+  SaveTextToFile("startup completed!\n", "/messages.log", true);
 }
 
 #ifdef USE_WIFIMGR
@@ -485,6 +489,7 @@ void loop(void) {
 
   if(shouldReboot){
     Serial.println("Rebooting...");
+    SaveTextToFile("restart: shouldReboot=true\n", "/messages.log", true);
     delay(100);
     ESP.restart();
   }
@@ -589,7 +594,7 @@ void loop(void) {
       } else {
         sid = tmp_json["sid"];
       }
-      Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
+      //Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
       
 
       switch(cmd) {
@@ -672,7 +677,7 @@ void loop(void) {
                   _sid == sid              
                 ) {
                   //if(doSerialDebug) 
-                    Serial.printf("0x45 #%u updating slot devid/sid %u/%u...", i, _devid, _sid);
+                    //Serial.printf("0x45 #%u updating slot devid/sid %u/%u...", i, _devid, _sid);
 
                   // TODO: fix random crashes (LoadException)
                   //Serial.printf("0x45 #%u tmp_json.size=%u, sizeof remote_data2=%u\n", i, tmp_json.size(), sizeof(remote_data2[MAX_REMOTE_SIDS]));
@@ -681,13 +686,13 @@ void loop(void) {
                   } else {
                     Serial.print(F("ERR: 0x45 tmp_json too big for remote_data2, ignoring!\n"));
                   }
-                  Serial.print(F("OK\n"));
+                  //Serial.print(F("OK\n"));
 
                   need_to_add = false;
                   break;
                 } else {
                   
-                  Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, devid, _sid, sid);
+                  //Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, devid, _sid, sid);
                 }
               }
             } else {
@@ -772,6 +777,7 @@ void CheckConnections(void) {
     if (reconnects_wifi > 20)
     {
       Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
+      SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
       ESP.restart();
       delay(10000);
       return;
@@ -1208,4 +1214,40 @@ void sendNTPpacket(IPAddress &address)
   ntpUDP.beginPacket(address, 123); //NTP requests are to port 123
   ntpUDP.write(packetBuffer, NTP_PACKET_SIZE);
   ntpUDP.endPacket();
+}
+
+void SaveTextToFile(const char *text, const char *filename, bool append) {
+  File file ;
+
+  
+  if(append) {
+    file = SPIFFS.open(filename, "a");
+  } else {
+    file = SPIFFS.open(filename, "w");
+  }
+
+  if(file.size() > 10000) {
+    Serial.println(F("size exceeded limit, reset it"));
+    if(append) {
+      Serial.println(F("append=true, reopening file in write mode"));
+      file.close();
+      file = SPIFFS.open(filename, "w");
+    }
+  }
+
+  if (!file) {
+    Serial.printf("There was an error opening '%s' for writing\n", filename);
+    return;
+  }
+  if (
+    file.print( SecondsToDateTimeString(now(), TFMT_DATETIME) ) && 
+    file.print(": ") &&
+    file.print(text)) {
+    Serial.printf("wrote '%s'\n", filename);
+  } else {
+    Serial.printf("ERR wroting '%s'\n", filename);
+  }
+  file.flush();
+  file.close();
+  delay(200);
 }
