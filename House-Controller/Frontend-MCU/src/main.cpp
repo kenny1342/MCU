@@ -1226,8 +1226,9 @@ void SaveTextToFile(const char *text, const char *filename, bool append) {
     file = SPIFFS.open(filename, "w");
   }
 
-  if(file.size() > 10000) {
-    Serial.println(F("size exceeded limit, reset it"));
+  //if(file.size() > 10000) {
+  if(SPIFFS.totalBytes() - SPIFFS.usedBytes() < 100) {
+    Serial.println(F("no free space, reset file"));
     if(append) {
       Serial.println(F("append=true, reopening file in write mode"));
       file.close();
