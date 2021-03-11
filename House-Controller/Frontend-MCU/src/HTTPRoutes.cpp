@@ -34,6 +34,9 @@ void Webserver::AddRoutes() {
   });
   
   // File routes
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/favicon.ico", "image/x-icon");
+  });
   server.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/config.json", "application/json");
   });
