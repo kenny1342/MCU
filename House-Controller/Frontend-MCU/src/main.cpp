@@ -115,7 +115,7 @@ void IRAM_ATTR onTimer() {
 
 
 void setup(void) {
-  
+
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
   BtnUP.begin();    // This also sets pinMode
@@ -947,7 +947,8 @@ void UpdateDisplay(void) {
             JsonObject circuit = circuits["1"];
             if(!circuit.isNull()) {
               uint16_t power = circuit["P_a"].as<uint16_t>();
-              if(power) {
+              t = circuit["I"].as<double>();
+              if(power && t) {
                 tft.printf("Power: "); // "Power: 10000W/28.9A"
                 tft.setTextColor(TFT_WHITE, LCD_state.bgcolor);
                 tft.printf("%uW %d.%01dA \n", power, (int)t, (int)(t*10)%10);
