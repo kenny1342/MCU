@@ -415,6 +415,7 @@ void ReconnectWiFi() {
     Serial.print(".");
   }  
   Serial.println(F("Reconnected OK!"));
+  reconnects_wifi = 0;
 } 
 
 /**
