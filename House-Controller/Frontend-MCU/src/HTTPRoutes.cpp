@@ -161,7 +161,16 @@ void Webserver::AddRoutes() {
     delay(5000);  
   });
 
-  
+  server.on("/rmlog", HTTP_GET, [](AsyncWebServerRequest *request){
+    if(SPIFFS.remove("/messages.log")) {
+      request->send_P(200, "text/html", PSTR("<html><head><title>Success</title></head><body>Deleted messages.log! <a href='/'>Home</a></body></html>"));    
+    } else {
+      request->send_P(200, "text/html", PSTR("<html><head><title>Error</title></head><body>Failed to delete messages.log! <a href='/'>Home</a></body></html>"));    
+    }
+    
+    
+  });
+
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
     if(SPIFFS.exists("/update.html")) {
       request->send(SPIFFS, "/update.html", "text/html", false, HTMLProcessor);
