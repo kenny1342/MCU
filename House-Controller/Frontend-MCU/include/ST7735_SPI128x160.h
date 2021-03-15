@@ -1,18 +1,19 @@
+#ifndef __ST7735_SPI128x160_H
+#define __ST7735_SPI128x160_H
+
+// Copied and modified from library TFTP_eSPI/User_Setups/Setup2_ST7735.h
+// to work with banggoods.com display 1.8 SPI 128x160
+// include this file before TFT_eSPI.h
+
 // See SetupX_Template.h for all options available
 
 #define ST7735_DRIVER
 
-
 #define TFT_WIDTH  128
 #define TFT_HEIGHT 160
 
-//#define TFT_INVERSION_ON
-
-// GREENTAB2 shows correct colors on the cheap bangoods 1.8 SPI 128x168 display
-//#define ST7735_INITB
-//#define ST7735_REDTAB
+// This makes sure colors TFT_xxxx are shown/defined correctly
 #define ST7735_GREENTAB2
-//#define ST7735_BLACKTAB
 
 //#define TFT_MISO -1
 #define TFT_MOSI 23
@@ -32,12 +33,10 @@
 
 #define SMOOTH_FONT
 
-
 // #define SPI_FREQUENCY  20000000
 #define SPI_FREQUENCY  27000000
 // #define SPI_FREQUENCY  40000000
 
 #define SPI_TOUCH_FREQUENCY  2500000
 
-
-// #define SUPPORT_TRANSACTIONS
+#endif

@@ -19,7 +19,7 @@
 
 #define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "3.25"
+#define FIRMWARE_VERSION    "3.26"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -39,7 +39,7 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
 #define PIN_SW_DOWN         0 //23 (IO0)
-#define PIN_SW_UP           35 // 11 (IO35)
+#define PIN_SW_UP           0//35 // 11 (IO35)
 #define PIN_LED_1           37
 #define PIN_RXD2 25
 #define PIN_TXD2 26
@@ -60,7 +60,7 @@ enum TIME_STRING_FORMATS { TFMT_LONG, TFMT_DATETIME, TFMT_HOURS };
 #define BLYNK_PRINT Serial
 
 //ST7789 OLED display
-#define txtsize 2
+#define txtsize 1
 
 struct LCD_state_struct {
     bool clear = true; // flag to clear display

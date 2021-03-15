@@ -6,8 +6,12 @@
  * Kenny Dec 19, 2020
  */
 #include <Arduino.h>
+
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include "SPIFFS.h"
+#include <ST7735_SPI128x160.h>
+#include <TFT_eSPI.h>
+#include <SPI.h>
 #include <WiFi.h>
 #include <esp_wifi.h>   // for esp_wifi_set_ps()
 #include <time.h>
@@ -20,7 +24,7 @@
 #include <TimeLib.h>
 #include <ArduinoOTA.h>
 #include <logger.h>
-#include <TFT_eSPI.h>
+
 #include <logo_kra-tech.h>
 #include <Timemark.h>
 #include <Button_KRA.h>
@@ -66,7 +70,8 @@ Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO 
 Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable internal
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
-TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+//TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library for TTGO T-display on-board display
+TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in ST7735_SPI128x160.h
 
 char JSON_STRINGS[JSON_DOC_COUNT][JSON_SIZE] = {0};
 
@@ -138,7 +143,7 @@ void setup(void) {
   Q_rx.setFullOverwrite(true);
 
   tft.init();
-  tft.setRotation(3); // 1
+  tft.setRotation(1); // 1
   tft.fillScreen(LCD_state.bgcolor);
   //tft.setTextSize(2);
   tft.setTextColor(LCD_state.fgcolor);
@@ -159,14 +164,24 @@ void setup(void) {
 
   tft.setTextWrap(true);
 
-  tft.setTextSize(3);
+  tft.setTextSize(txtsize);
   tft.fillScreen(LCD_state.bgcolor);
   tft.setCursor(0 ,0);
 
   tft.println("\n\n   Starting...  ");
-  tft.setTextSize(txtsize);
   if(!DEBUG) delay(700);
 
+/*
+  tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+  tft.println("ORANGE" );
+  tft.setTextColor(TFT_RED, TFT_BLACK);
+  tft.println("RED" );
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.println("YELLOW" );
+  tft.setTextColor(TFT_BLUE, TFT_BLACK);
+  tft.println("BLUE" );
+  delay(10000);
+*/
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
   if(!DEBUG) delay(700);
@@ -369,7 +384,6 @@ void setup(void) {
   
   //delay(2000);
   tft.setTextWrap(false);
-  //tft.fillScreen(TFT_BLACK);
   LCD_state.clear = 1;
 
   SaveTextToFile("startup completed!\n", "/messages.log", true);
@@ -505,6 +519,10 @@ void loop(void) {
   if(Timers[TM_CheckConnections]->expired()) {
     CheckConnections();
   }
+
+  if(Timers[TM_UpdateDisplay]->expired()) {
+    UpdateDisplay();
+  } // tm_UpdateDisplay.expired()
 
   // Read lines from serial RX buffer and add to queue until full
   //uint8_t Q_rx_idx = 0;
@@ -733,9 +751,6 @@ void loop(void) {
 
 
 
-  if(Timers[TM_UpdateDisplay]->expired()) {
-    UpdateDisplay();
-  } // tm_UpdateDisplay.expired()
 
 } // loop()
 
@@ -796,12 +811,13 @@ void UpdateDisplay(void) {
   // First we parse the JSON strings into objects so we can easily access the data
   
   DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-
+  bool nodata = true;
   for(int x=0; x<JSON_DOC_COUNT; x++) {
     
     if(JSON_STRINGS[x][0] == '\0') {
       continue;
     }
+    nodata = false;
 
     DeserializationError error = deserializeJson(JSON_DOCS[x], (const char*) JSON_STRINGS[x]); // read-only input (duplication)
     JSON_DOCS[x].shrinkToFit();
@@ -834,26 +850,30 @@ void UpdateDisplay(void) {
 
   if(tm_CheckDataAge.expired()) {
 
-    if(millis() - dataAge > 10000 && dataAge > 0L) {
-            
-      tft.setTextSize(3);
-      tft.setCursor(0, 0);
-      tft.setTextDatum(MC_DATUM);
+    if(nodata) {
+      tft.setTextSize(2);
+      tft.setCursor(0, 10);
       tft.setTextColor(TFT_RED, TFT_BLACK);
       tft.println("  NO DATA RX " );
+    }
+
+    if(!nodata && (millis() - dataAge > 10000 && dataAge > 0L) ) {
+      tft.setTextSize(2);
+      tft.setCursor(0, 0);
+      //tft.setTextDatum(MC_DATUM);
+      tft.setTextColor(TFT_RED, TFT_BLACK);
+      tft.println("  OLD DATA  " );
     }    
   } else if(showDataError) {
-    //showDataError = true;
-
-    tft.setTextSize(3);
+    
+    Serial.print("TFT INVALID DATA");
+    tft.setTextSize(2);
     tft.setCursor(0, 0);
-    tft.setTextDatum(MC_DATUM);
+    //tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.println("INVALID DATA\n" );
     //tft.println(" JSON ERROR    \n" );
     tft.printf("%lu\n", millis() );
-    //delay(500);
-    //return;        
   } else {
     switch(menu_page_current)
     {
