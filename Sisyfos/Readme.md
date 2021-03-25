@@ -36,9 +36,11 @@ Ken-Roger Andersen <ken.roger@gmail.com>
 
 ## External links
 
-https://www.banggood.com/LILYGO-USB-Microcontroller-ATMEGA32U4-Development-Board-Virtual-Keyboard-5V-DC-16MHz-5-Channel-p-1356220.html?rmmds=detail-left-hotproducts&cur_warehouse=CN
-
 https://www.conrad.com/p/joy-it-arduino-expansion-board-digispark-microcontroller-1503743?WT.srch=1&vat=true
+
+http://digistump.com/products/1
 
 https://www.banggood.com/Digispark-Kickstarter-Micro-Usb-Development-Board-For-ATTINY85-p-1038088.html?cur_warehouse=CN&rmmds=search
 
+ATmega32u4 version in a stick:
+https://www.banggood.com/LILYGO-USB-Microcontroller-ATMEGA32U4-Development-Board-Virtual-Keyboard-5V-DC-16MHz-5-Channel-p-1356220.html?rmmds=detail-left-hotproducts&cur_warehouse=CN
