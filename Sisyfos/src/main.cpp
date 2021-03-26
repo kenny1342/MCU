@@ -35,7 +35,7 @@
 #define KEY_ARROW_DOWN  0x51
 #define KEY_ARROW_UP    0x52
 
-Timemark tm_keypress(30000);
+Timemark tm_keypress(40000);
 
 
 void setup() {    
