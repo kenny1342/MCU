@@ -17,11 +17,21 @@ in order to prevent hibernation/screensaver activation and keep VPN/network up.
 
 <img src="https://raw.githubusercontent.com/kenny1342/MCU/master/Sisyfos/usb_enum.jpg">
 
-## Getting Started
+## Getting Started 
 
-Method 1: Compile and program from source using PlatformIO or Arduino IDE
+### Digispark boards (ATtiny85 chip with Micronucleus USB bootloader pre-installed)
 
-Method 2: Burn HEX file in release/ folder to board using [Xloader](https://www.hobbytronics.co.uk/arduino-xloader) or Arduino IDE
+These boards comes with a pre-installed bootloader that makes it easy to upload firmware over USB, without the need for an external ISP/programmer.
+
+After you plug in the board to the USB port, the **bootloader will accept firmware uploads for 5 secs**, after that it switches and runs the installed firmware.
+
+Upload HEX firmware file in release/ folder to board using Micronucleus (https://github.com/kenny1342/MCU/tree/master/Sisyfos/release)
+
+- Install [Micronucleus](https://github.com/micronucleus/micronucleus/releases)
+- Install USB driver as instructed (https://github.com/micronucleus/micronucleus/tree/master/windows_driver_installer)
+- Write the HEX file to board , f.ex: run C:\Users\Administrator\Desktop\i686-mingw32>micronucleus.exe --run sisyfos_1.0_digispark.hex and insert board into USB port
+
+<img src="https://raw.githubusercontent.com/kenny1342/MCU/master/Sisyfos/hexupload.jpg">
 
 Tested on ATtiny85 (Digispark board, <http://digistump.com/products/1>)
 
