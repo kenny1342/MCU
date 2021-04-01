@@ -43,7 +43,9 @@ Ken-Roger Andersen <ken.roger@gmail.com>
 
 * 1.0 (2021-03-25)
   * Initial Release
-
+* 1.1 (2021-04-01)
+  * fix LED board model B. add post-build script.
+  
 ## External links
 
 https://www.conrad.com/p/joy-it-arduino-expansion-board-digispark-microcontroller-1503743?WT.srch=1&vat=true
