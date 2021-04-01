@@ -22,7 +22,7 @@
  **/
 
 #include <Arduino.h>
-#include <DigiKeyboard.h>
+#include "DigiKeyboard.h"
 #include <Timemark.h>
 
 #define LED_PIN_A   1 // LED on Digispark board Model A
