@@ -14,6 +14,7 @@
  * #define USB_CFG_DEVICE_NAME_LEN 7
  *
  * v1.0 (2021-03-25) - initial version
+ * v1.1 (2021-04-01) - fix LED board model B. add post-build script.
  * 
  * Tested on ATtiny85 (Digispark board, http://digistump.com/products/1)
  *
@@ -24,36 +25,39 @@
 #include <DigiKeyboard.h>
 #include <Timemark.h>
 
-#define LED_PIN   1 // LED on Digispark board Model A
+#define LED_PIN_A   1 // LED on Digispark board Model A
+#define LED_PIN_B   0 // LED on Digispark board Model B
 
-#define KEY_ESC     41
-#define KEY_BACKSPACE 42
-#define KEY_TAB     43
+#ifndef KEY_ESC 
+#define KEY_ESC     41  
+#endif
+#ifndef KEY_PRT_SCR
 #define KEY_PRT_SCR 70
-#define KEY_DELETE  76
-#define KEY_ARROW_RIGHT 0x4F
-#define KEY_ARROW_DOWN  0x51
-#define KEY_ARROW_UP    0x52
+#endif
+#define ON  0x1
+#define OFF 0x0
+#define SET_LED(STATE) digitalWrite(LED_PIN_A, STATE); digitalWrite(LED_PIN_B, STATE);
 
 Timemark tm_keypress(40000);
 
 
 void setup() {    
   uint8_t x = 0;
-  pinMode(LED_PIN, OUTPUT); 
+  pinMode(LED_PIN_A, OUTPUT); 
+  pinMode(LED_PIN_B, OUTPUT); 
 
   DigiKeyboard.update();
-  while(x < 10) {
+  while(x < 30) {
     x++;
-    digitalWrite(LED_PIN, HIGH);
+    SET_LED(ON);
     DigiKeyboard.delay(40);
-    digitalWrite(LED_PIN, LOW);
+    SET_LED(OFF);
     DigiKeyboard.delay(40);
   }
 
   DigiKeyboard.update();
-  DigiKeyboard.delay(1000);
-  DigiKeyboard.sendKeyStroke(0);  
+  DigiKeyboard.delay(500);
+  DigiKeyboard.sendKeyStroke(0, MOD_CONTROL_RIGHT);  
   tm_keypress.start();
 }
 
@@ -69,17 +73,17 @@ void loop() {
     x = 0;
     while(x < 3) {
       x++;
-      digitalWrite(LED_PIN, HIGH);
+      SET_LED(ON);
       DigiKeyboard.delay(50);
-      digitalWrite(LED_PIN, LOW);
+      SET_LED(OFF);
       DigiKeyboard.delay(50);
     }
 
     DigiKeyboard.sendKeyStroke(0);
-    digitalWrite(LED_PIN, HIGH);
+    SET_LED(ON);
     DigiKeyboard.sendKeyStroke(0, MOD_CONTROL_RIGHT);
     DigiKeyboard.delay(300);    
-    digitalWrite(LED_PIN, LOW);
+    SET_LED(OFF);
     DigiKeyboard.delay(300);
   }
 
