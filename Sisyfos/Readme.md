@@ -25,7 +25,7 @@ These boards comes with a pre-installed bootloader that makes it easy to upload 
 
 After you plug in the board to the USB port, the **bootloader will accept firmware uploads for 5 secs**, after that it switches and runs the installed firmware.
 
-Upload HEX firmware file in release/ folder to board using Micronucleus (https://github.com/kenny1342/MCU/tree/master/Sisyfos/release)
+Upload HEX firmware file in release/ folder (https://github.com/kenny1342/MCU/tree/master/Sisyfos/release) to board using Micronucleus
 
 - Install [Micronucleus](https://github.com/micronucleus/micronucleus/releases)
 - Install USB driver as instructed (https://github.com/micronucleus/micronucleus/tree/master/windows_driver_installer)
