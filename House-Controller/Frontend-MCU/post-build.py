@@ -32,5 +32,9 @@ def after_build(source, target, env):
     
     env.Execute("pio run -t buildfs")    
     shutil.copy(spiffs_source, 'bin/spiffs.bin')
+    
+    env.Execute("test -d /mnt/c/Development/FIRMWARE/HC-Frontend/ || mkdir -p /mnt/c/Development/FIRMWARE/HC-Frontend/")
+    shutil.copy(spiffs_source, '/mnt/c/Development/FIRMWARE/HC-Frontend/spiffs.bin')    
+    shutil.copy(firmware_source, '/mnt/c/Development/FIRMWARE/HC-Frontend/firmware.bin')    
 
 env.AddPostAction("buildprog", after_build)

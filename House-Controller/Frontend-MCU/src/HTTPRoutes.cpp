@@ -183,7 +183,7 @@ void Webserver::AddRoutes() {
 
   // for testing/dev
   server.on("/recover", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
+      request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin/spiffs.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
   });
 
   // Generic file upload form recovery/fallback (for upload of config.json)
