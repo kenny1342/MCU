@@ -5,8 +5,15 @@
 const int LED = 13;
 
 void setup() {
+  uint8_t x = 0;
   // make the pushButton pin an input:
   pinMode(LED, OUTPUT);
+  for(x=0; x<20; x++) {
+    digitalWrite(LED, 1);  
+    delay(100);
+    digitalWrite(LED, 0);
+    delay(100);
+  }
   // initialize control over the keyboard:
   Keyboard.begin();
 }
