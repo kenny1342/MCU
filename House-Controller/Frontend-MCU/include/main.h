@@ -6,6 +6,9 @@
 #include <TFT_eSPI.h>
 #include <setup.h>
 
+//8 seconds WDT
+#define WDT_TIMEOUT 8
+
 //#define USE_WIFIMGR
 #define DEF_WIFI_SSID  "service_wifi"
 //#define DEF_WIFI_SSID  "MCU"
@@ -17,9 +20,9 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define DEBUG               1       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
+#define DEBUG               0       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "3.29"
+#define FIRMWARE_VERSION    "3.30"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)

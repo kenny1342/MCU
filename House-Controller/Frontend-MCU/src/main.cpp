@@ -14,6 +14,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <esp_wifi.h>   // for esp_wifi_set_ps()
+#include <esp_task_wdt.h>
 #include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
@@ -25,7 +26,8 @@
 #include <ArduinoOTA.h>
 #include <logger.h>
 
-#include <logo_kra-tech.h>
+//#include <logo_kra-tech.h>
+#include <kra-tech_128x160.c>
 #include <Timemark.h>
 #include <Button_KRA.h>
 #include <setup.h>
@@ -84,6 +86,7 @@ AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 Logger logger = Logger(&tft);
 
+Timemark tm_Reboot(86400000); // 1 day
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
@@ -92,9 +95,9 @@ Timemark tm_SerialDebug(60000);
 Timemark tm_MenuReturn(30000);
 Timemark tm_UpdateDisplay(1000);
 
-const uint8_t NUM_TIMERS = 7;
-enum Timers { TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
-Timemark *Timers[NUM_TIMERS] = { &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay};
+const uint8_t NUM_TIMERS = 8;
+enum Timers { TM_Reboot, TM_ClearDisplay, TM_CheckConnections, TM_CheckDataAge, TM_PushToBlynk, TM_SerialDebug, TM_MenuReturn, TM_UpdateDisplay };
+Timemark *Timers[NUM_TIMERS] = { &tm_Reboot, &tm_ClearDisplay, &tm_CheckConnections, &tm_CheckDataAge, &tm_PushToBlynk, &tm_SerialDebug, &tm_MenuReturn, &tm_UpdateDisplay};
 
 bool OTArunning = false;
 volatile int interruptCounter;
@@ -130,7 +133,6 @@ void setup(void) {
   Serial_DATA.println("WiFi-MCU booting up...");
 
   Serial.begin(115200);
-
   Serial.println("");
   Serial.println("initializing...");
   Serial.println(FPSTR(FIRMWARE_VERSION_LONG));
@@ -139,7 +141,7 @@ void setup(void) {
   logger.println(F("To reset, press button for 5+ secs while powering on"));
   logger.println("");
   if(!DEBUG) delay(1000);
-
+  
   Q_rx.setFullOverwrite(true);
 
   tft.init();
@@ -151,8 +153,8 @@ void setup(void) {
   tft.setTextDatum(MC_DATUM);
 
   tft.setSwapBytes(true);
-  //tft.pushImage(0, 0,  240, 135, ttgo);
-  tft.pushImage(0, 0,  240, 135, kra_tech);
+  //tft.pushImage(0, 0,  240, 135, kra_tech);
+  tft.pushImage(0, 0,  128, 160, kra_tech);
   if(!DEBUG) delay(10000);
 
   tft.fillScreen(TFT_RED);
@@ -182,6 +184,10 @@ void setup(void) {
   tft.println("BLUE" );
   delay(10000);
 */
+  logger.println("Configuring WDT...");
+  esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL); //add current thread to WDT watch
+
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
   if(!DEBUG) delay(700);
@@ -260,6 +266,7 @@ void setup(void) {
   //reset network settings if button pressed
   if(BtnUP.isPressed()) {
     logger.println(F("Reset button pressed, keep pressed for 5 sec to reset network settings!"));
+    esp_task_wdt_reset();
     delay(5000);
     BtnUP.read();
     if(BtnUP.isPressed() &&  BtnUP.pressedFor(5000)) {
@@ -333,6 +340,7 @@ void setup(void) {
   Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 #endif
 
+  esp_task_wdt_reset();
   WiFi.setAutoReconnect(true);
 
   Serial.print("IP: ");
@@ -358,6 +366,7 @@ void setup(void) {
   setSyncInterval(atoi(config.ntp_interval));
 
   if(!DEBUG) delay(700);
+  esp_task_wdt_reset();
 
   logger.print(F("Starting HTTP server..."));
 
@@ -369,7 +378,7 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
   Serial.println(F("OK"));
-  
+  esp_task_wdt_reset();
   logger.println(F("Starting timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
@@ -387,6 +396,7 @@ void setup(void) {
   LCD_state.clear = 1;
 
   SaveTextToFile("startup completed!\n", "/messages.log", true);
+  esp_task_wdt_reset();
 }
 
 #ifdef USE_WIFIMGR
@@ -426,6 +436,7 @@ void ReconnectWiFi() {
       return;
     }
     delay(500);  
+    esp_task_wdt_reset();
     Serial.print(".");
   }  
   Serial.println(F("Reconnected OK!"));
@@ -495,12 +506,21 @@ void loop(void) {
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
   char _tmpbuf[JSON_SIZE];
 
+  esp_task_wdt_reset();
+
   ArduinoOTA.handle();
   if(OTArunning) return;
 
   ws.cleanupClients();
 
   CheckButtons();
+
+  if(Timers[TM_Reboot]->expired()){
+    Serial.println("Rebooting...");
+    SaveTextToFile("restart: [TM_Reboot]->expired\n", "/messages.log", true);
+    delay(100);
+    ESP.restart();
+  }
 
   if(shouldReboot){
     Serial.println("Rebooting...");
