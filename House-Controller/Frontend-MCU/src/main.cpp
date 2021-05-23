@@ -86,7 +86,7 @@ AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 Logger logger = Logger(&tft);
 
-Timemark tm_Reboot(86400000); // 1 day
+Timemark tm_Reboot(8*3600000); // 8 hours
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
@@ -123,6 +123,7 @@ void IRAM_ATTR onTimer() {
 
 
 void setup(void) {
+  uint8_t cnt = 0;
 
   pinMode(PIN_LED_1, OUTPUT);
   digitalWrite(PIN_LED_1, 0);
@@ -173,17 +174,6 @@ void setup(void) {
   tft.println("\n\n   Starting...  ");
   if(!DEBUG) delay(700);
 
-/*
-  tft.setTextColor(TFT_ORANGE, TFT_BLACK);
-  tft.println("ORANGE" );
-  tft.setTextColor(TFT_RED, TFT_BLACK);
-  tft.println("RED" );
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.println("YELLOW" );
-  tft.setTextColor(TFT_BLUE, TFT_BLACK);
-  tft.println("BLUE" );
-  delay(10000);
-*/
   logger.println("Configuring WDT...");
   esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); //add current thread to WDT watch
@@ -328,6 +318,19 @@ void setup(void) {
   esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
   WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
   delay(2000);
+  while (WiFi.status() != WL_CONNECTED) {  
+    if(cnt++ > 20) {
+      Serial.println(F("connection failed, rebooting!"));
+      SaveTextToFile("restart: wifi connection failed\n", "/messages.log", true);
+      delay(2000);
+      ESP.restart();
+      return;
+    }
+    delay(500);  
+    esp_task_wdt_reset();
+    //Serial.print(".");
+  }  
+/*
   if (WiFi.waitForConnectResult() == WL_CONNECTED) {
 
   } else {
@@ -337,6 +340,7 @@ void setup(void) {
     ESP.restart();
     return;
   }
+  */
   Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 #endif
 
