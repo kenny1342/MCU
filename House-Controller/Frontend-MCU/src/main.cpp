@@ -156,7 +156,7 @@ void setup(void) {
   tft.setSwapBytes(true);
   //tft.pushImage(0, 0,  240, 135, kra_tech);
   tft.pushImage(0, 0,  128, 160, kra_tech);
-  if(!DEBUG) delay(10000);
+  if(!DEBUG) delay(5000);
 
   tft.fillScreen(TFT_RED);
   if(!DEBUG) delay(300);
@@ -315,19 +315,23 @@ void setup(void) {
 
 #ifndef USE_WIFIMGR
   WiFi.mode(WIFI_AP_STA);
-  esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
+  //esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
+  logger.println(F("setting wifi mode=STA..."));
   WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
   delay(2000);
+  logger.println(F("connecting to wifi..."));
+  cnt = 0;
   while (WiFi.status() != WL_CONNECTED) {  
-    if(cnt++ > 20) {
-      Serial.println(F("connection failed, rebooting!"));
-      SaveTextToFile("restart: wifi connection failed\n", "/messages.log", true);
+    if(cnt++ > 30) {
+      logger.println(F("connection failed, rebooting!"));
+      SaveTextToFile("setup(): wifi connection failed, reboot\n", "/messages.log", true);
       delay(2000);
       ESP.restart();
       return;
     }
     delay(500);  
-    esp_task_wdt_reset();
+    esp_task_wdt_reset();    
+    logger.print(".");
     //Serial.print(".");
   }  
 /*
