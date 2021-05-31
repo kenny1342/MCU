@@ -279,7 +279,9 @@ void setup(void) {
     
   }
 
-  logger.println(F("Connecting to WiFi..."));
+  logger.println(F("Initializing WiFi..."));
+  delay(1000);
+  esp_task_wdt_reset();
 
 #ifdef USE_WIFIMGR
   // our custom parameters
@@ -314,12 +316,17 @@ void setup(void) {
 #endif
 
 #ifndef USE_WIFIMGR
+  esp_task_wdt_reset();
+  logger.println(F("setting wifi mode=STA..."));
   WiFi.mode(WIFI_AP_STA);
   //esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
-  logger.println(F("setting wifi mode=STA..."));
+  delay(1000);
+  esp_task_wdt_reset();
   WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
+  esp_task_wdt_reset();
   delay(2000);
-  logger.println(F("connecting to wifi..."));
+  esp_task_wdt_reset();
+  logger.println(F("Connecting to WiFi..."));
   cnt = 0;
   while (WiFi.status() != WL_CONNECTED) {  
     if(cnt++ > 30) {
