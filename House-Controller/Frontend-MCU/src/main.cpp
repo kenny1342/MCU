@@ -174,9 +174,6 @@ void setup(void) {
   tft.println("\n\n   Starting...  ");
   if(!DEBUG) delay(700);
 
-  logger.println("Configuring WDT...");
-  esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
-  esp_task_wdt_add(NULL); //add current thread to WDT watch
 
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
@@ -281,7 +278,6 @@ void setup(void) {
 
   logger.println(F("Initializing WiFi..."));
   delay(1000);
-  esp_task_wdt_reset();
 
 #ifdef USE_WIFIMGR
   // our custom parameters
@@ -316,17 +312,21 @@ void setup(void) {
 #endif
 
 #ifndef USE_WIFIMGR
-  esp_task_wdt_reset();
   logger.println(F("setting wifi mode=STA..."));
   WiFi.mode(WIFI_AP_STA);
-  //esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
-  delay(1000);
-  esp_task_wdt_reset();
+  
+  //delay(1000);
+  logger.println(F("wifi.begin..."));
+  // faling connect bug issues fix start (connects fails about every other time)
+  // https://github.com/espressif/arduino-esp32/issues/2501
   WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
-  esp_task_wdt_reset();
-  delay(2000);
-  esp_task_wdt_reset();
-  logger.println(F("Connecting to WiFi..."));
+  WiFi.persistent(false);
+  WiFi.setAutoConnect(false);
+  WiFi.setAutoReconnect(true);
+  WiFi.setTxPower(WIFI_POWER_2dBm); //  reducing the TX power about 60 fold from 100mW down to 1.6mW... it's needed for the fix
+  // faling connect bug issues fix end
+  esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
+  logger.println(F("Waiting for WiFi conn..."));
   cnt = 0;
   while (WiFi.status() != WL_CONNECTED) {  
     if(cnt++ > 30) {
@@ -337,30 +337,20 @@ void setup(void) {
       return;
     }
     delay(500);  
-    esp_task_wdt_reset();    
     logger.print(".");
     //Serial.print(".");
   }  
-/*
-  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
-
-  } else {
-    Serial.println("connection failed, rebooting!");
-    SaveTextToFile("restart: wifi connection failed\n", "/messages.log", true);
-    delay(2000);
-    ESP.restart();
-    return;
-  }
-  */
   Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 #endif
-
-  esp_task_wdt_reset();
-  WiFi.setAutoReconnect(true);
 
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
   
+  logger.println("Configuring WDT...");
+  esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL); //add current thread to WDT watch
+  esp_task_wdt_reset();
+
   logger.print(F("Configuring OTA..."));
   Setup::OTA();
   if(!DEBUG) delay(700);
@@ -381,7 +371,6 @@ void setup(void) {
   setSyncInterval(atoi(config.ntp_interval));
 
   if(!DEBUG) delay(700);
-  esp_task_wdt_reset();
 
   logger.print(F("Starting HTTP server..."));
 
@@ -393,7 +382,6 @@ void setup(void) {
     Serial.println(F("FAILED"));
   }
   Serial.println(F("OK"));
-  esp_task_wdt_reset();
   logger.println(F("Starting timer ISR..."));
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
@@ -434,13 +422,15 @@ void ReconnectWiFi() {
 
   reconnects_wifi++;
   uint8_t cnt = 0;
-    
+
+  SaveTextToFile("ReconnectWiFi()\n", "/messages.log", true);  
   Serial.print(F("Reconnecting wifi... "));
 #ifdef USE_WIFIMGR
   ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
   Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
   ESPAsync_wifiManager.autoConnect();
 #endif
+
 #ifndef USE_WIFIMGR
   WiFi.reconnect();
 #endif
