@@ -752,9 +752,9 @@ void CheckConnections(void) {
 
   bool shouldReconnect = false;
 
-  if (!WiFi.isConnected()) {
+  if (!eth_connected && !WiFi.isConnected()) {
     shouldReconnect = true;
-    Serial.print(F("ERR: WiFi disconnected"));
+    Serial.print(F("ERR:networks disconnected"));
   }
 
   //IPAddress gw(192,168,30,1);
@@ -771,7 +771,7 @@ void CheckConnections(void) {
     Serial.printf("NTP errors: %u\n", ntp_errors);
   }
   
-  if (shouldReconnect)
+  if (!eth_connected && shouldReconnect)
   {
     Serial.print(F("ERR: problems detected, trying reconnect #"));
     Serial.println(reconnects_wifi);
