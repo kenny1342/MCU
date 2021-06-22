@@ -64,7 +64,8 @@ uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
 MENUPAGES_t MenuPages;
 
-Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO T-Display board
+//Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO T-Display board
+Button BtnUP(PIN_SW_UP, 25U, true, true); // No pullup on this pin, enable internal
 Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable internal
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
@@ -536,6 +537,7 @@ void loop(void) {
   // Read lines from serial RX buffer and add to queue until full
   //uint8_t Q_rx_idx = 0;
   if(Serial_DATA.available()) {
+    //logger.println("if Serial_DATA.available");
     while(Serial_DATA.available())
     {
       //logger.println("while Serial_DATA.available");
@@ -543,8 +545,8 @@ void loop(void) {
       esp_task_wdt_reset();
       if(Q_rx.isFull()) break; // leave remaining data in serial buffer until next loop() cycle
       Serial_DATA.setTimeout(500);
-      //Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
-      readline(Serial_DATA, buffer_rx, sizeof(buffer_rx));
+      Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
+      //readline(Serial_DATA, buffer_rx, sizeof(buffer_rx));
       Serial_DATA.setTimeout(2000);
       if(strlen(buffer_rx) > 10) {
         Q_rx.push((uint8_t *)buffer_rx);

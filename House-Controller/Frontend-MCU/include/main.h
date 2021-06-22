@@ -41,10 +41,11 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
 #define PIN_SW_DOWN         32 //0 //23 (IO0)
-#define PIN_SW_UP           34 //0//35 // 11 (IO35)
-#define PIN_LED_1           12 //37
-#define PIN_RXD2            35 //25
-#define PIN_TXD2            36 //26
+#define PIN_SW_UP           0// 34 //0//35 // 11 (IO35)
+#define PIN_LED_1           35 //37
+#define PIN_RXD2            16 //25
+#define PIN_TXD2            12 //26
+// POE: gpio12 seems like reset
 
 // poe ethernet board w/sd
 #define SD_MISO         2
