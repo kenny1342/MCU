@@ -21,7 +21,7 @@
 
 #define DEBUG               0       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "3.41"
+#define FIRMWARE_VERSION    "3.42"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -40,11 +40,11 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #ifndef BLYNK_TOKEN // this should be set via env.py (pre-build script defined in platformio.ini)
     #define BLYNK_TOKEN         STR(BLYNK_TOKEN)
 #endif
-#define PIN_SW_DOWN         0 //23 (IO0)
-#define PIN_SW_UP           0//35 // 11 (IO35)
-#define PIN_LED_1           37
-#define PIN_RXD2 25
-#define PIN_TXD2 26
+#define PIN_SW_DOWN         32 //0 //23 (IO0)
+#define PIN_SW_UP           34 //0//35 // 11 (IO35)
+#define PIN_LED_1           12 //37
+#define PIN_RXD2            35 //25
+#define PIN_TXD2            36 //26
 
 // poe ethernet board w/sd
 #define SD_MISO         2
