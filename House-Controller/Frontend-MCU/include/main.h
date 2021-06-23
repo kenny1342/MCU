@@ -9,11 +9,6 @@
 //8 seconds WDT
 #define WDT_TIMEOUT 8
 
-#define DEF_WIFI_SSID  "service_wifi"
-//#define DEF_WIFI_SSID  "MCU"
-#define DEF_WIFI_PW    "hemmelig"
-
-#define PING_TARGET "192.168.30.1"  // host/ip to ping for network/wifi status testing
 
 // Helpers to read strings from build options macros
 #define XSTR(x) #x
@@ -21,7 +16,7 @@
 
 #define DEBUG               0       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "3.45"
+#define FIRMWARE_VERSION    "3.47"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)
@@ -31,6 +26,10 @@ const char FIRMWARE_VERSION_LONG[] PROGMEM = "HouseMaster (MCU ESP32-WiFi) v" FI
 #define CONF_DEF_PORT                "80"
 #define CONF_DEF_NTP_SERVER          "192.168.30.13"
 #define CONF_DEF_NTP_INTERVAL        "60"  // secs
+#define CONF_DEF_WIFI_SSID           "service_wifi"
+#define CONF_DEF_WIFI_PSK            "hemmelig"
+#define CONF_DEF_PING_TARGET         "192.168.30.1"  // host/ip to ping for network/wifi status testing
+
 
 #define JSON_SIZE                   900
 #define JSON_SIZE_REMOTEPROBES      250
@@ -105,11 +104,7 @@ struct LCD_state_struct {
 } ;
 
 void WiFiEvent(WiFiEvent_t event);
-#ifdef USE_BLYNK
-bool ConnectBlynk();
-#endif
 void ReconnectWiFi();
-int readline(int readch, char *buffer, int len);
 String HTMLProcessor(const String& var);
 void saveConfigCallback ();
 void CheckConnections(void);

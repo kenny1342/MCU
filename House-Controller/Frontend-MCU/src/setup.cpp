@@ -32,6 +32,9 @@ bool Setup::GetConfig() {
   strlcpy(config.port, CONF_DEF_PORT, sizeof(config.port));    
   strlcpy(config.ntpserver, CONF_DEF_NTP_SERVER, sizeof(config.ntpserver));    
   strlcpy(config.ntp_interval, CONF_DEF_NTP_INTERVAL, sizeof(config.ntp_interval));
+  strlcpy(config.wifi_ssid, CONF_DEF_WIFI_SSID, sizeof(config.ntp_interval));
+  strlcpy(config.wifi_psk, CONF_DEF_WIFI_PSK, sizeof(config.ntp_interval));
+  strlcpy(config.ping_target, CONF_DEF_PING_TARGET, sizeof(config.ping_target));
 
 
   if (SPIFFS.exists(_configfile)) {
@@ -56,7 +59,16 @@ bool Setup::GetConfig() {
         if(doc["port"] && strlen(doc["port"]) > 0) {
             strlcpy(config.port, doc["port"], sizeof(config.port));
         }
-
+        if(doc["wifi_ssid"] && strlen(doc["wifi_ssid"]) > 0) {
+            strlcpy(config.wifi_ssid, doc["wifi_ssid"], sizeof(config.wifi_ssid));
+        }
+        if(doc["wifi_psk"] && strlen(doc["wifi_psk"]) > 0) {
+            strlcpy(config.wifi_psk, doc["wifi_psk"], sizeof(config.wifi_psk));
+        }
+        if(doc["ping_target"] && strlen(doc["ping_target"]) > 0) {
+            strlcpy(config.ping_target, doc["ping_target"], sizeof(config.ping_target));
+        }
+        
       } else {
           Serial.println("FAILED\ncould not open /config.json"); 
           return false;   
@@ -83,6 +95,8 @@ bool Setup::SaveConfig() {
   // Set the values in the document
   doc["hostname"] = config.hostname;
   doc["port"] = config.port;
+  doc["wifi_ssid"] = config.wifi_ssid;
+  doc["wifi_psk"] = config.wifi_psk;
 
   // Serialize JSON to file
   if (serializeJson(doc, configFile) == 0) {

@@ -261,15 +261,9 @@ void setup(void) {
   }
   
 
-//  logger.print(F("Loading configuration from /config.json..."));
-//  Setup::GetConfig();
-
-  if(!DEBUG) delay(500);
-  logger.println(F("Starting WiFi..."));
-
   // reset settings if flagfile exists
   if(SPIFFS.exists("/doreset.dat")) {
-    logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting as AP...");
+    logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting...");
     SPIFFS.remove("/doreset.dat");
 
     delay(500);
@@ -321,11 +315,11 @@ if(!eth_connected) {
   logger.println(F("wifi.begin..."));
   // faling connect bug issues fix start (connects fails about every other time)
   // https://github.com/espressif/arduino-esp32/issues/2501
-  WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
+  WiFi.begin(config.wifi_ssid, config.wifi_psk);
   WiFi.persistent(false);
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(true);
-  WiFi.setTxPower(WIFI_POWER_2dBm); //  reducing the TX power about 60 fold from 100mW down to 1.6mW... it's needed for the fix
+  //WiFi.setTxPower(WIFI_POWER_2dBm); //  reducing the TX power about 60 fold from 100mW down to 1.6mW... it's needed for the fix
   // faling connect bug issues fix end
   esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
   logger.println(F("Waiting for WiFi conn..."));
@@ -339,7 +333,7 @@ if(!eth_connected) {
       return;
     }
     if(eth_connected) {
-      logger.println("wired ethernet connected, wifi aborted");
+      logger.println("wired ethernet connected, disabling wifi!");
       WiFi.disconnect();
       break;
     }
@@ -350,7 +344,7 @@ if(!eth_connected) {
   Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
 
 } else {
-  logger.println("ethernet connected, skipping wifi");
+  logger.println("ethernet connected, leaving wifi disabled");
   delay(1000);
 }
 
@@ -446,32 +440,6 @@ void ReconnectWiFi() {
   Serial.println(F("Reconnected OK!"));
   reconnects_wifi = 0;
 } 
-
-/**
- * Read chars from Serial until newline and put string in buffer
- * 
- */
-int readline(int readch, char *buffer, int len) {
-    static int pos = 0;
-    int rpos;
-
-    if (readch > 0) {
-        switch (readch) {
-            case '\r': // Ignore CR
-                break;
-            case '\n': // Return on new-line
-                rpos = pos;
-                pos = 0;  // Reset position index ready for next time
-                return rpos;
-            default:
-                if (pos < len-1) {
-                    buffer[pos++] = readch;
-                    buffer[pos] = 0;
-                }
-        }
-    }
-    return 0;
-}
 
 String HTMLProcessor(const String& var) {
   Serial.println(var);
@@ -764,8 +732,8 @@ void CheckConnections(void) {
   }
 
   //IPAddress gw(192,168,30,1);
-  bool ping_ok = Ping.ping(PING_TARGET, 1);
-  Serial.printf("ping %s: %f ms\n", PING_TARGET, Ping.averageTime());
+  bool ping_ok = Ping.ping(config.ping_target, 1);
+  Serial.printf("ping %s: %f ms\n", config.ping_target, Ping.averageTime());
 
   if (!ping_ok || Ping.averageTime() > 200.0) {
     shouldReconnect = true;
@@ -779,7 +747,7 @@ void CheckConnections(void) {
   
   if (!eth_connected && shouldReconnect)
   {
-    Serial.print(F("ERR: no wired eth, shouldReconnect=true, trying reconnect #"));
+    Serial.print(F("ERR: no wired eth, shouldReconnect=true, trying wifi reconnect #"));
     Serial.println(reconnects_wifi);
     ReconnectWiFi();
     
@@ -1030,7 +998,7 @@ void UpdateDisplay(void) {
         }
         
         if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
+          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<const char *>();
           uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
           if(state && t_val) {
             tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
