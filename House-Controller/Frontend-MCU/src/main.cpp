@@ -403,11 +403,8 @@ if(!eth_connected) {
     Timers[t]->start();
   }
 
-  // empty RX buffer
-  Serial_DATA.flush();
-  do 
-      { char t = Serial_DATA.read();
-      } while (Serial_DATA.available() > 0);
+  // empty RX buffer 
+  while (Serial_DATA.available() > 0) Serial_DATA.read();
 
   logger.println(F("Setup completed! Waiting for data..."));
   
@@ -415,7 +412,16 @@ if(!eth_connected) {
   tft.setTextWrap(false);
   LCD_state.clear = 1;
 
-  SaveTextToFile("startup completed!\n", "/messages.log", true);
+  if(checkIfColdStart())
+  {
+    Serial.println(F("restart by WDT"));
+    SaveTextToFile("restarted by WDT, startup completed!\n", "/messages.log", true);
+  } else {
+    Serial.println(F("Cold start"));
+    SaveTextToFile("cold boot, startup completed!\n", "/messages.log", true);
+  }
+
+  
   esp_task_wdt_reset();
 }
 
@@ -773,7 +779,7 @@ void CheckConnections(void) {
   
   if (!eth_connected && shouldReconnect)
   {
-    Serial.print(F("ERR: problems detected, trying reconnect #"));
+    Serial.print(F("ERR: no wired eth, shouldReconnect=true, trying reconnect #"));
     Serial.println(reconnects_wifi);
     ReconnectWiFi();
     
@@ -1261,3 +1267,18 @@ void SaveTextToFile(const char *text, const char *filename, bool append) {
   file.close();
   delay(200);
 }
+
+bool checkIfColdStart ()
+ {
+ const char signature [] = "REBOOTFLAG";
+ char * p = (char *) malloc (sizeof (signature));
+ if (strcmp (p, signature) == 0)   // signature already there
+   //DPRINTLN ("Watchdog activated.");
+   return false;
+ else
+   {
+   //DPRINTLN ("Cold start.");
+   memcpy (p, signature, sizeof signature);  // copy signature into RAM
+   return true;
+   }
+ }  // end of checkIfColdStart

@@ -6,7 +6,7 @@
 
 //#include <ESPAsyncWebServer.h>
 //#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
-
+#include <TimeLib.h>
 #include <ESPmDNS.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
@@ -116,7 +116,7 @@ void Webserver::AddRoutes() {
 
   server.on("/json/frontend", HTTP_GET, [](AsyncWebServerRequest *request){
     String output;
-    StaticJsonDocument<150> doc;
+    StaticJsonDocument<140> doc;
     JsonObject root = doc.to<JsonObject>();
     // Add vital data from our self (ESP chip)
     JsonObject json = root.createNestedObject("ESP");
@@ -127,7 +127,7 @@ void Webserver::AddRoutes() {
     json["chipid"] = (uint16_t)(chipid>>32); //use High 2 bytes
     json["uptimesecs"] = millis() /1000;
     //json["localtime"] = SecondsToDateTimeString(timeClient.getEpochTime(), TFMT_DATETIME);
-    //json["localtime"] 
+    json["clock"] = SecondsToDateTimeString(now(), TFMT_DATETIME);
     serializeJson(root, output);
     request->send(200, "application/json", output);    
   });
