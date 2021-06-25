@@ -716,7 +716,7 @@ void loop(void) {
 } // loop()
 
 void CheckConnections(void) {
-  Serial.printf("%s: checking network health...\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+  Serial.printf("%s: checking network health: ", SecondsToDateTimeString(now(), TFMT_DATETIME));
 
   timeStatus_t NTPstatus  = timeStatus();
   if(NTPstatus != timeSet) {
@@ -733,11 +733,11 @@ void CheckConnections(void) {
 
   //IPAddress gw(192,168,30,1);
   bool ping_ok = Ping.ping(config.ping_target, 1);
-  Serial.printf("ping %s: %f ms\n", config.ping_target, Ping.averageTime());
+  Serial.printf("ping %s: %f ms ", config.ping_target, Ping.averageTime());
 
   if (!ping_ok || Ping.averageTime() > 200.0) {
     shouldReconnect = true;
-    Serial.print(F("ERR: Ping failed"));
+    Serial.print(F("ERR: timeout\n"));
   }
   
   if (ntp_errors > 60) {
@@ -756,11 +756,11 @@ void CheckConnections(void) {
       Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
       SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
       ESP.restart();
-      delay(10000);
+      delay(2000);
       return;
     }
   } else {
-    Serial.println(F("WiFi OK"));
+    Serial.println(F("[OK]"));
   }
 
 }
@@ -774,7 +774,7 @@ void UpdateDisplay(void) {
   DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
   bool nodata = true;
   for(int x=0; x<JSON_DOC_COUNT; x++) {
-    
+    esp_task_wdt_reset();
     if(JSON_STRINGS[x][0] == '\0') {
       continue;
     }
@@ -945,13 +945,17 @@ void UpdateDisplay(void) {
           JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
           if(!alarms.isNull() && alarms.size() == 0) {
             const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
-            tft.printf("Last A: %s          ", lastAlarm);
+            if(lastAlarm != NULL) {
+              tft.printf("Last A: %s          ", lastAlarm);
+            }            
           } else {
             tft.setTextColor(TFT_RED, TFT_WHITE);
         
             for(uint8_t x=0; x< alarms.size(); x++) {
               const char* str = alarms[x];
-              tft.printf("A:%s ", str );
+              if(str != NULL) {
+                tft.printf("A:%s ", str );
+              }
             }
           }
         }
