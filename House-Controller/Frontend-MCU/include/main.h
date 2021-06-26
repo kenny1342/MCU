@@ -6,9 +6,10 @@
 #include <TFT_eSPI.h>
 #include <setup.h>
 
+#define USE_WEBSOCKETS  0
+
 //8 seconds WDT
 #define WDT_TIMEOUT 8
-
 
 // Helpers to read strings from build options macros
 #define XSTR(x) #x
@@ -16,7 +17,7 @@
 
 #define DEBUG               0       // more verbose + disables all delays (logo display, pause between display messages etc) in setup()
 
-#define FIRMWARE_VERSION    "3.51"
+#define FIRMWARE_VERSION    "3.53"
 #define AUTHOR_COPYRIGHT    "2020-2021"
 #define AUTHOR_TEXT         ("(c) Ken-Roger Andersen " AUTHOR_COPYRIGHT  " - ken.roger@gmail.com")
 // store long global string in flash (put the pointers to PROGMEM)

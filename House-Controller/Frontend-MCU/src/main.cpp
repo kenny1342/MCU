@@ -79,12 +79,14 @@ uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
 AsyncWebServer server(80);
-//AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
-//AsyncEventSource events("/events"); // event source (Server-Sent events)
+#if USE_WEBSOCKETS == 1
+AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncEventSource events("/events"); // event source (Server-Sent events)
+#endif
 
 Logger logger = Logger(&tft);
 
-Timemark tm_Reboot(8*3600000); // 8 hours
+Timemark tm_Reboot(12*3600000);
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
@@ -476,7 +478,9 @@ void loop(void) {
   ArduinoOTA.handle();
   if(OTArunning) return;
 
-  //ws.cleanupClients();
+  #if USE_WEBSOCKETS == 1
+  ws.cleanupClients();
+  #endif
 
   CheckButtons();
 

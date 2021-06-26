@@ -156,13 +156,14 @@ bool Setup::FileSystem()
 
 bool Setup::WebServer()
 {
-    
+#if USE_WEBSOCKETS == 1
   // attach AsyncWebSocket
-  //ws.onEvent(onEvent);
-  //server.addHandler(&ws);
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
   
   // attach AsyncEventSource
-  //server.addHandler(&events);
+  server.addHandler(&events);
+#endif
 
   Webserver::AddRoutes();
 
