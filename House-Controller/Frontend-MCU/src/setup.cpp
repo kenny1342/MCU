@@ -158,10 +158,11 @@ bool Setup::WebServer()
 {
     
   // attach AsyncWebSocket
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
+  //ws.onEvent(onEvent);
+  //server.addHandler(&ws);
+  
   // attach AsyncEventSource
-  server.addHandler(&events);
+  //server.addHandler(&events);
 
   Webserver::AddRoutes();
 

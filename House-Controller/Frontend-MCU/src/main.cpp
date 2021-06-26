@@ -20,6 +20,7 @@
 #include <esp_wifi.h>   // for esp_wifi_set_ps()
 #include <esp_task_wdt.h>
 #include <time.h>
+#define CONFIG_ASYNC_TCP_USE_WDT 0
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
@@ -78,8 +79,8 @@ uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
-AsyncEventSource events("/events"); // event source (Server-Sent events)
+//AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+//AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 Logger logger = Logger(&tft);
 
@@ -475,7 +476,7 @@ void loop(void) {
   ArduinoOTA.handle();
   if(OTArunning) return;
 
-  ws.cleanupClients();
+  //ws.cleanupClients();
 
   CheckButtons();
 
