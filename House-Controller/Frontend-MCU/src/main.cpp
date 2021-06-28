@@ -56,7 +56,7 @@ bool shouldReboot = false;      //flag to use from web firmware update to reboot
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 #endif
 
-const int timeZone = 1;
+const int timeZone = 2;
 unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 uint8_t ntp_errors = 0;
 WiFiUDP ntpUDP;
@@ -86,7 +86,7 @@ AsyncEventSource events("/events"); // event source (Server-Sent events)
 
 Logger logger = Logger(&tft);
 
-Timemark tm_Reboot(12*3600000);
+Timemark tm_Reboot(120*3600000); // 120h=5 days
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
@@ -521,7 +521,7 @@ void loop(void) {
     {
       //logger.println("while Serial_DATA.available");
       char buffer_rx[JSON_SIZE] = {0};
-      esp_task_wdt_reset();
+
       if(Q_rx.isFull()) break; // leave remaining data in serial buffer until next loop() cycle
       Serial_DATA.setTimeout(500);
       Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
@@ -540,8 +540,6 @@ void loop(void) {
     uint32_t cmd = 0;
     uint32_t devid = 0;
     int32_t sid = -1;
-
-    esp_task_wdt_reset();
 
     if(Q_rx.isFull()) {
       Serial.println("ERR: Q_rx is full!!!" );
@@ -563,7 +561,8 @@ void loop(void) {
     //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
     if (error) {
         Serial.print(data_string);
-        Serial.print(F("\n^JSON_ERR: "));
+        //Serial.print(F("\n^JSON_ERR: "));
+        Serial.printf("\n^JSON_ERR: (%s): ", SecondsToDateTimeString(now(), TFMT_DATETIME));
         Serial.println(error.f_str());
     } else {
 
@@ -721,7 +720,7 @@ void loop(void) {
 } // loop()
 
 void CheckConnections(void) {
-  Serial.printf("%s: checking network health: ", SecondsToDateTimeString(now(), TFMT_DATETIME));
+  Serial.printf("%s: checking network health:\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
 
   timeStatus_t NTPstatus  = timeStatus();
   if(NTPstatus != timeSet) {
@@ -733,39 +732,52 @@ void CheckConnections(void) {
 
   if (!eth_connected && !WiFi.isConnected()) {
     shouldReconnect = true;
-    Serial.print(F("ERR:networks disconnected"));
+    Serial.println(F("ERR:networks disconnected"));
   }
 
   //IPAddress gw(192,168,30,1);
   bool ping_ok = Ping.ping(config.ping_target, 1);
-  Serial.printf("ping %s: %f ms ", config.ping_target, Ping.averageTime());
+  Serial.printf("ping %s: %f ms\n", config.ping_target, Ping.averageTime());
 
   if (!ping_ok || Ping.averageTime() > 200.0) {
     shouldReconnect = true;
     Serial.print(F("ERR: timeout\n"));
   }
   
-  if (ntp_errors > 60) {
-    shouldReconnect = true;
-    Serial.printf("NTP errors: %u\n", ntp_errors);
+  if (ntp_errors > 200) {
+    //shouldReconnect = true;
+    Serial.printf("NTP errors: %u\nRestarting NTP...", ntp_errors);
+    ntpUDP.stop();
+    delay(1000);
+    ntpUDP.begin(localPortNTP);
+    setSyncProvider(getNtpTime);
+    setSyncInterval(atoi(config.ntp_interval));
+
   }
-  
-  if (!eth_connected && shouldReconnect)
+
+  if (shouldReconnect)
   {
-    Serial.print(F("ERR: no wired eth, shouldReconnect=true, trying wifi reconnect #"));
-    Serial.println(reconnects_wifi);
-    ReconnectWiFi();
-    
-    if (reconnects_wifi > 20)
-    {
-      Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
-      SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
-      ESP.restart();
-      delay(2000);
-      return;
+
+    if (!eth_connected) {
+      Serial.print(F("ERR: shouldReconnect=true, wifi enabled, trying wifi reconnect #"));
+      Serial.println(reconnects_wifi);
+      ReconnectWiFi();
+      
+      if (reconnects_wifi > 20)
+      {
+        Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
+        SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
+        ESP.restart();
+      }
+
+    } else {
+        Serial.println(F("ERR: shouldReconnect=true, wifi disabled, rebooting..."));          
+        SaveTextToFile("restart: shouldReconnect=true, wifi disabled, rebooting\n", "/messages.log", true);
+        ESP.restart();
     }
+
   } else {
-    Serial.println(F("[OK]"));
+    Serial.println(F("shouldReconnect=false, network OK"));
   }
 
 }
