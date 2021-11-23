@@ -1,6 +1,8 @@
 {
     "hostname": "wifi-ctrl-02",
     "port": "80",
+    "wifi_ssid": "kra-stb",
+    "wifi_psk": "escort82",
     "ntpserver": "192.168.30.1",
     "circuits": {
       "1": {"name": "Main", "size":63},

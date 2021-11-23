@@ -11,11 +11,16 @@
 #include "SPIFFS.h"
 #include <ST7735_SPI128x160.h>
 #include <TFT_eSPI.h>
+#include <ETH.h>
+
 #include <SPI.h>
+#include <SD.h>
+
 #include <WiFi.h>
 #include <esp_wifi.h>   // for esp_wifi_set_ps()
 #include <esp_task_wdt.h>
 #include <time.h>
+#define CONFIG_ASYNC_TCP_USE_WDT 0
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <ESPmDNS.h>
@@ -32,20 +37,12 @@
 #include <Button_KRA.h>
 #include <setup.h>
 
-#ifdef USE_WIFIMGR
-#define _ESPASYNC_WIFIMGR_LOGLEVEL_    4 // Use from 0 to 4. Higher number, more debugging messages and memory usage.
-#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
-#endif
-
 #include <main.h>
 
 char WEBIF_VERSION[6] = "N/A"; // read from file (/WEBIF_VERSION)
 char ADC_VERSION[6]   = "N/A"; // filled from ADC JSON data
 
-#ifdef USE_WIFIMGR
-void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager);
-DNSServer dnsServer;
-#endif
+static bool eth_connected = false;
 
 //StaticJsonDocument<JSON_SIZE> JSON_DOCS[JSON_DOC_COUNT]; // = StaticJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
 
@@ -59,7 +56,7 @@ bool shouldReboot = false;      //flag to use from web firmware update to reboot
 bool shouldSaveConfig = false;  //WifiManger callback flag for saving data
 #endif
 
-const int timeZone = 1;
+const int timeZone = 2;
 unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 uint8_t ntp_errors = 0;
 WiFiUDP ntpUDP;
@@ -68,7 +65,8 @@ uint8_t menu_page_current = 0;
 LCD_state_struct LCD_state;
 MENUPAGES_t MenuPages;
 
-Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO T-Display board
+//Button BtnUP(PIN_SW_UP, 25U, false, true); // This pin has wired pullup on TTGO T-Display board
+Button BtnUP(PIN_SW_UP, 25U, true, true); // No pullup on this pin, enable internal
 Button BtnDOWN(PIN_SW_DOWN, 25U, true, true); // No pullup on this pin, enable internal
 const uint16_t LONG_PRESS(1000);           // we define a "long press" to be 1000 milliseconds.
 
@@ -81,12 +79,14 @@ uint32_t dataAge = 0;
 uint16_t reconnects_wifi = 0;
 
 AsyncWebServer server(80);
+#if USE_WEBSOCKETS == 1
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events"); // event source (Server-Sent events)
+#endif
 
 Logger logger = Logger(&tft);
 
-Timemark tm_Reboot(8*3600000); // 8 hours
+Timemark tm_Reboot(120*3600000); // 120h=5 days
 Timemark tm_ClearDisplay(600000); // 600sec=10min
 Timemark tm_CheckConnections(60000); 
 Timemark tm_CheckDataAge(5000);
@@ -121,6 +121,42 @@ void IRAM_ATTR onTimer() {
   
 }
 
+void WiFiEvent(WiFiEvent_t event)
+{
+    switch (event) {
+    case SYSTEM_EVENT_ETH_START:
+        Serial.println("ETH Started");
+        //set eth hostname here
+        ETH.setHostname(config.hostname);
+        break;
+    case SYSTEM_EVENT_ETH_CONNECTED:
+        Serial.println("ETH Connected");
+        break;
+    case SYSTEM_EVENT_ETH_GOT_IP:
+        Serial.print("ETH MAC: ");
+        Serial.print(ETH.macAddress());
+        Serial.print(", IPv4: ");
+        Serial.print(ETH.localIP());
+        if (ETH.fullDuplex()) {
+            Serial.print(", FULL_DUPLEX");
+        }
+        Serial.print(", ");
+        Serial.print(ETH.linkSpeed());
+        Serial.println("Mbps");
+        eth_connected = true;
+        break;
+    case SYSTEM_EVENT_ETH_DISCONNECTED:
+        Serial.println("ETH Disconnected");
+        eth_connected = false;
+        break;
+    case SYSTEM_EVENT_ETH_STOP:
+        Serial.println("ETH Stopped");
+        eth_connected = false;
+        break;
+    default:
+        break;
+    }
+}
 
 void setup(void) {
   uint8_t cnt = 0;
@@ -156,14 +192,14 @@ void setup(void) {
   tft.setSwapBytes(true);
   //tft.pushImage(0, 0,  240, 135, kra_tech);
   tft.pushImage(0, 0,  128, 160, kra_tech);
-  if(!DEBUG) delay(5000);
+  if(!DEBUG) delay(3000);
 
   tft.fillScreen(TFT_RED);
-  if(!DEBUG) delay(300);
+  if(!DEBUG) delay(100);
   tft.fillScreen(TFT_BLUE);
-  if(!DEBUG) delay(300);
+  if(!DEBUG) delay(100);
   tft.fillScreen(TFT_GREEN);
-  if(!DEBUG) delay(300);
+  if(!DEBUG) delay(100);
 
   tft.setTextWrap(true);
 
@@ -174,10 +210,38 @@ void setup(void) {
   tft.println("\n\n   Starting...  ");
   if(!DEBUG) delay(700);
 
-
   logger.println(F("Starting FS (SPIFFS)..."));
   Setup::FileSystem();
   if(!DEBUG) delay(700);
+
+  logger.print(F("Loading configuration from /config.json..."));
+  Setup::GetConfig();
+
+  WiFi.onEvent(WiFiEvent);
+
+  SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
+  if (!SD.begin(SD_CS)) {
+      logger.println("SDCard MOUNT FAIL");
+  } else {
+      uint32_t cardSize = SD.cardSize() / (1024 * 1024);
+      String str = "SDCard Size: " + String(cardSize) + "MB";
+      Serial.println(str);
+  }
+
+  logger.println(F("Activating ethernet..."));
+
+  pinMode(NRST, OUTPUT);
+  digitalWrite(NRST, 0);
+  delay(200);
+  digitalWrite(NRST, 1);
+  delay(200);
+  digitalWrite(NRST, 0);
+  delay(200);
+  digitalWrite(NRST, 1);
+
+  ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
+  delay(2000);
+
 
   Serial.print(F("reading /WEBIF_VERSION..."));
   if(SPIFFS.exists("/WEBIF_VERSION")) {
@@ -200,46 +264,12 @@ void setup(void) {
   }
   
 
-  logger.print(F("Loading configuration from /config.json..."));
-  Setup::GetConfig();
-
-  if(!DEBUG) delay(500);
-  logger.println(F("Starting WiFi..."));
-
-  //WiFi.setTxPower(WIFI_POWER_19_5dBm);
-
-#ifdef USE_WIFIMGR
-  //WiFiManager custom parameters/config
-  ESPAsync_WMParameter custom_hostname("hostname", "Hostname", config.hostname, 64);
-  ESPAsync_WMParameter custom_port("port", "HTTP port", config.port, 6);
-  ESPAsync_WMParameter custom_ntpserver("ntpserver", "NTP server", config.ntpserver, 64);
-
-  //Local intialization. Once setup() done, there is no need to keep it around
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer, "KRATECH-WEB");
-
-  ESPAsync_wifiManager.setDebugOutput(true);
-  //ESPAsync_wifiManager.setConnectTimeout(10);
-
-  ESPAsync_wifiManager.setBreakAfterConfig(true); // exit after config
-
-  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
-  ESPAsync_wifiManager.setAPCallback(WIFIconfigModeCallback);
-
-  //set config save notify callback
-  ESPAsync_wifiManager.setSaveConfigCallback(saveConfigCallback);
-  //set static ip
-  //wifiManager.setSTAStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
-#endif
-
   // reset settings if flagfile exists
   if(SPIFFS.exists("/doreset.dat")) {
-    logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting as AP...");
+    logger.println("reset flagfile /doreset.dat found, resetting WiFi and rebooting...");
     SPIFFS.remove("/doreset.dat");
 
     delay(500);
-    #ifdef USE_WIFIMGR 
-    ESPAsync_wifiManager.resetSettings(); 
-    #endif // esp8266, not esp32
     SaveTextToFile("restart: flagfile /doreset.dat found\n", "/messages.log", true);
     delay(5000);
     ESP.restart();
@@ -276,42 +306,11 @@ void setup(void) {
     
   }
 
+if(!eth_connected) {
+
+
   logger.println(F("Initializing WiFi..."));
-  delay(1000);
-
-#ifdef USE_WIFIMGR
-  // our custom parameters
-  ESPAsync_wifiManager.addParameter(&custom_hostname);
-  ESPAsync_wifiManager.addParameter(&custom_port);
-  ESPAsync_wifiManager.addParameter(&custom_ntpserver);
-  //ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,30,254), IPAddress(192,168,30,1), IPAddress(255,255,255,0));
-
-  ESPAsync_wifiManager.autoConnect("KRATECH-AP");
-  if (WiFi.status() != WL_CONNECTED) { 
-    logger.println(F("Failed to connect, will restart"));
-    SaveTextToFile("restart: wifi failed to connect\n");
-    delay(3000);
-    ESP.restart();
-    delay(5000);
-  }
-
-  //save the custom parameters to FS
-  if (shouldSaveConfig) {
-    logger.println(F("Saving config..."));
-    if(Setup::SaveConfig()) {
-      logger.println("OK");
-
-      //read updated parameters
-      strcpy(config.hostname, custom_hostname.getValue());
-      strcpy(config.port, custom_port.getValue());
-      strcpy(config.ntpserver, custom_ntpserver.getValue());
-    } 
-  }
-
-  Serial.printf("Connected! SSID: %s, key: %s\n", ESPAsync_wifiManager.getStoredWiFiSSID().c_str(), ESPAsync_wifiManager.getStoredWiFiPass().c_str());
-#endif
-
-#ifndef USE_WIFIMGR
+  delay(500);
   logger.println(F("setting wifi mode=STA..."));
   WiFi.mode(WIFI_AP_STA);
   
@@ -319,29 +318,38 @@ void setup(void) {
   logger.println(F("wifi.begin..."));
   // faling connect bug issues fix start (connects fails about every other time)
   // https://github.com/espressif/arduino-esp32/issues/2501
-  WiFi.begin(DEF_WIFI_SSID, DEF_WIFI_PW);
+  WiFi.begin(config.wifi_ssid, config.wifi_psk);
   WiFi.persistent(false);
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(true);
-  WiFi.setTxPower(WIFI_POWER_2dBm); //  reducing the TX power about 60 fold from 100mW down to 1.6mW... it's needed for the fix
+  //WiFi.setTxPower(WIFI_POWER_2dBm); //  reducing the TX power about 60 fold from 100mW down to 1.6mW... it's needed for the fix
   // faling connect bug issues fix end
   esp_wifi_set_ps (WIFI_PS_NONE); // turn of power saving, resolve long ping latency and slow connects
   logger.println(F("Waiting for WiFi conn..."));
   cnt = 0;
   while (WiFi.status() != WL_CONNECTED) {  
     if(cnt++ > 30) {
-      logger.println(F("connection failed, rebooting!"));
+      logger.println(F("wifi conn failed, rebooting!"));
       SaveTextToFile("setup(): wifi connection failed, reboot\n", "/messages.log", true);
       delay(2000);
       ESP.restart();
       return;
+    }
+    if(eth_connected) {
+      logger.println("wired ethernet connected, disabling wifi!");
+      WiFi.disconnect();
+      break;
     }
     delay(500);  
     logger.print(".");
     //Serial.print(".");
   }  
   Serial.printf("Connected! SSID: %s, key: %s\n", WiFi.SSID().c_str(), WiFi.psk().c_str());
-#endif
+
+} else {
+  logger.println("ethernet connected, leaving wifi disabled");
+  delay(1000);
+}
 
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
@@ -353,7 +361,7 @@ void setup(void) {
 
   logger.print(F("Configuring OTA..."));
   Setup::OTA();
-  if(!DEBUG) delay(700);
+  if(!DEBUG) delay(400);
 
   logger.print(F("Starting MDNS..."));
   if (MDNS.begin(config.hostname)) {
@@ -370,7 +378,7 @@ void setup(void) {
   setSyncProvider(getNtpTime);
   setSyncInterval(atoi(config.ntp_interval));
 
-  if(!DEBUG) delay(700);
+  if(!DEBUG) delay(500);
 
   logger.print(F("Starting HTTP server..."));
 
@@ -392,31 +400,27 @@ void setup(void) {
     Timers[t]->start();
   }
 
+  // empty RX buffer 
+  while (Serial_DATA.available() > 0) Serial_DATA.read();
+
   logger.println(F("Setup completed! Waiting for data..."));
   
   //delay(2000);
   tft.setTextWrap(false);
   LCD_state.clear = 1;
 
-  SaveTextToFile("startup completed!\n", "/messages.log", true);
+  if(checkIfColdStart())
+  {
+    Serial.println(F("restart by WDT"));
+    SaveTextToFile("restarted by WDT, startup completed!\n", "/messages.log", true);
+  } else {
+    Serial.println(F("Cold start"));
+    SaveTextToFile("cold boot, startup completed!\n", "/messages.log", true);
+  }
+
+  
   esp_task_wdt_reset();
 }
-
-#ifdef USE_WIFIMGR
-//gets called when WiFiManager enters configuration mode
-void WIFIconfigModeCallback (ESPAsync_WiFiManager *myWiFiManager) {
-  Serial.println("Entered config mode");
-  Serial.println(WiFi.softAPIP());
-  //if you used auto generated SSID, print it
-  Serial.println(myWiFiManager->getConfigPortalSSID());
-  
-  char str[150];
-  snprintf(str, 150, "*IN AP/CONFIG MODE *\nTo configure the\nnetwork settings:\nConnect to WiFi/SSID\n      %s      \n  and navigate to\n%s", myWiFiManager->getConfigPortalSSID().c_str(), WiFi.softAPIP().toString().c_str());
-  logger.println(str);
-  //delay(2000);
-  // Connect to WiFi KRA-TECH and open http://192.168.255.255 in a browser to complete configuration
-}
-#endif
 
 void ReconnectWiFi() {  
 
@@ -425,15 +429,7 @@ void ReconnectWiFi() {
 
   SaveTextToFile("ReconnectWiFi()\n", "/messages.log", true);  
   Serial.print(F("Reconnecting wifi... "));
-#ifdef USE_WIFIMGR
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&server, &dnsServer);
-  Serial.print(ESPAsync_wifiManager.getStoredWiFiSSID()); Serial.print("/"); Serial.println(ESPAsync_wifiManager.getStoredWiFiPass());
-  ESPAsync_wifiManager.autoConnect();
-#endif
-
-#ifndef USE_WIFIMGR
   WiFi.reconnect();
-#endif
 
   while (WiFi.status() != WL_CONNECTED) {  
     if(cnt++ > 20) {
@@ -447,32 +443,6 @@ void ReconnectWiFi() {
   Serial.println(F("Reconnected OK!"));
   reconnects_wifi = 0;
 } 
-
-/**
- * Read chars from Serial until newline and put string in buffer
- * 
- */
-int readline(int readch, char *buffer, int len) {
-    static int pos = 0;
-    int rpos;
-
-    if (readch > 0) {
-        switch (readch) {
-            case '\r': // Ignore CR
-                break;
-            case '\n': // Return on new-line
-                rpos = pos;
-                pos = 0;  // Reset position index ready for next time
-                return rpos;
-            default:
-                if (pos < len-1) {
-                    buffer[pos++] = readch;
-                    buffer[pos] = 0;
-                }
-        }
-    }
-    return 0;
-}
 
 String HTMLProcessor(const String& var) {
   Serial.println(var);
@@ -498,14 +468,6 @@ String HTMLProcessor(const String& var) {
   return String();
 }
 
-#ifdef USE_WIFIMGR
-//WifiManager callback notifying us of the need to save config
-void saveConfigCallback () {
-  Serial.println("Should save config");
-  shouldSaveConfig = true;
-}
-#endif
-
 void loop(void) {
   
   bool doSerialDebug = Timers[TM_SerialDebug]->expired();
@@ -516,7 +478,9 @@ void loop(void) {
   ArduinoOTA.handle();
   if(OTArunning) return;
 
+  #if USE_WEBSOCKETS == 1
   ws.cleanupClients();
+  #endif
 
   CheckButtons();
 
@@ -547,19 +511,26 @@ void loop(void) {
 
   if(Timers[TM_UpdateDisplay]->expired()) {
     UpdateDisplay();
-  } // tm_UpdateDisplay.expired()
+  }
 
   // Read lines from serial RX buffer and add to queue until full
   //uint8_t Q_rx_idx = 0;
-  while(Serial_DATA.available())
-  {
-    char buffer_rx[JSON_SIZE] = {0};
-    if(Q_rx.isFull()) break; // leave remaining data in serial buffer until next loop() cycle
+  if(Serial_DATA.available()) {
+    //logger.println("if Serial_DATA.available");
+    while(Serial_DATA.available())
+    {
+      //logger.println("while Serial_DATA.available");
+      char buffer_rx[JSON_SIZE] = {0};
 
-    Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
-    if(strlen(buffer_rx) > 10) {
-      Q_rx.push((uint8_t *)buffer_rx);
-      //Serial.printf("Q_rx: added to #%u of %u \n", Q_rx_idx++, QUEUE_RX_SIZE);
+      if(Q_rx.isFull()) break; // leave remaining data in serial buffer until next loop() cycle
+      Serial_DATA.setTimeout(500);
+      Serial_DATA.readBytesUntil('\n', buffer_rx, sizeof(buffer_rx));
+      //readline(Serial_DATA, buffer_rx, sizeof(buffer_rx));
+      Serial_DATA.setTimeout(2000);
+      if(strlen(buffer_rx) > 10) {
+        Q_rx.push((uint8_t *)buffer_rx);
+        //Serial.printf("Q_rx: added to #%u of %u \n", Q_rx_idx++, QUEUE_RX_SIZE);
+      }
     }
   }
 
@@ -584,46 +555,16 @@ void loop(void) {
     } else {
       //Serial.print(".");
     }
-/*
-      strcpy(_tmpbuf, data_string);
-      const char *token = strtok(_tmpbuf, ","); 
-      uint32_t ret = 0;
-      uint32_t _val = 0;      
-      // Split the json string into tokens comma as delimiter, Keep parsing tokens while one of the delimiters present in input
-      while (token != NULL) 
-      { 
-        //Serial.printf("token='%s' - cmd/devid/sid=%u/%u/%d\n", token, cmd, devid, sid);
-        sscanf(token, "{\"cmd\":%u", &cmd);
-        sscanf(token, "\"devid\":%u", &devid);   
-
-        // sid can legally be 0, need some additional validation
-        ret = sscanf(token, "\"sid\":%u", &_val);
-        if(ret != 0) {
-          sid = _val;
-        }
-
-        token = strtok(NULL, ","); 
-      }
-      _tmpbuf[0] = '\0';
-  */    
-
-    // TODO: remove tmp_json, instead parse out cmd/devid/sid/firmware etc directly, and strcpy data_string to JSON_STRINGS[n]
 
     DynamicJsonDocument tmp_json(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
     DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
     //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
-    /*
-    if(cmd == 0 || devid == 0 || sid == -1) {
-      Serial.print(data_string);
-      Serial.printf("\nERR: invalid cmd/devid/sid=%u/%u/%d\n", cmd, devid, sid);
-    } else {
-      */
     if (error) {
         Serial.print(data_string);
-        Serial.print(F("\n^JSON_ERR: "));
+        //Serial.print(F("\n^JSON_ERR: "));
+        Serial.printf("\n^JSON_ERR: (%s): ", SecondsToDateTimeString(now(), TFMT_DATETIME));
         Serial.println(error.f_str());
     } else {
-
 
       cmd = tmp_json["cmd"];
       if(!cmd) {
@@ -640,7 +581,6 @@ void loop(void) {
       }
       //Serial.printf("rx: %s\ncmd/devid/sid %u/%u/%d\n", data_string, cmd, devid, sid);
       
-
       switch(cmd) {
         case 0x10: {// ADCSYSDATA          
   
@@ -780,7 +720,7 @@ void loop(void) {
 } // loop()
 
 void CheckConnections(void) {
-  Serial.printf("%s: checking network health...\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
+  Serial.printf("%s: checking network health:\n", SecondsToDateTimeString(now(), TFMT_DATETIME));
 
   timeStatus_t NTPstatus  = timeStatus();
   if(NTPstatus != timeSet) {
@@ -790,41 +730,54 @@ void CheckConnections(void) {
 
   bool shouldReconnect = false;
 
-  if (!WiFi.isConnected()) {
+  if (!eth_connected && !WiFi.isConnected()) {
     shouldReconnect = true;
-    Serial.print(F("ERR: WiFi disconnected"));
+    Serial.println(F("ERR:networks disconnected"));
   }
 
   //IPAddress gw(192,168,30,1);
-  bool ping_ok = Ping.ping(PING_TARGET, 1);
-  Serial.printf("ping %s: %f ms\n", PING_TARGET, Ping.averageTime());
+  bool ping_ok = Ping.ping(config.ping_target, 1);
+  Serial.printf("ping %s: %f ms\n", config.ping_target, Ping.averageTime());
 
   if (!ping_ok || Ping.averageTime() > 200.0) {
     shouldReconnect = true;
-    Serial.print(F("ERR: Ping failed"));
+    Serial.print(F("ERR: timeout\n"));
   }
   
-  if (ntp_errors > 60) {
-    shouldReconnect = true;
-    Serial.printf("NTP errors: %u\n", ntp_errors);
+  if (ntp_errors > 200) {
+    //shouldReconnect = true;
+    Serial.printf("NTP errors: %u\nRestarting NTP...", ntp_errors);
+    ntpUDP.stop();
+    delay(1000);
+    ntpUDP.begin(localPortNTP);
+    setSyncProvider(getNtpTime);
+    setSyncInterval(atoi(config.ntp_interval));
+
   }
-  
+
   if (shouldReconnect)
   {
-    Serial.print(F("ERR: problems detected, trying reconnect #"));
-    Serial.println(reconnects_wifi);
-    ReconnectWiFi();
-    
-    if (reconnects_wifi > 20)
-    {
-      Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
-      SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
-      ESP.restart();
-      delay(10000);
-      return;
+
+    if (!eth_connected) {
+      Serial.print(F("ERR: shouldReconnect=true, wifi enabled, trying wifi reconnect #"));
+      Serial.println(reconnects_wifi);
+      ReconnectWiFi();
+      
+      if (reconnects_wifi > 20)
+      {
+        Serial.println(F("ERR: Too many WiFi attempts, rebooting..."));          
+        SaveTextToFile("restart: to many wifi attempts\n", "/messages.log", true);
+        ESP.restart();
+      }
+
+    } else {
+        Serial.println(F("ERR: shouldReconnect=true, wifi disabled, rebooting..."));          
+        SaveTextToFile("restart: shouldReconnect=true, wifi disabled, rebooting\n", "/messages.log", true);
+        ESP.restart();
     }
+
   } else {
-    Serial.println(F("WiFi OK"));
+    Serial.println(F("shouldReconnect=false, network OK"));
   }
 
 }
@@ -838,7 +791,7 @@ void UpdateDisplay(void) {
   DynamicJsonDocument JSON_DOCS[JSON_DOC_COUNT] = DynamicJsonDocument(JSON_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
   bool nodata = true;
   for(int x=0; x<JSON_DOC_COUNT; x++) {
-    
+    esp_task_wdt_reset();
     if(JSON_STRINGS[x][0] == '\0') {
       continue;
     }
@@ -1009,13 +962,17 @@ void UpdateDisplay(void) {
           JsonArray alarms = JSON_DOCS[JSON_DOC_ADCSYSDATA]["alarms"];
           if(!alarms.isNull() && alarms.size() == 0) {
             const char *lastAlarm = JSON_DOCS[JSON_DOC_ADCSYSDATA]["lastAlarm"];
-            tft.printf("Last A: %s          ", lastAlarm);
+            if(lastAlarm != NULL) {
+              tft.printf("Last A: %s          ", lastAlarm);
+            }            
           } else {
             tft.setTextColor(TFT_RED, TFT_WHITE);
         
             for(uint8_t x=0; x< alarms.size(); x++) {
               const char* str = alarms[x];
-              tft.printf("A:%s ", str );
+              if(str != NULL) {
+                tft.printf("A:%s ", str );
+              }
             }
           }
         }
@@ -1062,7 +1019,7 @@ void UpdateDisplay(void) {
         }
         
         if(!JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"].isNull()) {
-          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<char *>();
+          const char * state = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["status"].as<const char *>();
           uint32_t t_val = JSON_DOCS[JSON_DOC_ADCWATERPUMPDATA]["WP"]["t_state"].as<uint32_t>();
           if(state && t_val) {
             tft.printf("%s: %s\n", state, SecondsToDateTimeString(t_val, TFMT_HOURS));
@@ -1299,3 +1256,18 @@ void SaveTextToFile(const char *text, const char *filename, bool append) {
   file.close();
   delay(200);
 }
+
+bool checkIfColdStart ()
+ {
+ const char signature [] = "REBOOTFLAG";
+ char * p = (char *) malloc (sizeof (signature));
+ if (strcmp (p, signature) == 0)   // signature already there
+   //DPRINTLN ("Watchdog activated.");
+   return false;
+ else
+   {
+   //DPRINTLN ("Cold start.");
+   memcpy (p, signature, sizeof signature);  // copy signature into RAM
+   return true;
+   }
+ }  // end of checkIfColdStart

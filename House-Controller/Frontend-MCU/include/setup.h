@@ -7,6 +7,9 @@ struct Config {
   char port[6]; // TODO: apply to server..
   char ntpserver[64];
   char ntp_interval[4];
+  char wifi_ssid[30];
+  char wifi_psk[30];
+  char ping_target[30];
 };
 
 class Setup {

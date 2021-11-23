@@ -184,7 +184,8 @@ jQuery(document).ready(function () {
           console.log("invalid data, len=" + Object.keys(json).length);
           return;
         }
-          $("#uptime_sys").empty().append( formatSecs(json.ESP.uptimesecs) );
+        $("#clock").empty().append( formatSecs(json.ESP.clock) );  
+        $("#uptime_sys").empty().append( formatSecs(json.ESP.uptimesecs) );
           $("#heap").empty().append( json.ESP.heap );
           $("#freq").empty().append( json.ESP.freq  + ' Mhz');
           $("#chipid").empty().append( json.ESP.chipid );

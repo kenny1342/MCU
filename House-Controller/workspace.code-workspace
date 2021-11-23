@@ -20,5 +20,9 @@
 			"path": "WiFi-Probe"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"functional": "cpp"
+		}
+	}
 }
