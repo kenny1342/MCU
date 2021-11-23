@@ -63,3 +63,8 @@ void onNotFound(AsyncWebServerRequest *request);
 void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total);
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
 void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len);
+
+char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
+time_t sync();
+time_t getNtpTime();
+void sendNTPpacket(IPAddress &address);
