@@ -1,9 +1,6 @@
 {
-    "hostname": "enviro-mon-01",
-    "port": "80",
-    "ntpserver": "192.168.30.1",
-    "devid_sensor2": "50406",
-    "devid_sensor1": "33832",
+    "devid_sensor1": "50406",
+    "devid_sensor2": "33832",
     "devid_sensor3": "22664",
     "devid_hub": "2233",
     "version": "1.3"

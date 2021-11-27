@@ -33,13 +33,14 @@ jQuery(document).ready(function () {
   let testjson = '{"array":[  1,  2,  3],"boolean":true,"hostname":"console-01","port":80,"ntpserver":"192.168.30.1","devid_sensor1": "50406", "devid_sensor2": "33832","devid_sensor3": "22664","devid_hub": "2233","version":"1.2"  }';
   console.log("Loading config.json");
   
-  json = JSON.parse(testjson);
-  localStorage.setItem('config', JSON.stringify(json));
+  //json = JSON.parse(testjson);
+  //localStorage.setItem('config', JSON.stringify(json));
 
   fetch('/config.json') // Load configuration
   .then(response => response.json())
   .then(data => {            
       localStorage.setItem('config', JSON.stringify(data));
+      console.log("/config.json loaded OK");
       } // data =>
   )
   .catch(error => {
@@ -60,11 +61,15 @@ jQuery(document).ready(function () {
 
 
   function updateData_Pri3() {
-
+    const start = new Date();
+    
     fetch('/json/0x45') //REMOTE_SENSOR_DATA
     .then(response => response.json())
     .then(data => {
-        console.log(data);
+        //console.log(data);
+        const timeTaken= (new Date())-start;
+        localStorage.setItem('loadtime', timeTaken);
+
         localStorage.setItem('json0x45', JSON.stringify(data));
         } // data =>
     )

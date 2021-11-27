@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>ENVIRO-MON</title>
+  <title>ENVIRO-MON v%VERSION%</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="cache-control" content="public, max-age=604800, immutable" />
   <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
@@ -35,11 +35,11 @@
 
         <table id="table_probes" border="0">
           <tr>
-            <th colspan="2">Probes</th>
+            <th colspan="2">Sensors</th>
           </tr>
           <tr>
-            <td class="td_title">Sensor 1
-              <br />
+            <td class="td_title">Outside [1]
+              
               <div id="wifi_sensor1" class="signal-bars sizing-box bad one-bar">
                 <div class="first-bar bar"></div>
                 <div class="second-bar bar"></div>
@@ -52,8 +52,8 @@
             <td class="td_value"> <span id="devid_sensor1_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor1_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
           <tr>
-            <td class="td_title">Sensor 2
-              <br />
+            <td class="td_title">Inside [2]
+              
               <div id="wifi_sensor2" class="signal-bars sizing-box bad one-bar">
                 <div class="first-bar bar"></div>
                 <div class="second-bar bar"></div>
@@ -65,8 +65,8 @@
             <td class="td_value"> <span id="devid_sensor2_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor2_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
           </tr>
           <tr>
-            <td class="td_title">Sensor 3<!--<br /><span id="devid_bedroom_sid_0_rssi_class"></span>,<span id="devid_bedroom_sid_0_rssi_level"></span>-->
-              <br />
+            <td class="td_title">Inside [3]
+              
               <div id="wifi_sensor3" class="signal-bars sizing-box bad one-bar" >
                 <div class="first-bar bar"></div>
                 <div class="second-bar bar"></div>
@@ -84,12 +84,13 @@
     </tr>
   </table>
 
-    <hr /> 
-    <span id="footer">
+  <hr /> 
+  <span id="footer">
 
-      <br />
-      Web Interface v%WEBIF_VERSION% (ChipID: <span id="chipid">-</span> @ <span id="freq">0 Mhz</span>) <input type="checkbox" id="chktestdata" />test data - <span id="loadtime">99ms</span>
-    </span>
+    <br />
+    Web Interface v%WEBIF_VERSION% (ChipID: <span id="chipid">%CHIPID%</span> @ <span id="freq">%CPUFREQ% Mhz</span>) <input type="checkbox" id="chktestdata" />test data - <span id="loadtime">99ms</span>
+  </span>
+
 </div>
 
   

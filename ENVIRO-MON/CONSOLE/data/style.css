@@ -76,53 +76,24 @@ a:hover {
 }
 
 #table_probes {
-  width:80%;
+  width:90%;
 }
 
-#table_utility td {
-  padding: 20px;
-}
-#table_pump td, #table_emon td, #table_probes td {
+#table_probes td {
   padding: 5px;
 }
 
 .td_title {
   color: rgb(73, 73, 73);
 }
-#table_utility .td_title {
-  text-align: left;
-  font-size: 3em;
-  white-space: nowrap;
-}
-
-#table_utility .td_value {
-  text-align: left;
-  font-size: 4.2em;
-  white-space: nowrap;
-}
-#table_utility .small {
-  font-size: 1.7rem;
-}
-
-#table_pump .td_title {
-  text-align: left;
-  font-size: 2em;  
-}
-#table_pump .td_value {
-  text-align: left;
-  font-size: 3em;  
-}
-#table_pump .small {
-  font-size: 1.7rem;
-}
 
 #table_probes .td_title {
   text-align: left;
-  font-size: 2em;  
+  font-size: 4em;  
 }
 #table_probes .td_value {
   text-align: left;
-  font-size: 3em;  
+  font-size: 6em;  
 }
 #table_probes .small {
   font-size: 1.7rem;
@@ -136,35 +107,11 @@ a:hover {
 }*/
 
 
-#table_main th, #table_pump th, #table_emon th, #table_probes th {
-  font-size: 2em;
+#table_main th, #table_probes th {
+  font-size: 4em;
   color:rgb(148, 122, 5);
 }
 
-#table_emon {
-  width: 99%; 
-}
-
-#table_emon_circuits {
-  -webkit-transform: translate(1%, 0);
-  transform: translate(1%, 0);
-  width: 100%; 
-  white-space: nowrap;
-  border-spacing: 1px;
-  margin: 0 auto;
-}
-#table_emon_circuits td {
-  font-size: 2em;
-  border-bottom: 3px dotted rgb(141, 118, 14);
-}
-
-/* keep surrounding object still while fading out/in */
-#table_pump #wp_status{
-  position: fixed;
-  margin: -0.3rem auto;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 800;
-}
 
 .tr_minimized {
   display: none;
@@ -209,16 +156,6 @@ h1 {
     font-size: 2.5rem;
     color: rgb(51, 51, 51);
   }
-
-
-  #alarms {
-    text-align: center;
-    white-space: nowrap;
-    font-size: 1.1em;
-    color: red;
-    font-weight: 600;
-  }
-
   
 
   .button {
@@ -237,7 +174,7 @@ h1 {
     background-color: #f44336;
   }
   .units {
-    font-size: 2.2rem;
+    font-size: 3.2rem;
    }
    .units_xs {
     font-size: 1.2rem;
@@ -267,17 +204,13 @@ h1 {
     padding: 1em;
   }
 
-
-
-
-/*  
-  * {
-    box-sizing: border-box;
+  #footer {
+    margin-bottom: 1%;
   }
-  */
-  .sizing-box {
-    height: 15px;
-    width: 50px;    
+
+ .sizing-box {
+    height: 35px;
+    width: 80px;    
   }
   
   .signal-bars {
@@ -285,11 +218,11 @@ h1 {
   }
   
   .signal-bars .bar {
-    width: 4%;
+    width: 7%;
     margin-left: 1px;
-    min-height: 20%;
+    min-height: 30%;
     display: inline-block;
-    margin-right: -6px;
+    margin-right: -12px;
   }
   
   .signal-bars .bar.first-bar {
@@ -352,18 +285,8 @@ h1 {
     #table_utility td, #table_pump td, #table_emon_circuits td, #table_probes td {
       padding:0.2rem;
     }
-    #table_pump .small {
-      font-size: 0.7rem;
-    }
-    #table_utility .small {
-      font-size: 0.7rem;
-    }
     #table_probes .small {
       font-size: 0.7rem;
-    }
-
-    #table_emon_circuits tbody {
-      font-size:0.4rem;
     }
 
     .units {

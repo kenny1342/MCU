@@ -27,9 +27,6 @@
 #include <TFT_eSPI.h>
 #include <logo_kra-tech.h>
 
-//8 seconds WDT
-#define WDT_TIMEOUT 8
-
 bool OTArunning = false;
 bool printDebug = true;
 uint8_t client_count = 0;
@@ -39,25 +36,12 @@ uint16_t stat_conn_count;
 uint16_t last_conn_count;
 uint8_t reconnects_wifi;
 
-
-
 // Ring buffer with all chars received via TCP, to be written to serial
 CircularBuffer<char, 2048> queue_tx; // chars we queue (3 probes accumulates ~400 chars between each SendData every 5 sec)
-//CircularBuffer<char, 2048> datastore; // chars we queue (3 probes accumulates ~400 chars between each SendData every 5 sec)
-//#define QUEUE_RX_SIZE 255
-#define BUF_SIZE 800
-//MD_CirQueue Q_rx(BUF_SIZE, sizeof(char)); // temp storage reading tcp client
-//MD_CirQueue Q_rx(QUEUE_RX_SIZE, sizeof(char)*BUF_SIZE); // temp storage reading tcp client
-char buffer[BUF_SIZE] = {0}; // permanent storage, updated from Q_rx
-//uint16_t buffer_pos = 0; // last position in buffer
-//CircularBuffer<char, 512> Q_rx;
-char data_string[BUF_SIZE] = {0};
-#define MAX_REMOTE_SIDS 8
+
 char remote_data2[MAX_REMOTE_SIDS][BUF_SIZE];
 LCD_state_struct LCD_state;
 
-const int timeZone = 2;
-unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 uint8_t ntp_errors = 0;
 WiFiUDP ntpUDP;
 
@@ -105,14 +89,14 @@ void setup() {
   tft.setSwapBytes(true);
   //tft.pushImage(0, 0,  240, 135, ttgo);
   tft.pushImage(0, 0,  240, 135, kra_tech);
-  delay(10000);
+  delay(6000);
 
   tft.fillScreen(TFT_RED);
-  delay(300);
+  delay(200);
   tft.fillScreen(TFT_BLUE);
-  delay(300);
+  delay(200);
   tft.fillScreen(TFT_GREEN);
-  delay(300);
+  delay(200);
 
   tft.setTextWrap(true);
 
@@ -235,7 +219,7 @@ void setup() {
  }
  MDNS.addService("rs232-1", "tcp", 8880);
  
- Serial.print(F("Configuring NTP server "));
+ Serial.print(F("Configuring NTP client "));
   
   ntpUDP.begin(localPortNTP);
   Serial.println("syncing clock with NTP...");
@@ -250,9 +234,9 @@ void setup() {
   // attach AsyncEventSource
   webserver.addHandler(&events);
 
-      webserver.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
-        request->send(200);
-    }, onUpload);
+  webserver.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
+    request->send(200);
+   }, onUpload);
 
   // Route for root / web page with variable parser/processor
   webserver.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -286,17 +270,8 @@ void setup() {
   webserver.on("/json/0x45", HTTP_GET, [](AsyncWebServerRequest *request){
     AsyncResponseStream *response = request->beginResponseStream("application/json");
 
-
-/*
-    if(remote_data2[0] == '\0') {
-      response->print("NO DATA\n");
-      request->send(response);
-      return;
-    }
-*/
     response->print("[");
 
-    //request->send(200, "application/text", buffer);
 		for (uint8_t i = 0; i < MAX_REMOTE_SIDS; i++) {
       if(remote_data2[i][0] == '\0' || strlen(remote_data2[i]) < 2) {
         continue;
@@ -415,173 +390,21 @@ void loop()
       // Process data from clients
       if(clients[i]->available() ) {
       
-
-        //
         uint16_t idx = 0;
-        //char data_string[BUF_SIZE] = {0};
+        char data_string[BUF_SIZE] = {0};
         while(clients[i]->available()) {
           char c = clients[i]->read();
           queue_tx.unshift(c); // add a char to buffer (serial out)
-          //buffer[idx] = c; // add a char to buffer (webserver out)
-          //Q_rx.push((uint8_t *) &c);
-          data_string[idx] = c;
+          data_string[idx] = c; // add a char to buffer (web server)
           clientdata[i].bytes_rx++;
           idx++;
         }
         data_string[idx] = '\0';
-        //Serial.println("pushed #1");
-        //buffer[idx] = '\0';
         stat_bytes_rx += clientdata[i].bytes_rx;
         queue_tx.unshift('\n');
-        
-        //char c;
-        //c = '\n';
-        //Q_rx.push((uint8_t *) &c);
 
-    uint32_t cmd = 0;
-    uint32_t devid = 0;
-    int32_t sid = -1;
-    
+        processSensorData(data_string);
 
-
-    //Q_rx.pop((uint8_t *) &data_string);
-
-    //data_string: {"cmd":69,"devid":50406,"sid":1,"data":{"value":26.4}}
-//Serial.println("DEB 1");
-
-    DynamicJsonDocument tmp_json(BUF_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
-    DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
-    //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
-
-    if (error) {
-        Serial.print(data_string);
-        Serial.print(F("\n^JSON_ERR: "));
-        Serial.println(error.f_str());
-    } else {
-
-
-      cmd = tmp_json["cmd"];
-      if(!cmd) {
-        cmd = 0;
-      }
-      devid = tmp_json["devid"];
-      if(!devid) {
-        devid = 0;
-      }
-      if(tmp_json["sid"].isNull()) {
-        sid = -1;
-      } else {
-        sid = tmp_json["sid"];
-      }
-
-    
-      
-      //Serial.println("DEB 2");
-
-          uint32_t _devid = 0;
-          int32_t _sid = -1;
-          uint32_t _ts = 0;
-          bool need_to_add = true;
-          uint8_t slot_to_add = 0;
-          char _tmpbuf[BUF_SIZE];
-
-          tmp_json["ts"] = now();
-
-//_ts = now();
-
-          for(uint8_t i=MAX_REMOTE_SIDS-1; i>0; i--) {  
-
-            if(remote_data2[i][0] != '\0' && strlen(remote_data2[i]) > 1) {    
-              // make a copy of the array to tokenize, as we need to retain original
-              strcpy(_tmpbuf, remote_data2[i]);
-              char *token = strtok(_tmpbuf, ","); 
-              uint32_t ret = 0;
-              uint32_t _val = 0;
-
-              // Keep parsing tokens while one of the delimiters present in input
-              while (token != NULL) 
-              { 
-                  sscanf(token, "\"devid\":%u", &_devid);            
-                  // sid can legally be 0, need some additional validation
-                  ret = sscanf(token, "\"sid\":%u", &_val);
-                  if(ret != 0) {
-                    _sid = _val;
-                  }
-                  
-                  sscanf(token, "\"ts\":%u", &_ts);
-                  token = strtok(NULL, ","); 
-              }
-
-              if(_devid == 0 || _sid == -1 || _ts == 0) {
-                Serial.printf("ERR: 0x45 #%u slot invalid devid/sid/ts (%u/%u/%u)\n", i, _devid, _sid, _ts);
-                memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
-                slot_to_add = i;
-              } else {
-                Serial.printf("0x45 #%u looking for slot devid=%u,sid=%u\n", i, _devid, _sid);
-
-                // if data too old, delete doc so slot can be reused
-                if(now() - _ts > MAX_AGE_SID) {
-                  Serial.printf("ERR: 0x45 #%u old (>%u sec), freeing spot\n", i, MAX_AGE_SID);
-                  //remote_data2[i][0] = '\0';
-                  memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
-                }
-
-                if(
-                  _devid == devid &&
-                  _sid == sid              
-                ) {
-
-                  //if(doSerialDebug) 
-                    //Serial.printf("0x45 #%u updating slot devid/sid %u/%u...", i, _devid, _sid);
-
-                  // TODO: fix random crashes (LoadException)
-                  //Serial.printf("0x45 #%u tmp_json.size=%u, sizeof remote_data2=%u\n", i, tmp_json.size(), sizeof(remote_data2[MAX_REMOTE_SIDS]));
-                  if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
-                    serializeJson(tmp_json, remote_data2[i]);  
-                  } else {
-                    Serial.print(F("ERR: 0x45 tmp_json too big for remote_data2, ignoring!\n"));
-                  }
-                  //Serial.print(F("OK\n"));
-
-                  need_to_add = false;
-                  break;
-                } else {
-                  
-                  //Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, devid, _sid, sid);
-                }                  
-              }
-            } else {
-              Serial.printf("0x45 #%u slot empty\n", i);
-              slot_to_add = i;
-            }
-          } // for
-
-          bool is_added = false;
-          if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
-            if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
-              serializeJson(tmp_json, remote_data2[slot_to_add]);
-              is_added = true;
-              Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, _devid, _sid);
-            } else {
-              Serial.print(F("ERR 0x45 tmp_json too big for remote_data2, ignoring!\n"));
-            }
-          } else {
-            Serial.print(F("0x45 need_to_add=false\n"));
-          }
-
-          // check if we ran out of space in array (more devid/sid than MAX_REMOTE_SIDS)
-          if(need_to_add && !is_added) {
-            Serial.print(F("ERR: 0x45 failed to add to buffer/no space, increase MAX_REMOTE_SIDS: "));
-            Serial.println(MAX_REMOTE_SIDS);
-          }
-    }
-
-
-
-
-
-        //datastore.unshift('\n');
-        
         if(printDebug) Serial.printf("got %u bytes, ", clientdata[i].bytes_rx);
 
         clients[i]->printf("DATA RCVD OK:%u BYTES\nBYE\n\n", clientdata[i].bytes_rx);
@@ -613,29 +436,8 @@ void loop()
     }
     if(printDebug) Serial.printf("\nClients: (%u/%u)\n", client_count, MAX_CLIENTS);
     if(printDebug) Serial.printf("Listening on TCP: %s:%u\n",WiFi.localIP().toString().c_str(), SERIAL1_TCP_PORT);
-    if(printDebug) Serial.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
-
-
-    //if (!Q_rx.isEmpty()) {
-    if (buffer[0] != '\0') {
-      if(printDebug) Serial.println(buffer);
-      /*
-      //if(Q_rx.isFull()) {
-      //  Serial.println("ERR: Q_rx is full!!!" );
-      //}
-    
-      if(printDebug) Serial.print("Q_rx:");
-      for (byte i = 0; i < Q_rx.size() - 1; i++) {
-          if(Q_rx[i] != '\0')
-            if(printDebug) Serial.print(Q_rx[i]);
-      }
-      if(printDebug) Serial.print("\n");
-      //if(printDebug) Serial.printf("Q_rx.pop: %s\n", data_string);
-      */
-    }
-  
+    if(printDebug) Serial.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));  
   }
-
 
   if(tm_CheckWifi.expired()) {
 
@@ -742,8 +544,6 @@ void loop()
         Serial_one.write(c);
         //if(printDebug) Serial.write(c);  
         delayMicroseconds(10); // don't stress ATMega
-        //Serial.write('\n');  
-        //Serial_one.write('\n');
       }  
 
       if(printDebug) Serial.printf("OK!\n");  
@@ -755,8 +555,139 @@ void loop()
 }
 
 /**
-* Take measurements of the Wi-Fi strength and return the average result.
-*/
+ * @brief Process JSON strings recieved from wireless sensors, update data array in memory "remote_data2" used by web server/ajax
+ * 
+ * @param data_string 
+ */
+void processSensorData(char *data_string){
+  uint32_t cmd = 0;
+  uint32_t devid = 0;
+  int32_t sid = -1;    
+  uint32_t _devid = 0;
+  int32_t _sid = -1;
+  uint32_t _ts = 0;
+  bool need_to_add = true;
+  uint8_t slot_to_add = 0;
+  char _tmpbuf[BUF_SIZE];
+
+  DynamicJsonDocument tmp_json(BUF_SIZE); // Dynamic; store in the heap (recommended for documents larger than 1KB)
+  DeserializationError error = deserializeJson(tmp_json, (const char*) data_string); // read-only input (duplication)
+  //DeserializationError error = deserializeJson(tmp_json, data_string); // writeable (zero-copy method)
+
+  if (error) {
+      Serial.print(data_string);
+      Serial.print(F("\n^JSON_ERR: "));
+      Serial.println(error.f_str());
+  } else {
+
+    cmd = tmp_json["cmd"];
+    if(!cmd) {
+      cmd = 0;
+    }
+    devid = tmp_json["devid"];
+    if(!devid) {
+      devid = 0;
+    }
+    if(tmp_json["sid"].isNull()) {
+      sid = -1;
+    } else {
+      sid = tmp_json["sid"];
+    }
+
+    tmp_json["ts"] = now();
+
+    for(uint8_t i=MAX_REMOTE_SIDS-1; i>0; i--) {  
+
+      if(remote_data2[i][0] != '\0' && strlen(remote_data2[i]) > 1) {    
+        // make a copy of the array to tokenize, as we need to retain original
+        strcpy(_tmpbuf, remote_data2[i]);
+        char *token = strtok(_tmpbuf, ","); 
+        uint32_t ret = 0;
+        uint32_t _val = 0;
+
+        // Keep parsing tokens while one of the delimiters present in input
+        while (token != NULL) 
+        { 
+            sscanf(token, "\"devid\":%u", &_devid);            
+            // sid can legally be 0, need some additional validation
+            ret = sscanf(token, "\"sid\":%u", &_val);
+            if(ret != 0) {
+              _sid = _val;
+            }
+            
+            sscanf(token, "\"ts\":%u", &_ts);
+            token = strtok(NULL, ","); 
+        }
+
+        if(_devid == 0 || _sid == -1 || _ts == 0) {
+          Serial.printf("ERR: 0x45 #%u slot invalid devid/sid/ts (%u/%u/%u)\n", i, _devid, _sid, _ts);
+          memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
+          slot_to_add = i;
+        } else {
+          Serial.printf("0x45 #%u looking for slot devid=%u,sid=%u\n", i, _devid, _sid);
+
+          // if data too old, delete doc so slot can be reused
+          if(now() - _ts > MAX_AGE_SID) {
+            Serial.printf("ERR: 0x45 #%u old (>%u sec), freeing spot\n", i, MAX_AGE_SID);
+            memset ( (void*)remote_data2[i], 0, sizeof(remote_data2[i]) );
+          }
+
+          // verify data found in memory slot matches the recieved data/sensor
+          if(
+            _devid == devid &&
+            _sid == sid              
+          ) {
+
+            //if(doSerialDebug) 
+              //Serial.printf("0x45 #%u updating slot devid/sid %u/%u...", i, _devid, _sid);
+            //Serial.printf("0x45 #%u tmp_json.size=%u, sizeof remote_data2=%u\n", i, tmp_json.size(), sizeof(remote_data2[MAX_REMOTE_SIDS]));
+            if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
+              serializeJson(tmp_json, remote_data2[i]);  
+            } else {
+              Serial.print(F("ERR: 0x45 tmp_json too big for remote_data2, ignoring!\n"));
+            }
+            //Serial.print(F("OK\n"));
+
+            need_to_add = false;
+            break;
+          } else {
+            //Serial.printf("0x45 #%u no match, current/received slot devid=%u/%u,sid=%u/%u\n", i, _devid, devid, _sid, sid);
+          }                  
+        }
+      } else {
+        //Serial.printf("0x45 #%u slot empty\n", i);
+        slot_to_add = i;
+      }
+    } // for
+
+    bool is_added = false;
+    if(need_to_add) { // devid/sid must be added to an empty position (json doc) in array
+      if(tmp_json.size() < sizeof(remote_data2[MAX_REMOTE_SIDS])) {
+        serializeJson(tmp_json, remote_data2[slot_to_add]);
+        is_added = true;
+        //Serial.printf("0x45 #%u data added to buffer devid=%u,sid=%u\n", slot_to_add, _devid, _sid);
+      } else {
+        Serial.print(F("ERR 0x45 tmp_json too big for remote_data2, ignoring!\n"));
+      }
+    } else {
+      //Serial.print(F("0x45 need_to_add=false\n"));
+    }
+
+    // check if we ran out of space in array (more devid/sid than MAX_REMOTE_SIDS)
+    if(need_to_add && !is_added) {
+      Serial.print(F("ERR: 0x45 failed to add to buffer/no space, increase MAX_REMOTE_SIDS: "));
+      Serial.println(MAX_REMOTE_SIDS);
+    }
+  }
+
+}
+
+/**
+ * @brief Take measurements of the Wi-Fi strength and return the average result.
+ * 
+ * @param points 
+ * @return int 
+ */
 int getStrength(int points){
     long rssi = 0;
     long averageRSSI = 0;
@@ -770,7 +701,13 @@ int getStrength(int points){
     return averageRSSI;
 }
 
-
+/**
+ * @brief Build human-readable string from bytes
+ * 
+ * @param bytes 
+ * @param str 
+ * @return const char* 
+ */
 const char *FormatBytes(long long bytes, char *str)
 {
     const char *sizes[5] = { "B", "KB", "MB", "GB", "TB" };
@@ -785,6 +722,13 @@ const char *FormatBytes(long long bytes, char *str)
     return strcat(strcat(str, " "), sizes[i]);
 }
 
+/**
+ * @brief Build human-readable time string from Seconds
+ * 
+ * @param seconds 
+ * @param format 
+ * @return char* 
+ */
 char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
 {
   time_t curSec;
@@ -812,65 +756,101 @@ char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
   return dateString;
 }
 
-
+/**
+ * @brief 
+ * 
+ * @param server 
+ * @param client 
+ * @param type 
+ * @param arg 
+ * @param data 
+ * @param len 
+ */
 void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   //Handle WebSocket event
   Serial.println(F("onEvent"));
 }
 
+/**
+ * @brief HTTP upload handler
+ * 
+ * @param request 
+ * @param filename 
+ * @param index 
+ * @param data 
+ * @param len 
+ */
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-  //Handle upload
   Serial.println(F("onUpload"));
 
-
-
-    bool is_config_json = (filename.indexOf("config.json") >= 0); 
-    if(!index){      
-      Serial.printf("UploadStart: %s\n",filename.c_str());
-      // open the file on first call and store the file handle in the request object
-      request->_tempFile = SPIFFS.open("/"+filename, "w");
-    }
-    if(len) {
-      // stream the incoming chunk to the opened file
-      request->_tempFile.write(data,len);
-    }
-    if(final){
-      Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
-      // close the file handle as the upload is now done
-      request->_tempFile.close();
-      //request->redirect("/");
+  bool is_config_json = (filename.indexOf("config.json") >= 0); 
+  if(!index){      
+    Serial.printf("UploadStart: %s\n",filename.c_str());
+    // open the file on first call and store the file handle in the request object
+    request->_tempFile = SPIFFS.open("/"+filename, "w");
+  }
+  if(len) {
+    // stream the incoming chunk to the opened file
+    request->_tempFile.write(data,len);
+  }
+  if(final){
+    Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
+    // close the file handle as the upload is now done
+    request->_tempFile.close();
+    
+    if(is_config_json) {
+      Serial.printf("is_config_json=true, close conn\n");
+      AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
+      response->addHeader("Connection", "close");
+      request->send(response);
       
-      if(is_config_json) {
-        Serial.printf("is_config_json=true, close conn\n");
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
-        response->addHeader("Connection", "close");
-        request->send(response);
-        
-        delay(2000);
-        //ESP.restart();
-      } else {
-        delay(2000);
-        //request->redirect("/");
-      }
+      delay(2000);
+      //ESP.restart();
+    } else {
+      delay(2000);
     }
+  }
 }
 
+/**
+ * @brief HTTP request handler
+ * 
+ * @param request 
+ */
 void onRequest(AsyncWebServerRequest *request){
-  //Handle valid Request
   Serial.printf("HTTP: %s\n", request->url().c_str());
 }
 
+/**
+ * @brief HTTP 404 not found handler
+ * 
+ * @param request 
+ */
 void onNotFound(AsyncWebServerRequest *request){
   //Handle Unknown Request
   Serial.printf("onNotFound: HTTP/404 - %s,%s\n", request->url().c_str(), request->client()->remoteIP().toString().c_str());
   request->send(404);
 }
 
+/**
+ * @brief HTTP body handler
+ * 
+ * @param request 
+ * @param data 
+ * @param len 
+ * @param index 
+ * @param total 
+ */
 void onBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-  //Handle body
   Serial.println(F("onBody"));
 }
 
+/**
+ * @brief Pre-process web data/%TAG% strings before sending to client
+ * 
+ * @param var 
+ * @return String 
+ */
 String HTMLProcessor(const String& var) {
   Serial.println(var);
   if (var == "UPTIMESECS"){
@@ -879,6 +859,21 @@ String HTMLProcessor(const String& var) {
   else if (var == "VERSION"){
     return String(VERSION);
   }
+  else if (var == "WEBIF_VERSION"){
+    return String(WEBIF_VERSION);
+  }
+  else if (var == "AUTHOR_TEXT"){
+    return String(AUTHOR_TEXT);
+  }
+  else if (var == "CHIPID"){
+    uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+    return String((uint16_t)(chipid>>32));
+  }
+  else if (var == "CPUFREQ"){
+    return String(ESP.getCpuFreqMHz());
+  }
+
+
   return String();
 }
 
@@ -891,10 +886,10 @@ time_t getNtpTime()
   IPAddress ntpServerIP; // NTP server's ip address
 
   while (ntpUDP.parsePacket() > 0) ; // discard any previously received packets
-  Serial.print("Sending NTP request to ");
+  Serial.printf("Sending NTP request to %s", NTPPSERVER);
   // get a random server from the pool
-  WiFi.hostByName("pool.ntp.org", ntpServerIP);
-  Serial.print("pool.ntp.org");
+  WiFi.hostByName(NTPPSERVER, ntpServerIP);
+  Serial.print(NTPPSERVER);
   Serial.print(": ");
   Serial.println(ntpServerIP);
   sendNTPpacket(ntpServerIP);
