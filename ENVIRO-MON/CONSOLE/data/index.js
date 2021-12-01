@@ -108,7 +108,7 @@ jQuery(document).ready(function () {
         console.log("CONFIG:"); console.log(config);
 
         for(var key in json) {          
-          let devid = null; //json[key].devid;  
+          let devid = null; //json[key].devid;           
           let sid = json[key].sid; 
           let value = null; 
           let age = Math.floor(Date.now() / 1000) - parseInt(json[key].ts, 10);
@@ -119,10 +119,10 @@ jQuery(document).ready(function () {
           // if we have a static mapping devid(num) <-> name in config.json we prefer that name to be used in html
           // this way we only have to update json.conf if we replace probe/change devid
           switch(String(json[key].devid)) {            
-            case config.devid_sensor1: devid = "sensor1"; break;
-            case config.devid_sensor2: devid = "sensor2"; break;
-            case config.devid_sensor3: devid = "sensor3"; break;
-            case config.devid_hub: devid = "hub"; break;
+            case config.devid_sensor1: devid = "sensor1"; $("#alias_sensor1").empty().append(config.alias_sensor1); break;
+            case config.devid_sensor2: devid = "sensor2"; $("#alias_sensor2").empty().append(config.alias_sensor2); break;
+            case config.devid_sensor3: devid = "sensor3"; $("#alias_sensor3").empty().append(config.alias_sensor3); break;
+            case config.devid_hub: devid = "hub"; alias = 'HUB'; break;
             default: devid = json[key].devid;
           }
 
