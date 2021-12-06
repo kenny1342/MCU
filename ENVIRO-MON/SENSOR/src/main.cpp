@@ -11,6 +11,12 @@
 #include <Timemark.h>
 #include <main.h>
 
+#ifdef USE_TFTST7789_TTGO
+#include <TFT_eSPI.h>
+#include <logo_kra-tech.h>
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+LCD_state_struct LCD_state;
+#endif
 #ifdef USE_SSD1306
 #include "SSD1306.h"
 #endif
@@ -66,6 +72,8 @@ uint8_t ds_deviceCount = 0;
 uint8_t wifitries = 0;
 uint8_t hubconntries = 0;
 
+Timemark tm_ClearDisplay(300000);
+Timemark tm_UpdateDisplay(200);
 
 void setup()
 {
@@ -88,6 +96,36 @@ void setup()
   display.setFont(ArialMT_Plain_10);  
   display.drawString(0, 0, " INIT... ");
   display.display();
+  #endif
+  #ifdef USE_TFTST7789_TTGO
+  tft.init();
+  tft.setRotation(3); // 1
+  tft.fillScreen(LCD_state.bgcolor);
+  //tft.setTextSize(2);
+  tft.setTextColor(LCD_state.fgcolor);
+  tft.setCursor(0, 0);
+  tft.setTextDatum(MC_DATUM);
+
+  tft.setSwapBytes(true);
+  //tft.pushImage(0, 0,  240, 135, ttgo);
+  tft.pushImage(0, 0,  240, 135, kra_tech);
+  delay(6000);
+  tft.fillScreen(TFT_RED);
+  delay(200);
+  tft.fillScreen(TFT_BLUE);
+  delay(200);
+  tft.fillScreen(TFT_GREEN);
+  delay(200);
+
+  tft.setTextWrap(true);
+
+  tft.setTextSize(3);
+  tft.fillScreen(LCD_state.bgcolor);
+  tft.setCursor(0 ,0);
+
+  tft.println("\n\nBooting...");
+  tft.setTextSize(txtsize);
+  delay(700);  
   #endif
 
   Serial.printf("Booting...\nVersion: %s\n", FIRMWARE_VERSION);
@@ -176,6 +214,10 @@ ow = new OneWireNg_CurrentPlatform(PIN_DALLAS_SENSORS, false);
 
   tm_DataTX.start();
   tm_reboot.start();
+  tm_ClearDisplay.start();
+  tm_UpdateDisplay.start();
+
+  //tft.fillScreen(LCD_state.bgcolor);
 
 }
  
@@ -416,6 +458,59 @@ void loop()
       sid++;
     }
 
+  #ifdef USE_TFTST7789_TTGO
+  if(tm_ClearDisplay.expired()) {
+    tft.fillScreen(LCD_state.bgcolor);
+  }
+
+  if(tm_UpdateDisplay.expired()) {
+
+    LCD_state.fgcolor = TFT_GOLD;
+    LCD_state.bgcolor = TFT_BLACK;
+
+    tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+    tft.setTextWrap(false);
+    tft.setCursor(0, 0);
+    tft.setTextSize(3);
+    tft.printf("ENVIRO-SENSOR \n\n");  
+    tft.setTextSize(2);
+
+    LCD_state.fgcolor = TFT_GREEN;
+    LCD_state.bgcolor = TFT_BLACK;
+    tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
+
+    tft.printf("ID: %u (v%s)  \n",  (uint16_t)(ESP.getEfuseMac()>>32), FIRMWARE_VERSION);
+    //tft.printf("SW: %s  \n\n", FIRMWARE_VERSION);
+    tft.printf("Uptime: %s\n\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));    
+
+    //sid1_value = 40.1234567;
+    //sid2_value = 98.987654321;
+
+
+    //tft.setTextSize(3);
+    char buf1[20];
+    char buf2[20];
+    if((sid1_value != NAN || sid2_value != NAN) && (sid1_value != 0.0 && sid2_value != 0.0) ) {
+      dtostrf(sid1_value, 2, 1, buf1);
+      dtostrf(sid2_value, 2, 1, buf2);
+      tft.printf(" %sC, %s%% \n", buf1, buf2);
+    } else {
+      tft.printf(" -, -  \n");
+    }
+
+    // show DS18B20 sensors if any
+    for (int x=0; x < ds_deviceCount; x++) {
+      if(ds_temps[x] == 0) continue;
+      part = ds_temps[x] % 10;
+      if(part < 0) part = -part;
+      tft.printf(" %ld.%dC (DS18B20) \n", ds_temps[x]/1000, part);
+      break;
+    }
+
+  #endif
+
+  }
+
     Serial.print(F("All done!...\n****************************\n"));
   }
 
@@ -578,3 +673,36 @@ void readDS18B20() {
 }
 
 
+/**
+ * @brief Build human-readable time string from Seconds
+ * 
+ * @param seconds 
+ * @param format 
+ * @return char* 
+ */
+char * SecondsToDateTimeString(uint32_t seconds, uint8_t format)
+{
+  time_t curSec;
+  struct tm *curDate;
+  static char dateString[32];
+  
+  curSec = time(NULL) + seconds;
+  curDate = localtime(&curSec);
+
+  switch(format) {    
+    case TFMT_LONG: strftime(dateString, sizeof(dateString), "%A, %B %d %Y %H:%M:%S", curDate); break;
+    case TFMT_DATETIME: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate); break;
+    case TFMT_HOURS: 
+    {
+      long h = seconds / 3600;
+      uint32_t t = seconds % 3600;
+      int m = t / 60;
+      int s = t % 60;
+      sprintf(dateString, "%04ld:%02d:%02d", h, m, s);
+    }
+      break;
+
+    default: strftime(dateString, sizeof(dateString), "%Y-%m-%d %H:%M:%S", curDate);
+  }
+  return dateString;
+}
