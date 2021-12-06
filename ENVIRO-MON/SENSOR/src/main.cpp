@@ -490,7 +490,7 @@ void loop()
     //tft.setTextSize(3);
     char buf1[20];
     char buf2[20];
-    if((sid1_value != NAN || sid2_value != NAN) && (sid1_value != 0.0 && sid2_value != 0.0) ) {
+    if((sid1_value != NAN && sid2_value != NAN) && (sid1_value != 0.0 && sid2_value != 0.0) ) {
       dtostrf(sid1_value, 2, 1, buf1);
       dtostrf(sid2_value, 2, 1, buf2);
       tft.printf(" %sC, %s%% \n", buf1, buf2);
@@ -503,7 +503,7 @@ void loop()
       if(ds_temps[x] == 0) continue;
       part = ds_temps[x] % 10;
       if(part < 0) part = -part;
-      tft.printf(" %ld.%dC (DS18B20) \n", ds_temps[x]/1000, part);
+      tft.printf(" %ld.%dC (DS) \n", ds_temps[x]/1000, part);
       break;
     }
 
