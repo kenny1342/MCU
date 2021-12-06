@@ -122,6 +122,7 @@ jQuery(document).ready(function () {
             case config.devid_sensor1: devid = "sensor1"; $("#alias_sensor1").empty().append(config.alias_sensor1); break;
             case config.devid_sensor2: devid = "sensor2"; $("#alias_sensor2").empty().append(config.alias_sensor2); break;
             case config.devid_sensor3: devid = "sensor3"; $("#alias_sensor3").empty().append(config.alias_sensor3); break;
+            case config.devid_sensor4: devid = "sensor4"; $("#alias_sensor4").empty().append(config.alias_sensor4); break;
             case config.devid_hub: devid = "hub"; alias = 'HUB'; break;
             default: devid = json[key].devid;
           }
