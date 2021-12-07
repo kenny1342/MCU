@@ -1,0 +1,430 @@
+@import url('https://fonts.googleapis.com/css2?family=Encode+Sans+Expanded:wght@800&family=Orbitron:wght@900&display=swap');
+@import "https://fonts.googleapis.com/css?family=Raleway:100,300";
+@import "https://fonts.googleapis.com/css?family=Open+Sans:300,400,700,800";
+@import "https://fonts.googleapis.com/css?family=Josefin+Sans|Pacifico";
+
+html,
+body,
+.container {
+  height: 100%;
+}
+
+body {
+  /*font-family: "Open Sans", sans-serif;*/
+  font-family: "Josefin Sans", "Raleway", "avenir next", avenir, helvetica,
+    "helvetica neue", arial;
+  font-size: 18px;
+  overflow-x: hidden !important;
+  perspective: 1px;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  background-color: rgb(218, 218, 218);
+  text-align: center;
+  white-space: nowrap;
+}
+
+a {
+  color: rgb(222, 68, 21);
+  text-decoration: none;
+}
+
+a:hover {
+  color: rgb(0, 116, 217);
+}
+
+.container {
+  display: -webkit-box;
+  display: flex;
+  -webkit-box-pack:start;
+  justify-content: flex-start;
+  -webkit-box-align:start;
+  align-items: center;
+  background-color: rgb(231, 231, 231);
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  flex-direction: column;
+  background: linear-gradient(rgba(235, 241, 235, 0.25), rgba(2, 192, 176, 0.25))
+}
+
+#author {
+  position: absolute;
+  margin: 0 auto;
+  top: 0.1rem;
+  right: 1rem;
+}
+#table_main{
+  -webkit-transform: translate(1%, 0);
+  transform: translate(1%, 0);
+  width: 99%; 
+  white-space: nowrap;
+  border-spacing: 1px;
+  /*margin: 0em 1em 1em 1em;*/
+  margin: 0 auto;
+}
+
+#table_main td {
+  vertical-align: top;
+}
+#table_main_td1 {
+  text-align: left;
+}
+#table_main_td2 {
+  text-align: right;  
+}
+
+#table_probes {
+  width:90%;
+}
+
+#table_probes td {
+  padding: 5px;
+}
+
+.td_title {
+  color: rgb(73, 73, 73);
+}
+
+#table_probes .td_title {
+  text-align: left;
+  font-size: 4em;  
+}
+#table_probes .td_value {
+  text-align: left;
+  font-size: 6em;  
+}
+#table_probes .small {
+  font-size: 1.7rem;
+}
+
+.td_value {
+  white-space: nowrap;
+}
+/*.td_value small {
+  font-size: 0.7rem;
+}*/
+
+
+#table_main th, #table_probes th {
+  font-size: 4em;
+  color:rgb(148, 122, 5);
+}
+
+
+.tr_minimized {
+  display: none;
+}
+.tr_maximized {
+  display: block;
+}
+
+.OLD_DATA {
+  color:rgba(63, 63, 63, 0.5);
+}
+
+.temp_negative {
+  color:rgb(0, 3, 167);
+}
+
+.OK {
+  color:rgb(16, 95, 0);
+}
+.ERR {
+  color:rgb(219, 45, 1);
+}
+
+.SUSPENDED {
+  color:rgb(219, 45, 1);
+}
+.ON {  
+  color:rgb(0, 126, 10);
+}
+.OFF {
+  color:rgb(1, 63, 145);
+}
+
+h1 {
+    color: #0F3376;
+    padding: 1.0vh;
+    margin-block-start: 0.09em;
+    margin-block-end: 0.09em;
+  }
+
+  p {
+    font-size: 2.5rem;
+    color: rgb(51, 51, 51);
+  }
+  
+
+  .button {
+    display: inline-block;
+    background-color: #008CBA;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 16px 40px;
+    text-decoration: none;
+    font-size: 30px;
+    margin: 2px;
+    cursor: pointer;
+  }
+  .button2 {
+    background-color: #f44336;
+  }
+  .units {
+    font-size: 3.2rem;
+   }
+   .units_xs {
+    font-size: 1.2rem;
+   }
+
+  .sensor-labels {
+    font-size: 2.5rem;
+    vertical-align:middle;
+    padding-bottom: 15px;
+  }
+
+  #success {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: rgb(255, 255, 255);  
+    background-color: rgb(3, 99, 0);  
+    padding: 1em;
+  }
+
+  #error {
+    text-align: center;
+    white-space: nowrap;
+    font-size: 3em;
+    color: red;    
+    background-color: rgb(0, 0, 0);  
+    padding: 1em;
+  }
+
+  #footer {
+    margin-bottom: 1%;
+  }
+
+ .sizing-box {
+    height: 35px;
+    width: 80px;    
+  }
+  
+  .signal-bars {
+    display: inline-block;    
+  }
+  
+  .signal-bars .bar {
+    width: 7%;
+    margin-left: 1px;
+    min-height: 30%;
+    display: inline-block;
+    margin-right: -12px;
+  }
+  
+  .signal-bars .bar.first-bar {
+    height: 20%;
+  }
+  
+  .signal-bars .bar.second-bar {
+    height: 40%;
+  }
+  
+  .signal-bars .bar.third-bar {
+    height: 60%;
+  }
+  
+  .signal-bars .bar.fourth-bar {
+    height: 80%;
+  }
+  
+  .signal-bars .bar.fifth-bar {
+    height: 99%;
+  }
+  
+  .good .bar {
+    background-color: #16a085;
+    border: thin solid #12816b;
+  }
+  
+  .bad .bar {
+    background-color: #e74c3c;
+    border: thin solid #a82315;
+  }
+  
+  .ok .bar {
+    background-color: #f1c40f;
+    border: thin solid #d0a90c;
+  }
+  
+  .four-bars .bar.fifth-bar,
+  .three-bars .bar.fifth-bar,
+  .three-bars .bar.fourth-bar,
+  .one-bar .bar:not(.first-bar),
+  .two-bars .bar:not(.first-bar):not(.second-bar) {
+    background-color: #fafafa;
+    border: thin solid #646464;
+
+  }
+ 
+  @media only screen and (max-width: 992px) {
+    /* For tablets, landscape mobile phones: */
+    body {
+      font-size: 16px;
+    }
+
+    *>*{
+        font-size:0.91em;
+    }
+    #author {
+      font-size:0.5em;
+    }
+    #table_utility td, #table_pump td, #table_emon_circuits td, #table_probes td {
+      padding:0.2rem;
+    }
+    #table_probes .small {
+      font-size: 0.7rem;
+    }
+
+    .units {
+      font-size:1.15rem;
+    }
+    .units_xs {
+      font-size:0.5rem;
+    }
+
+    .container {
+      justify-content:start;
+    }    
+    .signal-bars .bar {
+      margin-right: -3px;
+    }  
+
+  }
+
+  @media screen and (max-width: 768px) {
+    /* For mobile phones: */
+    body {
+      font-size: 13px;
+    }
+
+    *>*{
+      font-size:0.88em;
+    }
+
+    #author {
+      font-size:0.5em;
+    }
+    #menu {
+      font-size:0.85em;
+    }
+    small {
+      font-size:0.77em;
+      white-space: nowrap;
+    }
+
+    #table_utility td, #table_pump td, #table_emon_circuits td, #table_probes td {
+      padding:0.2rem;
+    }
+    #table_utility .td_title {
+      font-size:0.7rem;
+    }
+    #table_pump .small {
+      font-size: 0.5rem;
+    }
+    #table_utility .small {
+      font-size: 0.5rem;
+    }
+    #table_probes .small {
+      font-size: 0.5rem;
+    }
+
+    #table_emon_circuits tbody {
+      font-size:0.3rem;
+    }
+
+    .units {
+      font-size:0.95rem;
+    }
+    .units_xs {
+      font-size:0.45rem;
+    }
+    .container {
+      justify-content:start;
+    }    
+
+    #footer {
+      font-size: 0.5rem;
+    }
+
+    .signal-bars .bar {
+      margin-right: -3px;
+    }  
+  }
+
+  
+/* The switch - the box around the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #aaa;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 19px;
+  width: 18px;
+  left: 1px;
+  bottom: 1px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(19px);
+  -ms-transform: translateX(19px);
+  transform: translateX(19px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}

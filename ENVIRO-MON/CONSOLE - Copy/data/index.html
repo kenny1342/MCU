@@ -1,0 +1,129 @@
+<html>
+<head>
+  <title>ENVIRO-MON v%VERSION%</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="cache-control" content="public, max-age=604800, immutable" />
+  <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" /> <!-- IE -->  
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />  <!-- other browsers -->
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+  <script type="text/javascript" charset="utf8" src="nosleep.min.js"></script>
+</head>
+<body>
+  
+
+  <h1>ENVIRO-MON v%VERSION%</h1>
+  <span id="author">Made by %AUTHOR_TEXT%</span>
+  <span id="menu">
+
+<div style="position:fixed; top:1px; left:5px; color:rgb(4, 117, 0);">
+<label class="switch">-
+  <input type="checkbox" name='chknosleep' id="chknosleep">
+  <span class="slider round"></span>
+</label>&nbsp;&nbsp;Keep screen on
+</div>
+    <a href='/json/0x45'>JSON</a> | <a href='/reset'>Reset</a>  | <a href='/reboot'>Reboot</a> | <a href='/messages.log'>Log</a> <a href='/rmlog'>[del]</a> | <a href='/update'>System Update</a></span>
+ 
+
+<div class="container">
+
+  <table id="table_main">
+    <tr>
+      <td id="table_main_td1">        
+
+        <table id="table_probes" border="0">
+          <tr>
+            <th colspan="2">Sensors</th>
+          </tr>
+          <tr>
+            <td class="td_title"><span id="alias_sensor1">[1]</span>
+              
+              <div id="wifi_sensor1" class="signal-bars sizing-box bad one-bar">
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+            </td>
+
+            <td class="td_value"> <span id="devid_sensor1_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor1_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
+          </tr>
+          <tr>
+            <td class="td_title"><span id="alias_sensor2">[2]</span>
+              
+              <div id="wifi_sensor2" class="signal-bars sizing-box bad one-bar">
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+            </td>
+            <td class="td_value"> <span id="devid_sensor2_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor2_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
+          </tr>
+          <tr>
+            <td class="td_title"><span id="alias_sensor3">[3]</span>
+              
+              <div id="wifi_sensor3" class="signal-bars sizing-box bad one-bar" >
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+
+            </td>
+            <td class="td_value"> <span id="devid_sensor3_sid_1">-</span>&nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor3_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
+          </tr>
+
+          <tr>
+            <td class="td_title"><span id="alias_sensor4">[4]</span>
+              
+              <div id="wifi_sensor4" class="signal-bars sizing-box bad one-bar" >
+                <div class="first-bar bar"></div>
+                <div class="second-bar bar"></div>
+                <div class="third-bar bar"></div>
+                <div class="fourth-bar bar"></div>
+                <div class="fifth-bar bar"></div>
+              </div>
+
+            </td>
+            <td class="td_value"> <span id="devid_sensor4_sid_1"></span> <span id="devid_sensor4_sid_3"></span> &nbsp;<sup class="units">&deg;C</sup> / <span id="devid_sensor4_sid_2">-</span>&nbsp;<sup class="units">&#37;</sup></td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+  <hr /> 
+  <span id="footer">
+
+    <br />
+    Web Interface v%WEBIF_VERSION% (ChipID: <span id="chipid">%CHIPID%</span> @ <span id="freq">%CPUFREQ% Mhz</span>) <input type="checkbox" id="chktestdata" />test data - <span id="loadtime">99ms</span>
+  </span>
+
+</div>
+
+  
+</body>
+
+<script src="index.js"></script>
+<script>
+  let noSleep = new NoSleep();
+   
+  $('#chknosleep').click(function (e) {
+    if($(this).is(":checked")){
+      noSleep.enable(); // keep the screen on!
+    } else {
+      noSleep.disable(); // let the screen turn off.
+    }
+
+  });
+</script>
+
+</html>

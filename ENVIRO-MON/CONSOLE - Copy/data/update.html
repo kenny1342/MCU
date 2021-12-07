@@ -1,0 +1,44 @@
+<html>
+<head>
+  <title>Firmware Update</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="public, max-age=604800, immutable" />
+  <meta http-equiv="last-modified" content="Tue, 05 Jan 2021 00:00:01 GMT" />
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+  <script src='update.js'></script>
+</head>
+<body>
+  <h1>Firmware update</h1>
+
+  <h3>Frontend-MCU: v%FIRMWARE% <br />
+    <span style="font-size: 0.8rem;">(%FIRMWARE_LONG%)</small>
+  </h3>
+  <h3>ADC-MCU: v%ADC_VERSION%</h3>  
+  <h3>Web Interface v%WEBIF_VERSION%</h3>
+  <hr />
+  <div style="color:red;">
+    OBS! Naming of firmware files decides what module is being updated:<br /> 
+  </div>
+  - Frontend-MCU: *firmware*.bin.<br />
+  - Web Interface: *spiffs*.bin (FileSystem Image)<br /><br />
+
+  <form method='POST' action='/update' enctype='multipart/form-data' id='upload_form'>
+  <input type='file' name='update'>
+  <input type='submit' value='Update'>
+  </form>
+
+  <div id='prg'>Progress: 0%</div>
+
+  <hr />
+  <h3>Upload configuration (<a href="/config.json">config.json</a>)</h3>
+  <form method='POST' action='/upload' enctype='multipart/form-data' id='config_upload_form'>
+    <input type='file' name='upload'>
+    <input type='submit' value='Upload'>
+    </form>
+
+  <div id='success' style='display:none;'>Success, please wait while rebooting...</div>
+  <div id='error' style='display:none;'>ERROR</div>
+
+</body>
+</html>
