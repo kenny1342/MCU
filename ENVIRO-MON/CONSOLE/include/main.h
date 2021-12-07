@@ -8,11 +8,11 @@
 
 bool debug = true;
 
-#define FIRMWARE_VERSION         "7.04"
+#define FIRMWARE_VERSION         "7.05"
 //#define WEBIF_VERSION   "2.01"
 #define AUTHOR_TEXT     "Ken-Roger Andersen (Nov, 2021)"
 #define WDT_TIMEOUT 60
-#define MAX_CLIENTS 8
+#define MAX_CLIENTS 10
 
 #ifdef MODE_AP
 const char *ssid = "KRATECH-SENSOR-HUB";  // You will connect your phone to this Access Point
@@ -24,13 +24,13 @@ const char *ssid = "kra-stb";
 const char *pw = "escort82"; 
 #endif
 
-#define BUF_SIZE 300                // max expected length of JSON strings recieved from sensors
+#define BUF_SIZE 400                // max expected length of JSON strings recieved from sensors
 
 const int timeZone = 2;
 unsigned int localPortNTP = 55123;  // local port to listen for UDP packets
 #define NTPPSERVER   "europe.pool.ntp.org"
 #define MAX_AGE_SID                 3600 // seconds we keep a devid/sid probe data in memory before deleting (dead remote probe)
-#define MAX_REMOTE_SIDS 12          // memory slots to hold sensor data (SID's)
+#define MAX_REMOTE_SIDS 14          // memory slots to hold sensor data (SID's)
 
 #define UART_BAUD1 57600            // Baudrate UART1
 #define SERIAL_PARAM1 SERIAL_8N1    // Data/Parity/Stop UART1

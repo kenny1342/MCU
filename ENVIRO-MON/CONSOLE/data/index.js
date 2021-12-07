@@ -31,14 +31,13 @@ function formatSecs(input=0) {
 jQuery(document).ready(function () {
 
   function getConfig() {
-
     let testjson = '{"array":[  1,  2,  3],"boolean":true,"hostname":"console-01","port":80,"ntpserver":"192.168.30.1","devid_sensor1": "50406", "devid_sensor2": "33832","devid_sensor3": "22664","devid_hub": "2233","version":"1.2"  }';
     console.log("Loading config.json");
     
     //json = JSON.parse(testjson);
     //localStorage.setItem('config', JSON.stringify(json));
-  
-    fetch('/config.json?nocache='+Math.random()) // Load configuration
+
+    fetch('/config.json?nocache=' + Math.random()) // Load configuration
     .then(response => response.json())
     .then(data => {            
         localStorage.setItem('config', JSON.stringify(data));
@@ -55,22 +54,22 @@ jQuery(document).ready(function () {
         localStorage.setItem('config', JSON.stringify(json));
       }
     ); // fetch
-  
-  
   }
+
+  // global
+  //var config = JSON.parse(localStorage.getItem('config')); 
+  //console.log(config);
 
 
 
   function updateData_Pri3() {
     const start = new Date();
-
     let config = JSON.parse(localStorage.getItem('config')); 
-    //console.log(config);
-    
-    fetch('/json/0x45') //REMOTE_SENSOR_DATA
+
+    fetch('/json/0x45?nocache='+Math.random()) //REMOTE_SENSOR_DATA
     .then(response => response.json())
     .then(data => {
-        //console.log(data);
+      console.log('updateData_Pri3 fetch 0x45:'); console.log(data);
         const timeTaken= (new Date())-start;
         localStorage.setItem('loadtime', timeTaken);
 
@@ -78,12 +77,12 @@ jQuery(document).ready(function () {
         } // data =>
     )
     .catch(error => {
-        //console.error('Error:', error);
+        console.log('Error:'); console.log(error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data json0x45");
           localStorage.setItem('json0x45', '[{"cmd":69,"devid":50406,"sid":0,"data":{"firmware":"4.51","IP":"192.168.88.95","port":2323,"uptime_sec":1751,"rssi":-48},"ts":14429},{"cmd":69,"devid":50406,"sid":1,"data":{"value":19.7},"ts":14431},{"cmd":69,"devid":50406,"sid":2,"data":{"value":76},"ts":14426},{"cmd":69,"devid":33832,"sid":1,"data":{"value":25.7},"ts":14429},{"cmd":69,"devid":33832,"sid":2,"data":{"value":67.4},"ts":14431},{"cmd":69,"devid":33832,"sid":0,"data":{"firmware":"4.51","IP":"192.168.88.96","port":2323,"uptime_sec":1933,"rssi":-33},"ts":14428}]');
         } else {
-          //console.log("NOT using test data");
+          console.log("ERR: 0x45 EMPTY and NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
         }
       }
@@ -94,16 +93,16 @@ jQuery(document).ready(function () {
 
     // Update the page
     setInterval(function ( ) {
-
+            
       let json;
       $("#loadtime").empty().append(localStorage.getItem('loadtime') + 'ms');
-      
-      let config = JSON.parse(localStorage.getItem('config')); 
+
 
       // -------------- REMOTE SENSORS ---------------------------------
       try {
-        
+        let config = JSON.parse(localStorage.getItem('config'));   
         json = JSON.parse(localStorage.getItem('json0x45'));
+        console.log("json0x45:"); console.log(json);
         
         if(!typeof json == "object" || Object.keys(json).length < 1) {
           console.log("0x45 invalid data, len=" + Object.keys(json).length);
@@ -140,7 +139,7 @@ jQuery(document).ready(function () {
             if(typeof json[key].data.uptime_sec != "undefined") { objids[objid + '_uptime_sec'] = formatSecs( json[key].data.uptime_sec ); }
             if(typeof json[key].data.rssi != "undefined") { 
               let rssi = json[key].data.rssi;
-              //console.log("RSSI: "+rssi);
+              //console.log(objid + " RSSI: "+rssi);
               objids[objid + '_rssi'] = rssi; 
               if(rssi >= -50) { // -50 as good as it gets
                 objids[objid + '_rssi_class'] = 'good'; 
@@ -170,7 +169,9 @@ jQuery(document).ready(function () {
             }
 
           } else if(sid > 0 && sid < 9) {
-            if(typeof json[key].data["value"] != "undefined") { objids[objid + ''] = json[key].data["value"]; }
+            let prefix = '';
+            if(sid == 3) prefix = ', '; // divider between temperatures when multiple sensors/ds18b20 is used
+            if(typeof json[key].data["value"] != "undefined") { objids[objid + ''] = prefix + json[key].data["value"]; }
           }
           //console.log("OBJIDS: ");  
           //console.log(objids);  
@@ -219,11 +220,8 @@ jQuery(document).ready(function () {
       
     }, 900 ) ;
 
-    getConfig();
-
+    setInterval(getConfig, 1000*60 ) ;
     setInterval(updateData_Pri3, 2000 ) ;
-
-    setInterval(getConfig, 60000*10 ) ;
   
     $("#table_pump_expand").click(function(){
 
@@ -233,7 +231,7 @@ jQuery(document).ready(function () {
          }
       });
 
-    });
+  });
 
   json = JSON.parse('{"cmd":99,"devid":50406,"sid":2,"data":{"value":30.4}}');
   console.log("DEBUG");
