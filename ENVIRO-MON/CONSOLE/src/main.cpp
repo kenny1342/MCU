@@ -73,7 +73,7 @@ void setup() {
   }
   Serial_one.begin(UART_BAUD1, SERIAL_PARAM1, SERIAL1_RXPIN, SERIAL1_TXPIN);
 
-  Serial.println("\n\nSensor-HUP WiFi serial bridge V" VERSION);
+  Serial.println("\n\nENVIRO-CONSOLE V" FIRMWARE_VERSION);
 
   //Q_rx.setFullOverwrite(true);
   //Q_rx.begin();
@@ -104,7 +104,7 @@ void setup() {
   tft.fillScreen(LCD_state.bgcolor);
   tft.setCursor(0 ,0);
 
-  tft.println("\n\nStarting HUB");
+  tft.println("\n\nBooting... ");
   tft.setTextSize(txtsize);
   delay(700);
 
@@ -491,24 +491,26 @@ void loop()
     tft.setTextWrap(false);
     tft.setCursor(0, 0);
     tft.setTextSize(3);
-    tft.printf("  WIFI HUB \n\n");  
+    tft.printf("Enviro.Console\n\n");  
     tft.setTextSize(2);
 
     LCD_state.fgcolor = TFT_GREEN;
     LCD_state.bgcolor = TFT_BLACK;
     tft.setTextColor(LCD_state.fgcolor, LCD_state.bgcolor);
 
-    tft.printf("TCP conns: %u  \n", stat_conn_count);
+    tft.printf("Connections: %u  \n", stat_conn_count);
 
     char s[32] = "";        
-    tft.printf("RX->TX: %s   \n", FormatBytes(stat_bytes_rx, s));
-    
-    tft.printf("TX Queue: %u/%u \n\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
-
+        
+    //tft.printf("TX Queue: %u/%u \n\n", queue_tx.size(), queue_tx.size() + queue_tx.available());
+    tft.printf("ID: %u (v%s)  \n",  (uint16_t)(ESP.getEfuseMac()>>32), FIRMWARE_VERSION);
     tft.printf("Uptime: %s\n", SecondsToDateTimeString(millis()/1000, TFMT_HOURS));
+    tft.printf("RX: %s   \n\n", FormatBytes(stat_bytes_rx, s));
 
+    tft.printf("IP: %s\n", WiFi.localIP().toString().c_str());
   }
 
+  /*
   if(tm_SendData.expired()) {
     
     // First send our local system data (sid 0)
@@ -551,7 +553,7 @@ void loop()
     }
 
   }
-
+  */
 }
 
 /**
@@ -857,9 +859,16 @@ String HTMLProcessor(const String& var) {
     return String(millis() / 1000);
   }
   else if (var == "VERSION"){
-    return String(VERSION);
+    return String(FIRMWARE_VERSION);
   }
   else if (var == "WEBIF_VERSION"){
+    const char* filePath = "/WEBIF_VERSION";
+    String WEBIF_VERSION = "UNKNOWN";
+
+    File file = SPIFFS.open(filePath, FILE_READ);
+    if (file.available()) {
+      String WEBIF_VERSION = file.readStringUntil('\n');    
+    }
     return String(WEBIF_VERSION);
   }
   else if (var == "AUTHOR_TEXT"){

@@ -8,10 +8,10 @@
 
 bool debug = true;
 
-#define VERSION         "7.03"
-#define WEBIF_VERSION   "2.01"
+#define FIRMWARE_VERSION         "7.04"
+//#define WEBIF_VERSION   "2.01"
 #define AUTHOR_TEXT     "Ken-Roger Andersen (Nov, 2021)"
-#define WDT_TIMEOUT 30
+#define WDT_TIMEOUT 60
 #define MAX_CLIENTS 8
 
 #ifdef MODE_AP

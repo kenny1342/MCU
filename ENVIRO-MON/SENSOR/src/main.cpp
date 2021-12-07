@@ -472,7 +472,7 @@ void loop()
     tft.setTextWrap(false);
     tft.setCursor(0, 0);
     tft.setTextSize(3);
-    tft.printf("ENVIRO-SENSOR \n\n");  
+    tft.printf("Enviro.Sensor \n\n");  
     tft.setTextSize(2);
 
     LCD_state.fgcolor = TFT_GREEN;
