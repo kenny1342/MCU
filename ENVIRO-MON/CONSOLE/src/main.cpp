@@ -27,6 +27,9 @@
 #include <TFT_eSPI.h>
 #include <logo_kra-tech.h>
 
+String listFiles(bool ishtml = false);
+
+bool shouldReboot = false;      //flag to use from web firmware update to reboot the ESP
 bool OTArunning = false;
 bool printDebug = true;
 uint8_t client_count = 0;
@@ -234,10 +237,6 @@ void setup() {
   // attach AsyncEventSource
   webserver.addHandler(&events);
 
-  webserver.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
-    request->send(200);
-   }, onUpload);
-
   // Route for root / web page with variable parser/processor
   webserver.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", "text/html", false, HTMLProcessor);
@@ -250,6 +249,10 @@ void setup() {
 
   webserver.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/config.json", "application/json");
+  });
+   // TEST
+  webserver.on("/config2.json", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/config2.json", "application/json");
   });
   webserver.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
@@ -290,13 +293,80 @@ void setup() {
     
   });
 
+  // for testing/dev
+  webserver.on("/recover", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send_P(200, "text/html", PSTR("<h1>FS RECOVERY</h1>Upload firmware.bin/spiffs.bin: <form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));    
+  });
+
+// Generic file upload form recovery/fallback (for upload of config.json)
+  webserver.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/upload.html", "text/html", false, HTMLProcessor);
+  });
+/*
+  webserver.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request) {
+      Serial.printf("/upload GET\n");
+      request->send_P(200, "text/html", PSTR("<body><div><form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='data'/><input type='submit' name='upload' value='Upload' title='Upload File'></form></div></body>"));
+    });  
+*/
+   // run handleUpload function when any file is uploaded
+  webserver.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+        request->send(200);
+      }, onUpload);
+
+  webserver.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
+    shouldReboot = !Update.hasError();
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
+    response->addHeader("Connection", "close");
+    request->send(response);
+    delay(2000);
+    ESP.restart();
+    
+  },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    if(!index){
+        
+        //Update.runAsync(true);
+        
+        // if filename includes spiffs, update the spiffs partition
+        int cmd = (filename.indexOf("spiffs") >= 0) ? U_SPIFFS : U_FLASH; 
+
+        if(cmd == U_FLASH) {
+            Serial.printf("Firmware Update Start: %s\n", filename.c_str());
+            uint32_t freespace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+            if(!Update.begin(freespace, cmd)) {
+                Update.printError(Serial);
+            }
+        } else {
+            Serial.printf("File System Update Start: %s\n", filename.c_str());
+            //size_t fsSize = ((size_t) &_FS_end - (size_t) &_FS_start);
+            //close_all_fs();
+            size_t fsSize = SPIFFS.totalBytes();
+            if (!Update.begin(fsSize, cmd)){//start with max available size
+            Update.printError(Serial);
+            }
+        }
+      
+    }
+    if(!Update.hasError()){
+      if(Update.write(data, len) != len){
+        Update.printError(Serial);
+      }
+    }
+    if(final){
+      if(Update.end(true)){
+        Serial.printf("Update Success: %uB\n", index+len);
+      } else {
+        Update.printError(Serial);
+      }
+    }
+  });
+
 
   // Catch-All Handlers
   // Any request that can not find a Handler that canHandle it
   // ends in the callbacks below.
 
   webserver.onNotFound(onNotFound);
-  webserver.onFileUpload(onUpload);
+  //webserver.onFileUpload(onUpload);
   webserver.onRequestBody(onBody);
 
   webserver.begin();
@@ -322,6 +392,13 @@ void loop()
   ArduinoOTA.handle();
 
   if(OTArunning) return;
+
+  if(shouldReboot){
+    Serial.println("Rebooting...");
+    //SaveTextToFile("restart: shouldReboot=true\n", "/messages.log", true);
+    delay(100);
+    ESP.restart();
+  }
 
   if(tm_reboot.expired()) {
     Serial.print("\n*** SCHEDULED printDebug REBOOT....\n");
@@ -786,32 +863,38 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
   Serial.println(F("onUpload"));
 
   bool is_config_json = (filename.indexOf("config.json") >= 0); 
-  if(!index){      
-    Serial.printf("UploadStart: %s\n",filename.c_str());
+  
+  if (!index) {
     // open the file on first call and store the file handle in the request object
-    request->_tempFile = SPIFFS.open("/"+filename, "w");
+    request->_tempFile = SPIFFS.open("/" + filename, "w");
+    Serial.println("Upload Start: " + filename);
   }
-  if(len) {
+
+  if (len) {
     // stream the incoming chunk to the opened file
-    request->_tempFile.write(data,len);
+    request->_tempFile.write(data, len);
+    Serial.println("Writing file: " + filename + " index=" + index + " len=" + len);
   }
-  if(final){
-    Serial.printf("UploadEnd: %s,size:%u\n", filename.c_str(), (index+len));
+
+  if (final) {
     // close the file handle as the upload is now done
     request->_tempFile.close();
-    
+    Serial.println("Upload Complete: " + filename + ",size: " + index + len);
     if(is_config_json) {
-      Serial.printf("is_config_json=true, close conn\n");
-      AsyncWebServerResponse *response = request->beginResponse(200, "text/html", is_config_json?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
+      AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
       response->addHeader("Connection", "close");
       request->send(response);
-      
-      delay(2000);
+      delay(300);
       //ESP.restart();
+      shouldReboot = true;
+
     } else {
-      delay(2000);
+      request->redirect("/upload.html");
     }
+    
   }
+
+
 }
 
 /**
@@ -881,6 +964,20 @@ String HTMLProcessor(const String& var) {
   else if (var == "CPUFREQ"){
     return String(ESP.getCpuFreqMHz());
   }
+  else if (var == "FILELIST") {
+    return listFiles(true);
+  }
+  else if (var == "FREESPIFFS") {
+    return humanReadableSize((SPIFFS.totalBytes() - SPIFFS.usedBytes()));
+  }
+
+  else if (var == "USEDSPIFFS") {
+    return humanReadableSize(SPIFFS.usedBytes());
+  }
+
+  else if (var == "TOTALSPIFFS") {
+    return humanReadableSize(SPIFFS.totalBytes());
+  }
 
 
   return String();
@@ -944,4 +1041,38 @@ void sendNTPpacket(IPAddress &address)
   ntpUDP.beginPacket(address, 123); //NTP requests are to port 123
   ntpUDP.write(packetBuffer, NTP_PACKET_SIZE);
   ntpUDP.endPacket();
+}
+
+// list all of the files, if ishtml=true, return html rather than simple text
+String listFiles(bool ishtml) {
+  String returnText = "";
+  Serial.println("Listing files stored on SPIFFS");
+  File root = SPIFFS.open("/");
+  File foundfile = root.openNextFile();
+  if (ishtml) {
+    returnText += "<table><tr><th align='left'>Name</th><th align='left'>Size</th></tr>";
+  }
+  while (foundfile) {
+    if (ishtml) {
+      returnText += "<tr align='left'><td>" + String(foundfile.name()) + "</td><td>" + humanReadableSize(foundfile.size()) + "</td></tr>";
+    } else {
+      returnText += "File: " + String(foundfile.name()) + "\n";
+    }
+    foundfile = root.openNextFile();
+  }
+  if (ishtml) {
+    returnText += "</table>";
+  }
+  root.close();
+  foundfile.close();
+  return returnText;
+}
+
+// Make size of files human readable
+// source: https://github.com/CelliesProjects/minimalUploadAuthESP32
+String humanReadableSize(const size_t bytes) {
+  if (bytes < 1024) return String(bytes) + " B";
+  else if (bytes < (1024 * 1024)) return String(bytes / 1024.0) + " KB";
+  else if (bytes < (1024 * 1024 * 1024)) return String(bytes / 1024.0 / 1024.0) + " MB";
+  else return String(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
 }

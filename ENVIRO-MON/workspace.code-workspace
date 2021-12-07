@@ -12,5 +12,9 @@
 			"path": "SENSOR"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"functional": "cpp"
+		}
+	}
 }

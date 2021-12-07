@@ -8,8 +8,13 @@
 
 bool debug = true;
 
+<<<<<<< HEAD
 #define FIRMWARE_VERSION         "7.04"
 //#define WEBIF_VERSION   "2.01"
+=======
+#define VERSION         "7.04"
+#define WEBIF_VERSION   "2.02"
+>>>>>>> 4a4420f5bfbabb05e0a2bf6fe11842bd9b277ef3
 #define AUTHOR_TEXT     "Ken-Roger Andersen (Nov, 2021)"
 #define WDT_TIMEOUT 60
 #define MAX_CLIENTS 8
@@ -74,3 +79,5 @@ char * SecondsToDateTimeString(uint32_t seconds, uint8_t format);
 time_t sync();
 time_t getNtpTime();
 void sendNTPpacket(IPAddress &address);
+String listFiles(bool ishtml);
+String humanReadableSize(const size_t bytes);
