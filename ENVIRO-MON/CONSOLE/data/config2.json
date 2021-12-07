@@ -1,0 +1,10 @@
+{
+    "devid_sensor1": "50406",
+    "alias_sensor1": "Outside",
+    "devid_sensor2": "33832",
+    "alias_sensor2": "Living room",
+    "devid_sensor3": "54405",
+    "alias_sensor3": "Bedroom",
+    "devid_hub": "2233",
+    "version": "01112021-1"
+  }
