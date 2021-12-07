@@ -5,15 +5,8 @@
     "alias_sensor2": "Living room",
     "devid_sensor3": "33832",
     "alias_sensor3": "Bedroom",
-<<<<<<< HEAD
     "devid_sensor4": "33832",
     "alias_sensor4": "Bathroom",    
     "devid_hub": "29940",
     "version": "07112021-1"
-=======
-    "devid_sensor4": "54405",
-    "alias_sensor4": "Bathroom",
-    "devid_hub": "2233",
-    "version": "06112021-5"
->>>>>>> 4a4420f5bfbabb05e0a2bf6fe11842bd9b277ef3
   }

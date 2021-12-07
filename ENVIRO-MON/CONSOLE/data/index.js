@@ -67,10 +67,10 @@ jQuery(document).ready(function () {
     let config = JSON.parse(localStorage.getItem('config')); 
     //console.log(config);
     
-    fetch('/json/0x45?nocache='+Math.random()) //REMOTE_SENSOR_DATA
+    fetch('/json/0x45') //REMOTE_SENSOR_DATA
     .then(response => response.json())
     .then(data => {
-      console.log('updateData_Pri3 fetch 0x45:'); console.log(data);
+        //console.log(data);
         const timeTaken= (new Date())-start;
         localStorage.setItem('loadtime', timeTaken);
 
@@ -78,12 +78,12 @@ jQuery(document).ready(function () {
         } // data =>
     )
     .catch(error => {
-        console.log('Error:'); console.log(error);
+        //console.error('Error:', error);
         if($("#chktestdata").is(":checked")){
           console.log("using test data json0x45");
           localStorage.setItem('json0x45', '[{"cmd":69,"devid":50406,"sid":0,"data":{"firmware":"4.51","IP":"192.168.88.95","port":2323,"uptime_sec":1751,"rssi":-48},"ts":14429},{"cmd":69,"devid":50406,"sid":1,"data":{"value":19.7},"ts":14431},{"cmd":69,"devid":50406,"sid":2,"data":{"value":76},"ts":14426},{"cmd":69,"devid":33832,"sid":1,"data":{"value":25.7},"ts":14429},{"cmd":69,"devid":33832,"sid":2,"data":{"value":67.4},"ts":14431},{"cmd":69,"devid":33832,"sid":0,"data":{"firmware":"4.51","IP":"192.168.88.96","port":2323,"uptime_sec":1933,"rssi":-33},"ts":14428}]');
         } else {
-          console.log("ERR: 0x45 EMPTY and NOT using test data");
+          //console.log("NOT using test data");
           localStorage.setItem('json0x45', JSON.stringify("{}"));
         }
       }
@@ -104,7 +104,6 @@ jQuery(document).ready(function () {
       try {
         
         json = JSON.parse(localStorage.getItem('json0x45'));
-        console.log("json0x45:"); console.log(json);
         
         if(!typeof json == "object" || Object.keys(json).length < 1) {
           console.log("0x45 invalid data, len=" + Object.keys(json).length);
@@ -141,7 +140,7 @@ jQuery(document).ready(function () {
             if(typeof json[key].data.uptime_sec != "undefined") { objids[objid + '_uptime_sec'] = formatSecs( json[key].data.uptime_sec ); }
             if(typeof json[key].data.rssi != "undefined") { 
               let rssi = json[key].data.rssi;
-              console.log(objid + " RSSI: "+rssi);
+              //console.log("RSSI: "+rssi);
               objids[objid + '_rssi'] = rssi; 
               if(rssi >= -50) { // -50 as good as it gets
                 objids[objid + '_rssi_class'] = 'good'; 
