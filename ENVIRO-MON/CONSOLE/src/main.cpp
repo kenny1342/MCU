@@ -862,37 +862,32 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
 
   bool is_config_json = (filename.indexOf("config.json") >= 0); 
   
-  String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
-  Serial.println(logmessage);
-
   if (!index) {
-    logmessage = "Upload Start: " + String(filename);
     // open the file on first call and store the file handle in the request object
     request->_tempFile = SPIFFS.open("/" + filename, "w");
-    Serial.println(logmessage);
+    Serial.println("Upload Start: " + filename);
   }
 
   if (len) {
     // stream the incoming chunk to the opened file
     request->_tempFile.write(data, len);
-    logmessage = "Writing file: " + String(filename) + " index=" + String(index) + " len=" + String(len);
-    Serial.println(logmessage);
+    Serial.println("Writing file: " + filename + " index=" + index + " len=" + len);
   }
 
   if (final) {
-    logmessage = "Upload Complete: " + String(filename) + ",size: " + String(index + len);
     // close the file handle as the upload is now done
     request->_tempFile.close();
-    Serial.println(logmessage);
+    Serial.println("Upload Complete: " + filename + ",size: " + index + len);
     if(is_config_json) {
       AsyncWebServerResponse *response = request->beginResponse(200, "text/html", shouldReboot?"<html><head><body><h1>Configuration uploaded OK</h1>stand by while rebooting... <a href='/'>Home</a></body></html>":"<html><head></head><body>FAIL</body></html>");
       response->addHeader("Connection", "close");
       request->send(response);
-      delay(1000);
-      ESP.restart();
+      delay(300);
+      //ESP.restart();
+      shouldReboot = true;
 
     } else {
-      request->redirect("/");
+      request->redirect("/upload.html");
     }
     
   }

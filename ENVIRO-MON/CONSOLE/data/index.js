@@ -30,38 +30,42 @@ function formatSecs(input=0) {
   
 jQuery(document).ready(function () {
 
-  let testjson = '{"array":[  1,  2,  3],"boolean":true,"hostname":"console-01","port":80,"ntpserver":"192.168.30.1","devid_sensor1": "50406", "devid_sensor2": "33832","devid_sensor3": "22664","devid_hub": "2233","version":"1.2"  }';
-  console.log("Loading config.json");
+  function getConfig() {
+
+    let testjson = '{"array":[  1,  2,  3],"boolean":true,"hostname":"console-01","port":80,"ntpserver":"192.168.30.1","devid_sensor1": "50406", "devid_sensor2": "33832","devid_sensor3": "22664","devid_hub": "2233","version":"1.2"  }';
+    console.log("Loading config.json");
+    
+    //json = JSON.parse(testjson);
+    //localStorage.setItem('config', JSON.stringify(json));
   
-  //json = JSON.parse(testjson);
-  //localStorage.setItem('config', JSON.stringify(json));
-
-  fetch('/config.json') // Load configuration
-  .then(response => response.json())
-  .then(data => {            
-      localStorage.setItem('config', JSON.stringify(data));
-      console.log("/config.json loaded OK");
-      } // data =>
-  )
-  .catch(error => {
-      const timeTaken= (new Date())-start;
-      localStorage.setItem('loadtime', timeTaken);    
-      console.error('Error:', error);
-      alert("USING TEST DATA!\n"+error)
-      $("#chktestdata").prop('checked', true);
-      json = JSON.parse(testjson);
-      localStorage.setItem('config', JSON.stringify(json));
-    }
-  ); // fetch
-
-  // global
-  var config = JSON.parse(localStorage.getItem('config')); 
-  console.log(config);
+    fetch('/config.json?nocache='+Math.random()) // Load configuration
+    .then(response => response.json())
+    .then(data => {            
+        localStorage.setItem('config', JSON.stringify(data));
+        console.log("/config.json loaded OK");
+        } // data =>
+    )
+    .catch(error => {
+        const timeTaken= (new Date())-start;
+        localStorage.setItem('loadtime', timeTaken);    
+        console.error('Error:', error);
+        alert("USING TEST DATA!\n"+error)
+        $("#chktestdata").prop('checked', true);
+        json = JSON.parse(testjson);
+        localStorage.setItem('config', JSON.stringify(json));
+      }
+    ); // fetch
+  
+  
+  }
 
 
 
   function updateData_Pri3() {
     const start = new Date();
+
+    let config = JSON.parse(localStorage.getItem('config')); 
+    //console.log(config);
     
     fetch('/json/0x45') //REMOTE_SENSOR_DATA
     .then(response => response.json())
@@ -93,7 +97,8 @@ jQuery(document).ready(function () {
 
       let json;
       $("#loadtime").empty().append(localStorage.getItem('loadtime') + 'ms');
-
+      
+      let config = JSON.parse(localStorage.getItem('config')); 
 
       // -------------- REMOTE SENSORS ---------------------------------
       try {
@@ -214,8 +219,11 @@ jQuery(document).ready(function () {
       
     }, 900 ) ;
 
+    getConfig();
 
     setInterval(updateData_Pri3, 2000 ) ;
+
+    setInterval(getConfig, 60000*10 ) ;
   
     $("#table_pump_expand").click(function(){
 
@@ -225,7 +233,7 @@ jQuery(document).ready(function () {
          }
       });
 
-  });
+    });
 
   json = JSON.parse('{"cmd":99,"devid":50406,"sid":2,"data":{"value":30.4}}');
   console.log("DEBUG");
