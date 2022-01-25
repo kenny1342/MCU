@@ -172,6 +172,11 @@ jQuery(document).ready(function () {
             let prefix = '';
             if(sid == 3) prefix = ', '; // divider between temperatures when multiple sensors/ds18b20 is used
             if(typeof json[key].data["value"] != "undefined") { objids[objid + ''] = prefix + json[key].data["value"]; }
+            if(objid == 'devid_sensor2_sid_3') {
+              // also add value to heater radiator row
+              $("#devid_sensor2_sid_3x").empty().append( json[key].data["value"] );
+
+            }
           }
           //console.log("OBJIDS: ");  
           //console.log(objids);  
