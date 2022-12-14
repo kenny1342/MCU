@@ -1,5 +1,6 @@
 
-// minimal demo (tested with Arduino IDE and Addafruit ItsyBitsy 32u4 5V 16Mhz)
+// minimal demo (tested with Arduino IDE and Adafruit ItsyBitsy 32u4 5V 16Mhz)
+// https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
 
 #include "Keyboard.h"
 const int LED = 13;
@@ -21,8 +22,8 @@ void setup() {
 void loop() {
 
   digitalWrite(LED, 1);
-  Keyboard.write(KEY_RIGHT_CTRL);
+  Keyboard.write(KEY_F24);
   delay(200);
   digitalWrite(LED, 0);
-  delay(10000);
+  delay(1000);
 }
