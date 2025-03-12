@@ -5,3 +5,4 @@
 Pump controller board lower left and some relay modules and switchmode PS during prototyping stage
 ![Board pinout](20201223_125959.jpg)
 ![Board pinout](20201223_130011.jpg)
+![Board pinout](20210102_160239.jpg)
